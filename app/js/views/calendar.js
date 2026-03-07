@@ -242,13 +242,14 @@ var CalendarView = (function () {
       var saveBtn = document.getElementById('edit-save');
       saveBtn.disabled = true; saveBtn.textContent = '保存中...';
 
-      API.updateShift(dayData.date, s.name, newName, newStart, newEnd)
+      var origName = s.name;
+      API.updateShift(dayData.date, origName, newName, newStart, newEnd)
         .then(function (res) {
           overlay.hidden = true;
           if (res.success) {
-            updateLocal(dayData.date, s.name, newName, newStart, newEnd);
-            if (newName !== s.name) {
-              ShiftChangeView.setPending({ date: dayData.date, start: newStart, end: newEnd, from: s.name, to: newName });
+            updateLocal(dayData.date, origName, newName, newStart, newEnd);
+            if (newName !== origName) {
+              ShiftChangeView.setPending({ date: dayData.date, start: newStart, end: newEnd, from: origName, to: newName });
             }
             showToast('変更しました');
             loadDayDetail(); renderGrid();
