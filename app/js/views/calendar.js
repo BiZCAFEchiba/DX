@@ -2,7 +2,7 @@
 // views/calendar.js - シフトカレンダー画面
 // ============================================================
 var CalendarView = (function () {
-  var currentYear, currentMonth, selectedDate, shiftDates, selectedName;
+  var currentYear, currentMonth, selectedDate, shiftDates, selectedName, allStaff;
 
   function render() {
     var now = new Date();
@@ -11,6 +11,7 @@ var CalendarView = (function () {
     selectedDate = formatISO(now);
     shiftDates = {};
     selectedName = '';
+    allStaff = [];
 
     var main = document.getElementById('main-content');
     main.innerHTML =
@@ -45,7 +46,28 @@ var CalendarView = (function () {
       loadDayDetail();
     });
 
+    API.getStaff().then(function (res) {
+      if (res.success && res.data.staff) {
+        allStaff = res.data.staff.filter(function (s) { return s.active; }).map(function (s) { return s.name; });
+        populateNameFilter();
+      }
+    }).catch(function () {});
+
     loadMonth();
+  }
+
+  function populateNameFilter() {
+    var sel = document.getElementById('cal-name-filter');
+    if (!sel) return;
+    var current = sel.value;
+    sel.innerHTML = '<option value="">全員表示</option>';
+    allStaff.forEach(function (n) {
+      var opt = document.createElement('option');
+      opt.value = n; opt.textContent = n;
+      if (n === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    selectedName = sel.value;
   }
 
   function loadMonth() {
@@ -65,17 +87,10 @@ var CalendarView = (function () {
             s.staff.forEach(function (st) { nameSet[st.name] = true; });
           });
         }
-        var sel = document.getElementById('cal-name-filter');
-        if (sel) {
-          var current = sel.value;
-          sel.innerHTML = '<option value="">全員表示</option>';
-          Object.keys(nameSet).sort().forEach(function (n) {
-            var opt = document.createElement('option');
-            opt.value = n; opt.textContent = n;
-            if (n === current) opt.selected = true;
-            sel.appendChild(opt);
-          });
-          selectedName = sel.value;
+        // スタッフシートが読み込まれていない場合のみ月内スタッフで補完
+        if (allStaff.length === 0) {
+          allStaff = Object.keys(nameSet).sort();
+          populateNameFilter();
         }
         renderGrid();
         loadDayDetail();
@@ -175,11 +190,14 @@ var CalendarView = (function () {
     return Object.keys(names).sort();
   }
 
-  function nameDatalist() {
-    var names = allStaffNames();
-    var html = '<datalist id="staff-names-list">';
-    names.forEach(function (n) { html += '<option value="' + n + '">'; });
-    html += '</datalist>';
+  function staffSelectHtml(id, selectedValue) {
+    var names = allStaff.length > 0 ? allStaff : allStaffNames();
+    var html = '<select id="' + id + '" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;box-sizing:border-box;">';
+    html += '<option value="">選択してください</option>';
+    names.forEach(function (n) {
+      html += '<option value="' + n + '"' + (n === selectedValue ? ' selected' : '') + '>' + n + '</option>';
+    });
+    html += '</select>';
     return html;
   }
 
@@ -193,10 +211,9 @@ var CalendarView = (function () {
       '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">' +
         dayData.date.replace(/-/g, '/') + '（' + dayData.dayOfWeek + '）' +
       '</div>' +
-      nameDatalist() +
       '<div style="margin-bottom:12px;">' +
         '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">スタッフ名</label>' +
-        '<input id="edit-name" type="text" value="' + s.name + '" list="staff-names-list" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;box-sizing:border-box;">' +
+        staffSelectHtml('edit-name', s.name) +
       '</div>' +
       '<div style="display:flex;gap:12px;margin-bottom:16px;">' +
         '<div style="flex:1;">' +
@@ -249,10 +266,9 @@ var CalendarView = (function () {
       '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">' +
         dayData.date.replace(/-/g, '/') + '（' + dayData.dayOfWeek + '）' +
       '</div>' +
-      nameDatalist() +
       '<div style="margin-bottom:12px;">' +
         '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">スタッフ名</label>' +
-        '<input id="add-name" type="text" list="staff-names-list" placeholder="名前を入力" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;box-sizing:border-box;">' +
+        staffSelectHtml('add-name', '') +
       '</div>' +
       '<div style="display:flex;gap:12px;margin-bottom:16px;">' +
         '<div style="flex:1;">' +
