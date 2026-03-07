@@ -350,6 +350,83 @@ function addMeetupNotificationSetting_() {
 }
 
 /**
+ * 設定シートのテストモード行を正しい順番に整理する
+ * 順序: テストモード → Meetupテストモード → 誘致テストモード → フォーム同期
+ * GASエディタから1回手動実行するか、setupTriggers() 経由で自動実行される
+ */
+function fixTestModeOrder() {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_SETTINGS);
+    if (!sheet) return;
+
+    var ORDER = ['テストモード', 'Meetupテストモード', '誘致テストモード', 'フォーム同期'];
+    var lastRow = sheet.getLastRow();
+    var data = sheet.getRange(1, 1, lastRow, 3).getValues();
+
+    // 対象行のインデックス（0-based）を収集
+    var rowMap = {}; // key → { rowIdx, values }
+    for (var i = 1; i < data.length; i++) {
+      var key = String(data[i][0]);
+      if (ORDER.indexOf(key) !== -1) {
+        rowMap[key] = { rowIdx: i, values: data[i].slice() };
+      }
+    }
+
+    // 揃っていない（不足 or 順序が正しい）なら何もしない
+    var foundKeys = Object.keys(rowMap);
+    if (foundKeys.length < 2) return;
+
+    // テストモード行の位置を基準に、その直後に残りを挿入
+    var baseRow = rowMap['テストモード'] ? rowMap['テストモード'].rowIdx + 2 : null; // 1-indexed
+    if (!baseRow) return;
+
+    // ORDER通りに並んでいるか確認
+    var positions = ORDER.map(function(k) { return rowMap[k] ? rowMap[k].rowIdx : -1; });
+    var isOrdered = true;
+    var last = -1;
+    for (var p = 0; p < positions.length; p++) {
+      if (positions[p] === -1) continue;
+      if (positions[p] < last) { isOrdered = false; break; }
+      last = positions[p];
+    }
+    if (isOrdered) {
+      Logger.log('fixTestModeOrder: 既に正しい順序です');
+      return;
+    }
+
+    // テストモード行はアンカーとして残し、他の3行だけ削除して直後に再挿入
+    var MOVE_KEYS = ['Meetupテストモード', '誘致テストモード', 'フォーム同期'];
+    var deleteRowIdxs = MOVE_KEYS
+      .filter(function(k) { return rowMap[k]; })
+      .map(function(k) { return rowMap[k].rowIdx + 1; }); // 1-indexed
+    deleteRowIdxs.sort(function(a, b) { return b - a; }); // 後ろから削除
+    deleteRowIdxs.forEach(function(r) { sheet.deleteRow(r); });
+
+    // テストモード行の現在位置を再取得
+    var newData = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues();
+    var anchorRow = 1;
+    for (var n = 0; n < newData.length; n++) {
+      if (String(newData[n][0]) === 'テストモード') { anchorRow = n + 1; break; }
+    }
+
+    // アンカー直後にMOVE_KEYS順で再挿入
+    MOVE_KEYS.forEach(function(k, offset) {
+      if (!rowMap[k]) return;
+      sheet.insertRowAfter(anchorRow + offset);
+      sheet.getRange(anchorRow + offset + 1, 1, 1, 3).setValues([rowMap[k].values]);
+      sheet.getRange(anchorRow + offset + 1, 2).setDataValidation(
+        SpreadsheetApp.newDataValidation().requireCheckbox().build()
+      );
+    });
+
+    Logger.log('fixTestModeOrder: 順序を整理しました');
+  } catch (e) {
+    Logger.log('fixTestModeOrder エラー: ' + e.message);
+  }
+}
+
+/**
  * メニュー: 設定シートにMeetup通知設定行を追加する
  */
 function menuAddMeetupSetting() {
@@ -416,8 +493,15 @@ function updateTriggersFromSettings_() {
   // 設定シートに不足行があれば補完
   ensureMissingSettings_([
     ['Meetup日次更新実行時間（時）', 7, 'Meetup予定の取込・ID補完・参加数更新を毎日実行する時間（0〜23）'],
-    ['週次Meetup共有実行時間（時）', 18, '毎週日曜に来週Meetupをスタッフへ共有する時間（0〜23）']
+    ['週次Meetup共有実行時間（時）', 18, '毎週日曜に来週Meetupをスタッフへ共有する時間（0〜23）'],
+    ['テストモード', false, 'ONにするとシフトリマインドをテストグループへ送信（OFFで本番）'],
+    ['Meetupテストモード', false, 'ONにするとMeetup告知をテストグループへ送信（OFFで本番）'],
+    ['誘致テストモード', false, 'ONにすると誘致情報をテストグループへ送信（OFFで本番）'],
+    ['フォーム同期', false, 'ONにするとMeetup企業選択フォームの選択肢を自動更新（権限がある場合のみON）']
   ]);
+
+  // テストモード行の順序を整理
+  fixTestModeOrder();
 
   // 既存のトリガーを削除
   ['triggerShiftReminder', 'triggerShortageAlert', 'triggerFollowUpReminder',

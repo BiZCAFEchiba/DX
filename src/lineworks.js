@@ -269,7 +269,8 @@ function buildReminderMessage(shiftData, tomorrow) {
 
     if (staff.meetups && staff.meetups.length > 0) {
       staff.meetups.forEach(function(m) {
-        text += '  \uD83E\uDD1D \u5BFE\u9762Meetup: ' + m.time + ' ' + m.company + '\n';
+        var kindLabel = m.kind && m.kind.indexOf('貸切') !== -1 ? '貸切Meetup' : '対面Meetup';
+        text += '  🤝 ' + kindLabel + ': ' + m.time + ' ' + m.company + '\n';
       });
     }
   }

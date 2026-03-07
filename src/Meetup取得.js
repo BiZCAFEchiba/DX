@@ -2373,34 +2373,78 @@ function updateParticipationOnly() {
 }
 
 /**
- * Meetup予定の日次自動更新（毎日自動実行される本体）
+ * 日次更新ステップ1（毎朝設定時刻）
  * ① 30日分の新規イベントを差分追加
  * ② F列（予約ID）を補完
  * ③ E列（参加数）・G列（卒年）を更新
  */
 function dailyMeetupUpdate() {
-  Logger.log('=== dailyMeetupUpdate 開始 ===');
+  Logger.log('=== dailyMeetupUpdate（ステップ1）開始 ===');
   fetchAllUpcomingMeetups();
   fillMissingIds();
   updateParticipationOnly();
-  fillIndustryWithGemini_(); // 業界が空の企業をGeminiで自動分類
-  syncMeetupFormChoices_();  // フォームの選択肢を企業IDマスターと同期
-  Logger.log('=== dailyMeetupUpdate 完了 ===');
+  Logger.log('=== dailyMeetupUpdate（ステップ1）完了 ===');
 }
 
 /**
- * dailyMeetupUpdate の毎日自動実行トリガーを設定する（毎朝7時）
+ * 日次更新ステップ2（設定時刻+1時間後）
+ * ④ 業界を空の企業をGeminiで自動分類
+ * ⑤ フォームの選択肢を企業IDマスターと同期
+ */
+function dailyMeetupUpdateStep2() {
+  Logger.log('=== dailyMeetupUpdateStep2（ステップ2）開始 ===');
+  fillIndustryWithGemini_();
+  if (isFormSyncEnabled_()) {
+    syncMeetupFormChoices_();
+  } else {
+    Logger.log('フォーム同期: OFF（設定シートで無効化されています）');
+  }
+  Logger.log('=== dailyMeetupUpdateStep2（ステップ2）完了 ===');
+}
+
+/**
+ * 日次更新トリガーを設定する
+ * スプレッドシートの設定シートから基準時刻を読み取り、
+ * ステップ1（基準時刻）とステップ2（基準時刻+1）の2つのトリガーを登録する
  * ★ 初回のみ手動で実行すること
  */
 function setDailyMeetupTrigger() {
   deleteExistingTriggers_('fetchAllUpcomingMeetups');
   deleteExistingTriggers_('dailyMeetupUpdate');
+  deleteExistingTriggers_('dailyMeetupUpdateStep2');
+
+  // 設定シートから基準時刻を取得（デフォルト7時）
+  var baseHour = 7;
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_SETTINGS);
+    if (sheet) {
+      var data = sheet.getDataRange().getValues();
+      for (var i = 1; i < data.length; i++) {
+        if (String(data[i][0]) === 'Meetup日次更新実行時間（時）') {
+          var v = parseInt(data[i][1], 10);
+          if (!isNaN(v)) baseHour = v;
+          break;
+        }
+      }
+    }
+  } catch (e) {
+    Logger.log('設定読み取りエラー: ' + e.message);
+  }
+
   ScriptApp.newTrigger('dailyMeetupUpdate')
     .timeBased()
-    .atHour(7)
+    .atHour(baseHour)
     .everyDays(1)
     .create();
-  Logger.log('Meetup日次更新トリガー設定完了（毎日7時）');
+
+  ScriptApp.newTrigger('dailyMeetupUpdateStep2')
+    .timeBased()
+    .atHour(baseHour + 1)
+    .everyDays(1)
+    .create();
+
+  Logger.log('Meetup日次更新トリガー設定完了（ステップ1: ' + baseHour + '時 / ステップ2: ' + (baseHour + 1) + '時）');
 }
 
 /**
@@ -2437,13 +2481,33 @@ function setMeetupTrigger() {
 // ============================================================
 
 /**
- * 既存GoogleFormの指定セクションの選択肢質問を企業IDマスターの企業名で更新する
- * - LIST/MULTIPLE_CHOICEはCHECKBOX（複数選択）に変換する
- * - アピールポイント記入欄がなければ追加する
- * @param {number} targetSection - 更新対象のセクション番号（1始まり）。デフォルト26
+ * 設定シートの「フォーム同期」チェックボックスを読み込む（デフォルト: OFF）
  */
-function syncMeetupFormChoices_(targetSection) {
-  if (targetSection === undefined) targetSection = 26;
+function isFormSyncEnabled_() {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_SETTINGS);
+    if (!sheet) return false;
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === 'フォーム同期') {
+        return data[i][1] === true || String(data[i][1]).toUpperCase() === 'TRUE';
+      }
+    }
+  } catch (e) {
+    Logger.log('フォーム同期設定取得エラー: ' + e.message);
+  }
+  return false; // 未設定時はOFF
+}
+
+/**
+ * 既存GoogleFormの「【誘致に成功した企業】」セクションの選択肢質問を
+ * 企業IDマスターの企業名で更新する
+ * - LIST/MULTIPLE_CHOICEはCHECKBOX（複数選択）に変換する
+ * - 次のセクション（アピールポイント記入欄）も同期する
+ */
+function syncMeetupFormChoices_() {
+  const SECTION_TITLE = '【誘致に成功した企業】';
 
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(SHEET_COMPANY_IDS);
@@ -2460,69 +2524,128 @@ function syncMeetupFormChoices_(targetSection) {
   if (companies.length === 0) { Logger.log('syncMeetupFormChoices_: 企業名0件'); return 0; }
 
   const form = FormApp.openById(MEETUP_FORM_ID);
-  var items = form.getItems();
+  const items = form.getItems();
 
-  // 対象セクション内の「最初の選択肢質問」と「アピールポイント欄の有無」を調べる
-  var currentSection = 1;
-  var foundItem = null;
-  var foundIndex = -1;
-  var foundType = null;
-  var appealParaExists = false;
-
+  // タイトルで対象セクションのPAGE_BREAKを検索
+  var sec26PBIndex = -1;
+  var sec27PBIndex = -1;
+  var foundFirst = false;
   for (var i = 0; i < items.length; i++) {
-    var t = items[i].getType();
-    if (t === FormApp.ItemType.PAGE_BREAK) { currentSection++; continue; }
-    if (currentSection !== targetSection) continue;
-
-    if (!foundItem && (t === FormApp.ItemType.CHECKBOX ||
-        t === FormApp.ItemType.LIST || t === FormApp.ItemType.MULTIPLE_CHOICE)) {
-      foundItem = items[i];
-      foundIndex = i;
-      foundType = t;
-    }
-    if (t === FormApp.ItemType.PARAGRAPH_TEXT &&
-        String(items[i].getTitle()).indexOf('アピールポイント') !== -1) {
-      appealParaExists = true;
+    if (items[i].getType() !== FormApp.ItemType.PAGE_BREAK) continue;
+    var pbTitle = String(items[i].getTitle() || '').trim();
+    if (!foundFirst && pbTitle === SECTION_TITLE) {
+      sec26PBIndex = i;
+      foundFirst = true;
+    } else if (foundFirst && sec27PBIndex < 0) {
+      sec27PBIndex = i;
+      break;
     }
   }
 
-  if (!foundItem) {
-    Logger.log('syncMeetupFormChoices_: セクション' + targetSection + 'に選択肢質問が見つかりません');
+  if (sec26PBIndex < 0) {
+    Logger.log('syncMeetupFormChoices_: セクション「' + SECTION_TITLE + '」が見つかりません');
     return 0;
   }
 
-  // CHECKBOXでなければ変換する（LIST/MULTIPLE_CHOICE → CHECKBOX）
-  var checkboxItem;
-  var checkboxIndex = foundIndex;
+  // --- 企業選択チェックボックスを同期 ---
+  syncFormSection26_(form, sec26PBIndex, sec27PBIndex, companies);
 
-  if (foundType === FormApp.ItemType.CHECKBOX) {
-    checkboxItem = foundItem.asCheckboxItem();
-    checkboxItem.setChoiceValues(companies);
-    Logger.log('CHECKBOX選択肢を更新: ' + companies.length + '社');
+  // --- 企業ごとのアピールポイント記入欄を同期 ---
+  if (sec27PBIndex >= 0) {
+    syncFormSection27_(form, sec27PBIndex, companies);
   } else {
-    var oldTitle = foundItem.getTitle();
-    var newCb = form.addCheckboxItem();
-    newCb.setTitle(oldTitle || '企業名');
-    newCb.setChoiceValues(companies);
-    var fresh1 = form.getItems();
-    form.moveItem(fresh1.length - 1, foundIndex);    // 正しい位置に移動
-    form.deleteItem(foundIndex + 1);                  // 旧アイテムを削除
-    checkboxItem = newCb;
-    Logger.log('LIST/RADIO→CHECKBOXに変換: 「' + oldTitle + '」 ' + companies.length + '社');
+    Logger.log('syncMeetupFormChoices_: アピールポイントセクションが見つかりません（スキップ）');
   }
 
-  // アピールポイント記入欄がなければセクション26のチェックボックスの直後に追加
-  if (!appealParaExists) {
-    var newPara = form.addParagraphTextItem();
-    newPara.setTitle(MEETUP_APPEAL_QUESTION_TITLE);
-    newPara.setHelpText('例）株式会社ABC: 若いうちから裁量がある\nXYZ株式会社: 海外でも活躍できる\n（1社1行・企業名は選択した企業と一致させてください）');
-    var fresh2 = form.getItems();
-    form.moveItem(fresh2.length - 1, checkboxIndex + 1);
-    Logger.log('アピールポイント記入欄を追加（セクション' + targetSection + '）');
-  }
-
-  Logger.log('syncMeetupFormChoices_完了: セクション' + targetSection + ' ' + companies.length + '社');
+  Logger.log('syncMeetupFormChoices_完了: ' + companies.length + '社');
   return companies.length;
+}
+
+/**
+ * 企業選択チェックボックスを更新/作成する
+ * @param {GoogleAppsScript.Forms.Form} form
+ * @param {number} sec26PBIndex - 「【誘致に成功した企業】」PAGE_BREAKのインデックス
+ * @param {number} sec27PBIndex - 次のPAGE_BREAKのインデックス（-1なら末尾まで）
+ * @param {string[]} companies
+ */
+function syncFormSection26_(form, sec26PBIndex, sec27PBIndex, companies) {
+  var items = form.getItems();
+  var endIndex = sec27PBIndex >= 0 ? sec27PBIndex : items.length;
+  var foundItem = null;
+
+  for (var i = sec26PBIndex + 1; i < endIndex; i++) {
+    var t = items[i].getType();
+    if (t === FormApp.ItemType.CHECKBOX ||
+        t === FormApp.ItemType.LIST ||
+        t === FormApp.ItemType.MULTIPLE_CHOICE) {
+      foundItem = items[i];
+      break;
+    }
+  }
+
+  if (foundItem) {
+    var ft = foundItem.getType();
+    if (ft === FormApp.ItemType.CHECKBOX) {
+      foundItem.asCheckboxItem().setChoiceValues(companies);
+    } else if (ft === FormApp.ItemType.MULTIPLE_CHOICE) {
+      foundItem.asMultipleChoiceItem().setChoiceValues(companies);
+    } else {
+      foundItem.asListItem().setChoiceValues(companies);
+    }
+    Logger.log('企業選択チェックボックス 選択肢更新: ' + companies.length + '社');
+  } else {
+    var newCb = form.addCheckboxItem();
+    newCb.setTitle('企業を選択してください（複数選択可）');
+    newCb.setChoiceValues(companies);
+    var fi = form.getItems();
+    form.moveItem(fi.length - 1, sec26PBIndex + 1);
+    Logger.log('企業選択チェックボックス 新規作成: ' + companies.length + '社');
+  }
+}
+
+/**
+ * 企業ごとのアピールポイント記入欄を同期する
+ * @param {GoogleAppsScript.Forms.Form} form
+ * @param {number} sec27PBIndex - アピールポイントセクションのPAGE_BREAKのインデックス
+ * @param {string[]} companies
+ */
+function syncFormSection27_(form, sec27PBIndex, companies) {
+  var items = form.getItems();
+  var existingItems = []; // { item, title }
+
+  // 次のPAGE_BREAKまでの範囲でPARAGRAPH_TEXTを収集
+  for (var i = sec27PBIndex + 1; i < items.length; i++) {
+    var t = items[i].getType();
+    if (t === FormApp.ItemType.PAGE_BREAK) break;
+    if (t === FormApp.ItemType.PARAGRAPH_TEXT) {
+      existingItems.push({ item: items[i], title: String(items[i].getTitle()).trim() });
+    }
+  }
+
+  var existingTitles = existingItems.map(function(x) { return x.title; });
+
+  // 不要な企業の記入欄を削除
+  existingItems.forEach(function(entry) {
+    if (companies.indexOf(entry.title) === -1) {
+      form.deleteItem(entry.item);
+      Logger.log('アピールポイント欄 削除: ' + entry.title);
+    }
+  });
+
+  // 新規企業の記入欄を追加
+  var addedCount = 0;
+  for (var c = 0; c < companies.length; c++) {
+    if (existingTitles.indexOf(companies[c]) !== -1) continue;
+    var newPara = form.addParagraphTextItem();
+    newPara.setTitle(companies[c]);
+    newPara.setHelpText('アピールポイントを記入してください');
+    var fi = form.getItems();
+    form.moveItem(fi.length - 1, sec27PBIndex + 1 + addedCount);
+    addedCount++;
+    Logger.log('アピールポイント欄 追加: ' + companies[c]);
+  }
+
+  Logger.log('アピールポイント欄 同期完了: 追加' + addedCount + '件');
 }
 
 /**

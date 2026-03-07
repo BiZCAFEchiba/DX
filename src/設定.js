@@ -19,8 +19,53 @@ const LINEWORKS_CLIENT_ID = 'iAWkZErjLqvOtg8cAkE7';
 const LINEWORKS_CLIENT_SECRET = 'TR2q7Utpio';
 const LINEWORKS_SERVICE_ACCOUNT = 'mi56a.serviceaccount@enrission-46cafe';
 const LINEWORKS_BOT_ID = '11633064'; // シフトリマインダーBot
-// const LINEWORKS_CHANNEL_ID = '87395b42-402f-e1fc-a646-39b288150c5e'; // 本番グループ
-const LINEWORKS_CHANNEL_ID = '6181d196-faeb-3828-33ce-239454a2967c'; // テストグループ
+const LINEWORKS_CHANNEL_ID_PROD = '87395b42-402f-e1fc-a646-39b288150c5e'; // シフトリマインド本番グループ
+const LINEWORKS_CHANNEL_ID_TEST = '6181d196-faeb-3828-33ce-239454a2967c'; // テストグループ（共通）
+var LINEWORKS_CHANNEL_ID = LINEWORKS_CHANNEL_ID_PROD;
+
+const MEETUP_CHANNEL_ID_PROD = '343ae3b2-19ee-14e6-ae62-e01b5ae02be5'; // Meetup告知本番グループ
+const MEETUP_CHANNEL_ID_TEST = '6181d196-faeb-3828-33ce-239454a2967c'; // テストグループ（共通）
+var MEETUP_CHANNEL_ID = MEETUP_CHANNEL_ID_PROD;
+
+const YUCHI_CHANNEL_ID_PROD = 'c3797a6d-7c30-2d0c-6390-c8cb62a70d92'; // 誘致情報本番グループ
+const YUCHI_CHANNEL_ID_TEST = '6181d196-faeb-3828-33ce-239454a2967c'; // テストグループ（共通）
+var YUCHI_CHANNEL_ID = YUCHI_CHANNEL_ID_PROD;
+
+/**
+ * 設定シートのテストモード設定を読み込み、各BotのチャンネルIDを更新する
+ * 各Botのエントリ関数の先頭で呼び出すこと
+ *
+ * 設定シートの行:
+ *   テストモード          → シフトリマインドBot (LINEWORKS_CHANNEL_ID)
+ *   Meetupテストモード    → Meetup告知Bot     (MEETUP_CHANNEL_ID)
+ *   誘致テストモード      → 誘致Bot           (YUCHI_CHANNEL_ID)
+ */
+function initChannelId_() {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_SETTINGS);
+    if (!sheet) return;
+    var data = sheet.getDataRange().getValues();
+
+    for (var i = 1; i < data.length; i++) {
+      var key = String(data[i][0]);
+      var isTest = data[i][1] === true || String(data[i][1]).toUpperCase() === 'TRUE';
+
+      if (key === 'テストモード') {
+        LINEWORKS_CHANNEL_ID = isTest ? LINEWORKS_CHANNEL_ID_TEST : LINEWORKS_CHANNEL_ID_PROD;
+        Logger.log('シフトリマインドチャンネル: ' + (isTest ? 'テスト' : '本番'));
+      } else if (key === 'Meetupテストモード') {
+        MEETUP_CHANNEL_ID = isTest ? MEETUP_CHANNEL_ID_TEST : MEETUP_CHANNEL_ID_PROD;
+        Logger.log('Meetupチャンネル: ' + (isTest ? 'テスト' : '本番'));
+      } else if (key === '誘致テストモード') {
+        YUCHI_CHANNEL_ID = isTest ? YUCHI_CHANNEL_ID_TEST : YUCHI_CHANNEL_ID_PROD;
+        Logger.log('誘致チャンネル: ' + (isTest ? 'テスト' : '本番'));
+      }
+    }
+  } catch (e) {
+    Logger.log('チャンネルID初期化エラー: ' + e.message);
+  }
+}
 
 // --- Meetup企業選択フォーム ---
 const MEETUP_FORM_ID = '16jvJ4z6reUwimTsVZQsU6s0Rf3US2VpQpA7k7amNOr0';

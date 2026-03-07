@@ -7,6 +7,7 @@
  * 毎週日曜 設定シートの「週次Meetup共有実行時間」に実行
  */
 function weeklyMeetupCarousel() {
+  initChannelId_();
   Logger.log('=== 週次Meetup送信 開始 ===');
 
   var result = getMeetupsNextWeekGrouped_();
@@ -75,20 +76,23 @@ function getMeetupsNextWeekGrouped_() {
     var company = String(data[i][1] || '').trim();
     if (!company) continue;
 
-    var kind      = String(data[i][3] || '').trim();
-    var remaining = calcMeetupRemaining_(String(data[i][4] || '')); // E列
-    var master    = masterMap[company] || {};
+    var kind       = String(data[i][3] || '').trim();
+    var remaining  = calcMeetupRemaining_(String(data[i][4] || '')); // E列: 残席
+    var targetYear = String(data[i][6] || '').trim(); // G列: 卒年
+    var master     = masterMap[company] || {};
 
     if (!companyMap[company]) {
       companyMap[company] = {
         name:       company,
-        industry:   master.industry   || '',
-        theme:      master.theme      || '',
-        targetYear: master.targetYear || '',
+        industry:   master.industry || '',
+        theme:      master.theme    || '',
+        targetYear: targetYear,
         firstDate:  d,
         sessions:   []
       };
       companyOrder.push(company);
+    } else if (!companyMap[company].targetYear && targetYear) {
+      companyMap[company].targetYear = targetYear;
     }
 
     companyMap[company].sessions.push({
@@ -136,7 +140,7 @@ function buildCompanyCard_(c) {
 
   c.sessions.forEach(function(s) {
     var line = '📅 ' + formatMeetupDateJP_(s.date) + ' ' + s.time;
-    line += '　' + (s.inPerson ? '🔴対面' : '🔵オンライン');
+    line += '　' + kindEmoji_(s.kind) + s.kind;
     if (s.remaining) line += '　' + s.remaining;
     lines.push(line);
   });
@@ -167,16 +171,14 @@ function filterAndSelectCompanies_(companies) {
       : null;
   }).filter(Boolean);
 
-  // 対面あり企業とオンラインのみ企業に分類
-  var inPerson = available.filter(function(c) {
-    return c.sessions.some(function(s) { return s.inPerson; });
-  });
-  var onlineOnly = available.filter(function(c) {
-    return c.sessions.every(function(s) { return !s.inPerson; });
-  });
+  // 優先度でグループ分け: 特別イベント > 対面 > 貸切 > オンライン
+  var special   = available.filter(function(c) { return c.sessions.some(function(s) { return s.kind.includes('特別'); }); });
+  var inPerson  = available.filter(function(c) { return !special.includes(c) && c.sessions.some(function(s) { return s.inPerson && !s.kind.includes('貸切'); }); });
+  var kasshiki  = available.filter(function(c) { return !special.includes(c) && c.sessions.some(function(s) { return s.kind.includes('貸切'); }); });
+  var onlineOnly = available.filter(function(c) { return !special.includes(c) && !inPerson.includes(c) && !kasshiki.includes(c); });
 
-  // 対面は全社必ず含める
-  var selected = inPerson.slice();
+  // 特別イベント・対面・貸切は全社必ず含める
+  var selected = special.concat(inPerson).concat(kasshiki);
 
   // 8社未満ならオンラインからランダムで補完
   var need = MAX - selected.length;
@@ -211,6 +213,43 @@ function isInPerson_(kind) {
 }
 
 /**
+ * 種別の優先度を返す（小さいほど優先）
+ * 特別イベント > 対面 > 貸切 > オンライン
+ * @param {string} kind
+ * @returns {number}
+ */
+function kindPriority_(kind) {
+  if (kind.includes('特別')) return 0;
+  if (!kind.includes('オンライン') && !kind.includes('貸切')) return 1; // 対面
+  if (kind.includes('貸切')) return 2;
+  return 3; // オンライン
+}
+
+/**
+ * 種別に対応する絵文字を返す
+ * @param {string} kind
+ * @returns {string}
+ */
+function kindEmoji_(kind) {
+  if (kind.includes('特別')) return '🟢';
+  if (kind.includes('貸切')) return '🟡';
+  if (!kind.includes('オンライン')) return '🔴';
+  return '🔵';
+}
+
+/**
+ * セッション一覧から企業全体の代表絵文字を返す（最優先種別を使用）
+ * @param {Array} sessions
+ * @returns {string}
+ */
+function companyIndicator_(sessions) {
+  var best = sessions.reduce(function(acc, s) {
+    return kindPriority_(s.kind) < kindPriority_(acc.kind) ? s : acc;
+  }, sessions[0]);
+  return kindEmoji_(best.kind);
+}
+
+/**
  * list_template を Meetup Bot でグループに送信する（最大4社/回）
  * @param {Array} companies
  * @returns {boolean}
@@ -220,18 +259,27 @@ function sendMeetupListTemplate_(companies) {
   if (!token) return false;
 
   var elements = companies.map(function(c) {
-    var hasInPerson = c.sessions.some(function(s) { return s.inPerson; });
-    var lines = [];
-    if (c.targetYear) lines.push('🎓 ' + c.targetYear);
-    lines.push('');
-    c.sessions.forEach(function(s) {
-      var line = '📅 ' + formatMeetupDateJP_(s.date) + ' ' + s.time;
-      if (s.remaining) line += '　' + s.remaining;
-      lines.push(line);
+    var displayName = c.name.replace(/株式会社\s*/g, '').replace(/\s*株式会社/g, '').trim();
+    var indicator = companyIndicator_(c.sessions);
+    var sessionLines = c.sessions.map(function(s) {
+      var compactTime = s.time.replace(/\s*[~〜]\s*/g, '~');
+      var compactRemaining = s.remaining ? s.remaining.replace('残席 ', '残').replace('残席', '残') : '';
+      var line = formatMeetupDateJP_(s.date) + compactTime;
+      if (compactRemaining) line += ' ' + compactRemaining;
+      return line;
     });
+    var lines = [];
+    if (c.targetYear) {
+      var years = c.targetYear.split(/[\s　]+/).map(function(y) { return y.replace('卒', ''); }).filter(Boolean);
+      var yearStr = years.length > 0 ? years.join('・') + '卒' : c.targetYear;
+      lines.push('🎓 ' + yearStr);
+    }
+    sessionLines.forEach(function(sl) { lines.push(sl); });
+    var subtitle = lines.join('\n');
+    Logger.log('【subtitle】' + JSON.stringify(subtitle));
     return {
-      title:    '🏢 ' + c.name + '　' + (hasInPerson ? '🔴' : '🔵'),
-      subtitle: lines.join('\n'),
+      title:    '🏢 ' + displayName + '　' + indicator,
+      subtitle: subtitle,
       action: {
         type:  'message',
         label: 'テーマを見る',
@@ -241,7 +289,7 @@ function sendMeetupListTemplate_(companies) {
   });
 
   var url = LINEWORKS_API_BASE + '/bots/' + MEETUP_BOT_ID +
-            '/channels/' + LINEWORKS_CHANNEL_ID + '/messages';
+            '/channels/' + MEETUP_CHANNEL_ID + '/messages';
   var body = { content: { type: 'list_template', elements: elements } };
 
   try {
@@ -275,7 +323,7 @@ function sendMeetupGroupText_(text) {
   if (!token) return false;
 
   var url = LINEWORKS_API_BASE + '/bots/' + MEETUP_BOT_ID +
-            '/channels/' + LINEWORKS_CHANNEL_ID + '/messages';
+            '/channels/' + MEETUP_CHANNEL_ID + '/messages';
   var body = { content: { type: 'text', text: text } };
 
   try {

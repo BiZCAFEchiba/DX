@@ -29,9 +29,18 @@ function doPost(e) {
 }
 
 /**
- * HTTP GETリクエストを処理する（ブラウザアクセス確認用）
+ * HTTP GETリクエストを処理する
+ * ?page=yuchi で誘致フォームを表示
  */
 function doGet(e) {
+  if (e && e.parameter && e.parameter.page === 'yuchi') {
+    var template = HtmlService.createTemplateFromFile('誘致フォーム');
+    template.staffName = e.parameter.name || '';
+    template.preselected = e.parameter.companies || '';
+    return template.evaluate()
+      .setTitle('誘致情報入力')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
   return ContentService.createTextOutput('Shift Reminder Bot is active.');
 }
 
@@ -40,6 +49,7 @@ function doGet(e) {
  * 実行推奨時間: 12:00頃
  */
 function triggerShiftReminder() {
+  initChannelId_();
   Logger.log('=== シフトリマインド 実行開始 ===');
 
   const now = new Date();
@@ -88,9 +98,9 @@ function triggerShiftReminder() {
   // --- Step 2.6: Meetup重複チェック（対面開催のみ、設定ONの場合） ---
   if (isMeetupNotificationEnabled_()) {
     var dayMeetups = getMeetupsForDay_(nextBusinessDay);
-    // 対面開催のみに絞り込む（kind に「対面」を含むもの）
+    // 対面・貸切のみに絞り込む（オンライン除外）
     var inPersonMeetups = dayMeetups.filter(function(m) {
-      return m.kind && m.kind.indexOf('対面') !== -1;
+      return m.kind && (m.kind.indexOf('対面') !== -1 || m.kind.indexOf('貸切') !== -1);
     });
     if (inPersonMeetups.length > 0) {
       Logger.log('当日対面Meetup件数: ' + inPersonMeetups.length);
@@ -478,10 +488,10 @@ function writeLogToSheets_(dateStr, staffCount, method, result, detail) {
     }
     sheet.appendRow([new Date(), dateStr, staffCount, method, result, detail]);
 
-    // 100行超えたら古い行を削除して最新50行だけ残す（ヘッダー除く）
+    // 200行超えたら古い行を削除して最新100行だけ残す（ヘッダー除く）
     var lastRow = sheet.getLastRow();
-    if (lastRow > 101) { // ヘッダー1行 + データ100行
-      var deleteCount = lastRow - 51; // ヘッダー1行 + 最新50行 を残す
+    if (lastRow > 201) { // ヘッダー1行 + データ200行
+      var deleteCount = lastRow - 101; // ヘッダー1行 + 最新100行 を残す
       sheet.deleteRows(2, deleteCount);
     }
   } catch (e) {
