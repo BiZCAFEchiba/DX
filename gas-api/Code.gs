@@ -3,6 +3,26 @@
 // ============================================================
 
 /**
+ * PINの初期設定（初回のみ手動実行）
+ * 設定シートに manager_pin / staff_pin がなければ追加する
+ */
+function setupInitialPins() {
+  var sheet = getOrCreateSheet(SHEET_SETTINGS, ['キー', '値']);
+  var data = sheet.getDataRange().getValues();
+  var keys = data.map(function(r) { return String(r[0]); });
+
+  if (keys.indexOf('manager_pin') === -1) {
+    sheet.appendRow(['manager_pin', '1234']);
+    Logger.log('manager_pin を 1234 で登録しました');
+  }
+  if (keys.indexOf('staff_pin') === -1) {
+    sheet.appendRow(['staff_pin', '0000']);
+    Logger.log('staff_pin を 0000 で登録しました');
+  }
+  Logger.log('PIN初期設定完了。GASエディタ → デプロイ → Webアプリとして管理 でアクセス権限を確認してください。');
+}
+
+/**
  * GETリクエスト処理
  */
 function doGet(e) {

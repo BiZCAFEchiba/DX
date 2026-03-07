@@ -3,7 +3,7 @@
 // ============================================================
 var App = (function () {
   // GAS Web App デプロイURL（デプロイ後にここに設定）
-  var GAS_WEB_APP_URL = '';
+  var GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzm2gjYNZPZKFXPW-jtOTWDK6_tKEbIsS01gYFGmaPNPQWo1mZuUaYEDmJk6zWxqFaS/exec';
 
   var views = {
     login:        LoginView,

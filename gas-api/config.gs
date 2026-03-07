@@ -4,7 +4,7 @@
 
 // --- Google Sheets (データDB) ---
 // PWA用スプレッドシートのID（新規作成後に設定）
-var SPREADSHEET_ID = 'xxxxxxxxxxxxxxxxx';
+var SPREADSHEET_ID = '1QOGLA_VL0x2FlD3WV_Vc6LJitGLI9yoCZTGbU6aCbFo';
 
 // シート名
 var SHEET_SHIFTS  = 'シフト';
