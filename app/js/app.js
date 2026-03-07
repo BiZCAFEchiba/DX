@@ -1,62 +1,22 @@
 // ============================================================
-// app.js - アプリ初期化・ルーティング
+// app.js - アプリ初期化
 // ============================================================
 var App = (function () {
-  // GAS Web App デプロイURL（デプロイ後にここに設定）
   var GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzm2gjYNZPZKFXPW-jtOTWDK6_tKEbIsS01gYFGmaPNPQWo1mZuUaYEDmJk6zWxqFaS/exec';
-
-  var views = {
-    login:        LoginView,
-    dashboard:    DashboardView,
-    calendar:     CalendarView,
-    upload:       UploadView,
-    staffManager: StaffManagerView,
-    reminder:     ReminderView,
-    logs:         LogsView
-  };
 
   function init() {
     API.setBaseUrl(GAS_WEB_APP_URL);
 
-    // Service Worker 登録
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(function (err) {
-        console.log('SW registration failed:', err);
-      });
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
     }
 
-    // ログアウトボタン
-    document.getElementById('btn-logout').addEventListener('click', function () {
-      Auth.logout();
-      navigate('login');
-    });
-
-    // 初期画面（認証なし）
-    navigate('dashboard');
+    CalendarView.render();
   }
 
-  function navigate(viewName) {
-
-    var view = views[viewName];
-    if (view && view.render) {
-      view.render();
-    }
-
-    // ログイン画面ではナビ・ログアウト非表示
-    if (viewName === 'login') {
-      Nav.hide();
-      document.getElementById('btn-logout').hidden = true;
-    } else {
-      document.getElementById('btn-logout').hidden = false;
-    }
-  }
-
-  // 起動
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
-
-  return { navigate: navigate };
 })();

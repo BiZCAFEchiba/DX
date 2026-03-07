@@ -90,16 +90,12 @@ var API = (function () {
     return post({ action: 'deleteStaff', name: name });
   }
 
-  function sendReminder(date) {
-    return post({ action: 'sendReminder', date: date });
+  function updateShift(date, staffName, newStart, newEnd) {
+    return post({ action: 'updateShift', date: date, staffName: staffName, newStart: newStart, newEnd: newEnd });
   }
 
   return {
     setBaseUrl: setBaseUrl, getBaseUrl: getBaseUrl,
-    auth: auth, getShifts: getShifts, getStaff: getStaff,
-    getLogs: getLogs, getPreview: getPreview,
-    uploadPdf: uploadPdf, saveParsedShifts: saveParsedShifts,
-    updateStaff: updateStaff, deleteStaff: deleteStaff,
-    sendReminder: sendReminder
+    getShifts: getShifts, updateShift: updateShift
   };
 })();

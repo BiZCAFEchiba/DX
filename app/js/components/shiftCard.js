@@ -3,32 +3,28 @@
 // ============================================================
 var ShiftCard = (function () {
 
-  /**
-   * 日付別シフトカードのHTMLを生成
-   * @param {{ date: string, dayOfWeek: string, staff: Array }} dayData
-   * @param {string} [label] - カード上部のラベル (例: '今日', '明日')
-   * @returns {string} HTML文字列
-   */
-  function render(dayData, label) {
+  function render(dayData, onEdit) {
     var displayDate = formatDisplayDate(dayData.date, dayData.dayOfWeek);
-    var headerLabel = label ? label + ' \u2014 ' : '';
 
     var html = '<div class="card">';
-    html += '<div class="card-header"><span class="icon">\uD83D\uDCC5</span>' + headerLabel + displayDate + '</div>';
+    html += '<div class="card-header"><span class="icon">📅</span>' + displayDate + '</div>';
 
     if (!dayData.staff || dayData.staff.length === 0) {
-      html += '<div class="empty-state"><span class="text">\u30B7\u30D5\u30C8\u306A\u3057</span></div>';
+      html += '<div class="empty-state"><span class="text">シフトなし</span></div>';
     } else {
       html += '<ul class="shift-list">';
-      dayData.staff.forEach(function (s) {
-        html += '<li class="shift-item">';
+      dayData.staff.forEach(function (s, idx) {
+        html += '<li class="shift-item" style="display:flex;align-items:center;justify-content:space-between;">';
+        html += '<div>';
         html += '<div class="shift-name-time">';
         html += '<span class="shift-name">' + escHtml(s.name) + '</span>';
-        html += '<span class="shift-time">' + s.start + '\u301C' + s.end + '</span>';
+        html += '<span class="shift-time">' + s.start + '〜' + s.end + '</span>';
         html += '</div>';
         if (s.tasks && s.tasks.length > 0) {
-          html += '<div class="shift-tasks">\uD83D\uDCCB ' + escHtml(s.tasks.join(' / ')) + '</div>';
+          html += '<div class="shift-tasks">📋 ' + escHtml(s.tasks.join(' / ')) + '</div>';
         }
+        html += '</div>';
+        html += '<button class="btn-edit-shift" data-idx="' + idx + '" style="flex-shrink:0;margin-left:8px;padding:6px 12px;background:var(--gray-100);border:none;border-radius:6px;font-size:0.85rem;cursor:pointer;">変更</button>';
         html += '</li>';
       });
       html += '</ul>';
@@ -38,12 +34,9 @@ var ShiftCard = (function () {
     return html;
   }
 
-  /**
-   * YYYY-MM-DD を表示用に変換
-   */
   function formatDisplayDate(dateStr, dow) {
     var parts = dateStr.split('-');
-    return parseInt(parts[1]) + '\u6708' + parseInt(parts[2]) + '\u65E5\uFF08' + (dow || '') + '\uFF09';
+    return parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日（' + (dow || '') + '）';
   }
 
   function escHtml(str) {
