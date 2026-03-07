@@ -31,25 +31,11 @@ var App = (function () {
       navigate('login');
     });
 
-    // 初期画面
-    if (Auth.isLoggedIn()) {
-      navigate('dashboard');
-    } else {
-      navigate('login');
-    }
+    // 初期画面（認証なし）
+    navigate('dashboard');
   }
 
   function navigate(viewName) {
-    // 未ログインならloginへ
-    if (viewName !== 'login' && !Auth.isLoggedIn()) {
-      viewName = 'login';
-    }
-
-    // 店長専用画面チェック
-    var managerOnly = ['upload', 'staffManager', 'reminder', 'logs'];
-    if (managerOnly.indexOf(viewName) >= 0 && !Auth.isManager()) {
-      viewName = 'dashboard';
-    }
 
     var view = views[viewName];
     if (view && view.render) {
