@@ -31,24 +31,14 @@ function doGet(e) {
 
   try {
     switch (action) {
-      case 'auth':
-        return jsonResponse(handleAuth(params.pin));
       case 'getShifts':
-        return withAuth(params.token, 'staff', function () {
-          return getShifts(params.from, params.to);
-        });
+        return jsonResponse(getShifts(params.from, params.to));
       case 'getStaff':
-        return withAuth(params.token, 'manager', function () {
-          return getStaffList();
-        });
+        return jsonResponse(getStaffList());
       case 'getLogs':
-        return withAuth(params.token, 'manager', function () {
-          return getSendLogs(Number(params.limit) || 30);
-        });
+        return jsonResponse(getSendLogs(Number(params.limit) || 30));
       case 'getPreview':
-        return withAuth(params.token, 'manager', function () {
-          return getReminderPreview(params.date);
-        });
+        return jsonResponse(getReminderPreview(params.date));
       default:
         return jsonResponse({ success: false, error: '不明なaction: ' + action });
     }
@@ -72,26 +62,12 @@ function doPost(e) {
 
   try {
     switch (action) {
-      case 'uploadPdf':
-        return withAuth(body.token, 'manager', function () {
-          return uploadAndParsePdf(body.fileBase64, body.fileName);
-        });
-      case 'saveParsedShifts':
-        return withAuth(body.token, 'manager', function () {
-          return saveParsedShifts(body.shifts);
-        });
-      case 'updateStaff':
-        return withAuth(body.token, 'manager', function () {
-          return updateStaff(body.name, body.accountId, body.originalName);
-        });
-      case 'deleteStaff':
-        return withAuth(body.token, 'manager', function () {
-          return deleteStaff(body.name);
-        });
-      case 'sendReminder':
-        return withAuth(body.token, 'manager', function () {
-          return sendManualReminder(body.date);
-        });
+      case 'updateShift':
+        return jsonResponse(updateShiftTime(body.date, body.origName, body.newName, body.newStart, body.newEnd));
+      case 'addShift':
+        return jsonResponse(addShift(body.date, body.dayOfWeek, body.staffName, body.start, body.end));
+      case 'deleteShift':
+        return jsonResponse(deleteShiftByName(body.date, body.staffName));
       default:
         return jsonResponse({ success: false, error: '不明なaction: ' + action });
     }

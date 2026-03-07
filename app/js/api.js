@@ -33,9 +33,17 @@ var API = (function () {
     return get({ action: 'getShifts', from: from, to: to });
   }
 
-  function updateShift(date, staffName, newStart, newEnd) {
-    return post({ action: 'updateShift', date: date, staffName: staffName, newStart: newStart, newEnd: newEnd });
+  function updateShift(date, origName, newName, newStart, newEnd) {
+    return post({ action: 'updateShift', date: date, origName: origName, newName: newName, newStart: newStart, newEnd: newEnd });
   }
 
-  return { setBaseUrl: setBaseUrl, getShifts: getShifts, updateShift: updateShift };
+  function addShift(date, dayOfWeek, staffName, start, end) {
+    return post({ action: 'addShift', date: date, dayOfWeek: dayOfWeek, staffName: staffName, start: start, end: end });
+  }
+
+  function deleteShift(date, staffName) {
+    return post({ action: 'deleteShift', date: date, staffName: staffName });
+  }
+
+  return { setBaseUrl: setBaseUrl, getShifts: getShifts, updateShift: updateShift, addShift: addShift, deleteShift: deleteShift };
 })();

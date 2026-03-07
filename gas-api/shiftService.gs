@@ -38,8 +38,8 @@ function getShifts(from, to) {
 
     dayMap[dateStr].staff.push({
       name:  String(data[i][2]),
-      start: String(data[i][3]),
-      end:   String(data[i][4]),
+      start: formatTimeVal(data[i][3]),
+      end:   formatTimeVal(data[i][4]),
       tasks: data[i][5] ? String(data[i][5]).split(' / ') : []
     });
   }
@@ -296,7 +296,105 @@ function extractTaskKeywords(text, taskKeywords) {
   return found;
 }
 
+/**
+ * 指定日付・スタッフのシフトを更新する（名前・時刻）
+ */
+function updateShiftTime(date, origName, newName, newStart, newEnd) {
+  if (!date || !origName || !newName || !newStart || !newEnd) {
+    return { success: false, error: 'パラメータが不足しています' };
+  }
+  var sheet = getOrCreateSheet(SHEET_SHIFTS, SHIFT_HEADERS);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var data = sheet.getDataRange().getValues();
+    var updated = 0;
+    for (var i = 1; i < data.length; i++) {
+      var rawDate = data[i][0];
+      if (!rawDate) continue;
+      var d = rawDate instanceof Date ? rawDate : new Date(rawDate);
+      if (isNaN(d.getTime()) || formatDateISO(d) !== date) continue;
+      if (String(data[i][2]).trim() !== origName) continue;
+      sheet.getRange(i + 1, 3).setValue(newName);  // C列: スタッフ名
+      sheet.getRange(i + 1, 4).setValue(newStart); // D列: 開始時刻
+      sheet.getRange(i + 1, 5).setValue(newEnd);   // E列: 終了時刻
+      updated++;
+    }
+    if (updated === 0) return { success: false, error: '対象のシフトが見つかりませんでした' };
+    return { success: true, data: { updated: updated } };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 新規スタッフのシフトを追加する
+ */
+function addShift(date, dayOfWeek, staffName, start, end) {
+  if (!date || !staffName || !start || !end) {
+    return { success: false, error: 'パラメータが不足しています' };
+  }
+  var sheet = getOrCreateSheet(SHEET_SHIFTS, SHIFT_HEADERS);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var dow = dayOfWeek || '';
+    if (!dow) {
+      var d = new Date(date + 'T00:00:00');
+      dow = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+    }
+    sheet.appendRow([
+      new Date(date + 'T00:00:00'), dow, staffName, start, end, '', new Date(), 'manual'
+    ]);
+    return { success: true, data: { added: 1 } };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 指定日付・スタッフのシフトを削除する
+ */
+function deleteShiftByName(date, staffName) {
+  if (!date || !staffName) {
+    return { success: false, error: 'パラメータが不足しています' };
+  }
+  var sheet = getOrCreateSheet(SHEET_SHIFTS, SHIFT_HEADERS);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var data = sheet.getDataRange().getValues();
+    var deleted = 0;
+    for (var i = data.length - 1; i >= 1; i--) {
+      var rawDate = data[i][0];
+      if (!rawDate) continue;
+      var d = rawDate instanceof Date ? rawDate : new Date(rawDate);
+      if (isNaN(d.getTime()) || formatDateISO(d) !== date) continue;
+      if (String(data[i][2]).trim() !== staffName) continue;
+      sheet.deleteRow(i + 1);
+      deleted++;
+    }
+    if (deleted === 0) return { success: false, error: '対象のシフトが見つかりませんでした' };
+    return { success: true, data: { deleted: deleted } };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
 // --- ユーティリティ ---
+
+/**
+ * シートの時刻値を HH:MM 形式に変換
+ * Sheets では時刻が 1899-12-30 基準の Date オブジェクトで返る場合がある
+ */
+function formatTimeVal(val) {
+  if (val instanceof Date) {
+    return String(val.getHours()).padStart(2, '0') + ':' + String(val.getMinutes()).padStart(2, '0');
+  }
+  var s = String(val).trim();
+  // "13:40:00" 形式なら HH:MM だけ返す
+  return s.replace(/^(\d{1,2}:\d{2}):\d{2}$/, '$1');
+}
 
 /**
  * Date を YYYY-MM-DD 形式に変換
