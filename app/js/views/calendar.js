@@ -2,7 +2,7 @@
 // views/calendar.js - シフトカレンダー画面
 // ============================================================
 var CalendarView = (function () {
-  var currentYear, currentMonth, selectedDate, shiftDates;
+  var currentYear, currentMonth, selectedDate, shiftDates, selectedName;
 
   function render() {
     Nav.render('calendar');
@@ -12,6 +12,7 @@ var CalendarView = (function () {
     currentMonth = now.getMonth();
     selectedDate = formatISO(now);
     shiftDates = {};
+    selectedName = '';
 
     var main = document.getElementById('main-content');
     main.innerHTML =
@@ -22,6 +23,11 @@ var CalendarView = (function () {
           '<button class="cal-nav-btn" id="cal-next">\u25B6</button>' +
         '</div>' +
         '<div class="cal-grid" id="cal-grid"></div>' +
+      '</div>' +
+      '<div style="padding:4px 0 8px;">' +
+        '<select id="cal-name-filter" style="width:100%;padding:10px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:0.95rem;background:#fff;">' +
+          '<option value="">\u5168\u54E1\u8868\u793A</option>' +
+        '</select>' +
       '</div>' +
       '<div id="cal-shift-detail"></div>';
 
@@ -34,6 +40,11 @@ var CalendarView = (function () {
       currentMonth++;
       if (currentMonth > 11) { currentMonth = 0; currentYear++; }
       loadMonth();
+    });
+
+    document.getElementById('cal-name-filter').addEventListener('change', function () {
+      selectedName = this.value;
+      loadDayDetail();
     });
 
     loadMonth();
@@ -49,8 +60,25 @@ var CalendarView = (function () {
     API.getShifts(from, to)
       .then(function (res) {
         shiftDates = {};
+        var nameSet = {};
         if (res.success && res.data.shifts) {
-          res.data.shifts.forEach(function (s) { shiftDates[s.date] = s; });
+          res.data.shifts.forEach(function (s) {
+            shiftDates[s.date] = s;
+            s.staff.forEach(function (st) { nameSet[st.name] = true; });
+          });
+        }
+        // 名前フィルターを更新
+        var sel = document.getElementById('cal-name-filter');
+        if (sel) {
+          var current = sel.value;
+          sel.innerHTML = '<option value="">\u5168\u54E1\u8868\u793A</option>';
+          Object.keys(nameSet).sort().forEach(function (n) {
+            var opt = document.createElement('option');
+            opt.value = n; opt.textContent = n;
+            if (n === current) opt.selected = true;
+            sel.appendChild(opt);
+          });
+          selectedName = sel.value;
         }
         renderGrid();
         loadDayDetail();
@@ -106,7 +134,10 @@ var CalendarView = (function () {
     var dayData = shiftDates[selectedDate];
 
     if (dayData) {
-      detail.innerHTML = ShiftCard.render(dayData);
+      var filtered = selectedName
+        ? { date: dayData.date, dayOfWeek: dayData.dayOfWeek, staff: dayData.staff.filter(function (s) { return s.name === selectedName; }) }
+        : dayData;
+      detail.innerHTML = ShiftCard.render(filtered);
     } else {
       var parts = selectedDate.split('-');
       detail.innerHTML =
