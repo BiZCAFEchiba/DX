@@ -14,57 +14,29 @@ var LoginView = (function () {
         '<div class="login-title">BizCAFE</div>' +
         '<div class="login-subtitle">\u30B7\u30D5\u30C8\u30EA\u30DE\u30A4\u30F3\u30C9</div>' +
         '<div class="card" style="width:100%;max-width:320px;">' +
-          '<div class="form-label" style="text-align:center;">PIN\u30B3\u30FC\u30C9\u3092\u5165\u529B</div>' +
-          '<div class="pin-container" id="pin-container"></div>' +
+          '<div class="form-label" style="text-align:center;margin-bottom:12px;">PIN\u30B3\u30FC\u30C9\u3092\u5165\u529B</div>' +
+          '<input id="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"' +
+            ' style="width:100%;font-size:2rem;letter-spacing:0.5em;text-align:center;border:2px solid var(--gray-300);' +
+            'border-radius:8px;padding:12px 8px;box-sizing:border-box;-webkit-text-security:disc;" placeholder="\u25CF\u25CF\u25CF\u25CF">' +
           '<div class="login-error" id="login-error"></div>' +
           '<button class="btn btn-primary" id="btn-login" style="margin-top:16px;">\u30ED\u30B0\u30A4\u30F3</button>' +
         '</div>' +
       '</div>';
 
-    // PIN入力欄を生成（6桁）
-    var pinContainer = document.getElementById('pin-container');
-    for (var i = 0; i < 6; i++) {
-      var input = document.createElement('input');
-      input.type = 'tel';
-      input.maxLength = 1;
-      input.className = 'pin-input';
-      input.dataset.index = i;
-      input.inputMode = 'numeric';
-      input.pattern = '[0-9]*';
-      pinContainer.appendChild(input);
-    }
-
-    var inputs = pinContainer.querySelectorAll('.pin-input');
-
-    // 自動フォーカス移動
-    inputs.forEach(function (inp, idx) {
-      inp.addEventListener('input', function () {
-        if (inp.value && idx < inputs.length - 1) {
-          inputs[idx + 1].focus();
-        }
-      });
-      inp.addEventListener('keydown', function (e) {
-        if (e.key === 'Backspace' && !inp.value && idx > 0) {
-          inputs[idx - 1].focus();
-        }
-        if (e.key === 'Enter') {
-          doLogin();
-        }
-      });
+    var pinInput = document.getElementById('pin-input');
+    pinInput.focus();
+    pinInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') doLogin();
     });
-
-    inputs[0].focus();
 
     document.getElementById('btn-login').addEventListener('click', doLogin);
   }
 
   function doLogin() {
-    var inputs = document.querySelectorAll('.pin-input');
-    var pin = '';
-    inputs.forEach(function (inp) { pin += inp.value; });
+    var pin = document.getElementById('pin-input').value.trim();
 
     if (pin.length < 4) {
-      document.getElementById('login-error').textContent = 'PIN\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044';
+      document.getElementById('login-error').textContent = '4\u6841\u306EPIN\u3092\u5165\u529B\u3057\u3066\u304F\u3060\u3055\u3044';
       return;
     }
 
