@@ -247,6 +247,9 @@ var CalendarView = (function () {
           overlay.hidden = true;
           if (res.success) {
             updateLocal(dayData.date, s.name, newName, newStart, newEnd);
+            if (newName !== s.name) {
+              ShiftChangeView.setPending({ date: dayData.date, start: newStart, end: newEnd, from: s.name, to: newName });
+            }
             showToast('変更しました');
             loadDayDetail(); renderGrid();
           } else {

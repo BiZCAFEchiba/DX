@@ -2,39 +2,44 @@
 // views/shiftChange.js - シフト交代フォーマット生成画面
 // ============================================================
 var ShiftChangeView = (function () {
+  var pending = null; // カレンダーからセットされるデータ
+
+  function setPending(data) {
+    pending = data;
+  }
 
   function render() {
     var main = document.getElementById('main-content');
+
+    if (!pending) {
+      main.innerHTML =
+        '<div class="card">' +
+          '<div class="card-header"><span class="icon">🔄</span>シフト交代フォーマット</div>' +
+          '<div class="empty-state">' +
+            '<div class="icon">📅</div>' +
+            '<div class="text">カレンダーでシフトを変更すると<br>ここにフォーマットが自動作成されます</div>' +
+          '</div>' +
+        '</div>';
+      return;
+    }
+
+    var parts = pending.date.split('-');
+    var dateDisplay = parts[0] + '.' + parts[1] + '.' + parts[2];
+
     main.innerHTML =
       '<div class="card">' +
         '<div class="card-header"><span class="icon">🔄</span>シフト交代フォーマット</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">交代日</label>' +
-          '<input id="sc-date" type="date" class="form-input">' +
-        '</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">交代時間</label>' +
-          '<div style="display:flex;align-items:center;gap:8px;">' +
-            '<input id="sc-start" type="time" class="form-input" style="flex:1;">' +
-            '<span style="color:var(--gray-500);">〜</span>' +
-            '<input id="sc-end" type="time" class="form-input" style="flex:1;">' +
-          '</div>' +
-        '</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">交代スタッフ</label>' +
-          '<div style="display:flex;align-items:center;gap:8px;">' +
-            '<select id="sc-from" class="form-input" style="flex:1;"></select>' +
-            '<span style="color:var(--gray-500);">→</span>' +
-            '<select id="sc-to" class="form-input" style="flex:1;"></select>' +
-          '</div>' +
-        '</div>' +
+        '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:0.9rem;">' +
+          '<tr><td style="padding:8px 0;color:var(--gray-500);width:80px;">交代日</td>' +
+              '<td style="padding:8px 0;font-weight:600;">' + dateDisplay + '</td></tr>' +
+          '<tr><td style="padding:8px 0;color:var(--gray-500);">交代時間</td>' +
+              '<td style="padding:8px 0;font-weight:600;">' + pending.start + '〜' + pending.end + '</td></tr>' +
+          '<tr><td style="padding:8px 0;color:var(--gray-500);">交代</td>' +
+              '<td style="padding:8px 0;font-weight:600;">' + pending.from + ' → ' + pending.to + '</td></tr>' +
+        '</table>' +
         '<div class="form-group">' +
           '<label class="form-label">交代理由</label>' +
           '<textarea id="sc-reason" class="form-input" rows="3" placeholder="〇〇のため" style="resize:none;"></textarea>' +
-        '</div>' +
-        '<div class="form-group">' +
-          '<label class="form-label">承認者</label>' +
-          '<input id="sc-approver" type="text" class="form-input" placeholder="店長代理">' +
         '</div>' +
         '<button class="btn btn-primary" id="sc-generate">フォーマットを生成</button>' +
       '</div>' +
@@ -46,56 +51,23 @@ var ShiftChangeView = (function () {
         '</div>' +
       '</div>';
 
-    loadStaffSelects();
-
-    document.getElementById('sc-generate').addEventListener('click', generate);
+    document.getElementById('sc-generate').addEventListener('click', function () { generate(dateDisplay); });
     document.getElementById('sc-copy').addEventListener('click', copyText);
   }
 
-  function loadStaffSelects() {
-    API.getStaff().then(function (res) {
-      if (!res.success || !res.data.staff) return;
-      var names = res.data.staff.filter(function (s) { return s.active; }).map(function (s) { return s.name; });
-      ['sc-from', 'sc-to'].forEach(function (id) {
-        var sel = document.getElementById(id);
-        if (!sel) return;
-        sel.innerHTML = '<option value="">選択してください</option>';
-        names.forEach(function (n) {
-          var opt = document.createElement('option');
-          opt.value = n; opt.textContent = n;
-          sel.appendChild(opt);
-        });
-      });
-    }).catch(function () {});
-  }
-
-  function generate() {
-    var dateVal = document.getElementById('sc-date').value;
-    var start = document.getElementById('sc-start').value;
-    var end = document.getElementById('sc-end').value;
-    var from = document.getElementById('sc-from').value;
-    var to = document.getElementById('sc-to').value;
+  function generate(dateDisplay) {
     var reason = document.getElementById('sc-reason').value.trim();
-    var approver = document.getElementById('sc-approver').value.trim();
-
-    if (!dateVal || !start || !end || !from || !to || !reason || !approver) {
-      showToast('すべての項目を入力してください', true);
+    if (!reason) {
+      showToast('交代理由を入力してください', true);
       return;
     }
-    if (from === to) {
-      showToast('交代前後のスタッフが同じです', true);
-      return;
-    }
-
-    var parts = dateVal.split('-');
-    var dateDisplay = parts[0] + '.' + parts[1] + '.' + parts[2];
 
     var text =
       '【交代日】\n' + dateDisplay + '\n' +
-      '【交代時間】\n' + start + '-' + end + '\n' +
-      '【交代スタッフ】\n' + from + '→' + to + '\n' +
+      '【交代時間】\n' + pending.start + '-' + pending.end + '\n' +
+      '【交代スタッフ】\n' + pending.from + '→' + pending.to + '\n' +
       '【交代理由】\n' + reason + '\n' +
-      '【承認者】\n' + approver;
+      '【承認者】\n店長代理';
 
     document.getElementById('sc-output').textContent = text;
     document.getElementById('sc-result').style.display = 'block';
@@ -127,5 +99,5 @@ var ShiftChangeView = (function () {
     setTimeout(function () { toast.remove(); }, 3000);
   }
 
-  return { render: render };
+  return { render: render, setPending: setPending };
 })();
