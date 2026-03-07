@@ -11,6 +11,18 @@ var App = (function () {
       navigator.serviceWorker.register('./sw.js').catch(function () {});
     }
 
+    document.querySelectorAll('#bottom-nav .nav-item').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('#bottom-nav .nav-item').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        if (btn.dataset.tab === 'calendar') {
+          CalendarView.render();
+        } else if (btn.dataset.tab === 'shift-change') {
+          ShiftChangeView.render();
+        }
+      });
+    });
+
     CalendarView.render();
   }
 
