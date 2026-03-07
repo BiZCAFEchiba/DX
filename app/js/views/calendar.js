@@ -46,9 +46,18 @@ var CalendarView = (function () {
       loadDayDetail();
     });
 
+    // スタッフ: キャッシュ即表示 → バックグラウンド更新
+    var cachedStaff = localStorage.getItem('cache_staff');
+    if (cachedStaff) {
+      try {
+        allStaff = JSON.parse(cachedStaff);
+        populateNameFilter();
+      } catch (e) {}
+    }
     API.getStaff().then(function (res) {
       if (res.success && res.data.staff) {
         allStaff = res.data.staff.filter(function (s) { return s.active; }).map(function (s) { return s.name; });
+        localStorage.setItem('cache_staff', JSON.stringify(allStaff));
         populateNameFilter();
       }
     }).catch(function () {});
@@ -70,32 +79,46 @@ var CalendarView = (function () {
     selectedName = sel.value;
   }
 
+  function applyShifts(shifts) {
+    shiftDates = {};
+    var nameSet = {};
+    shifts.forEach(function (s) {
+      shiftDates[s.date] = s;
+      s.staff.forEach(function (st) { nameSet[st.name] = true; });
+    });
+    if (allStaff.length === 0) {
+      allStaff = Object.keys(nameSet).sort();
+      populateNameFilter();
+    }
+    renderGrid();
+    loadDayDetail();
+  }
+
   function loadMonth() {
     var from = currentYear + '-' + pad(currentMonth + 1) + '-01';
     var lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
     var to = currentYear + '-' + pad(currentMonth + 1) + '-' + pad(lastDay);
+    var cacheKey = 'cache_shifts_' + currentYear + '_' + pad(currentMonth + 1);
 
     document.getElementById('cal-title').textContent = currentYear + '年' + (currentMonth + 1) + '月';
 
+    // キャッシュがあれば即表示
+    var cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try { applyShifts(JSON.parse(cached)); } catch (e) {}
+    }
+
+    // バックグラウンドで最新取得・更新
     API.getShifts(from, to)
       .then(function (res) {
-        shiftDates = {};
-        var nameSet = {};
         if (res.success && res.data.shifts) {
-          res.data.shifts.forEach(function (s) {
-            shiftDates[s.date] = s;
-            s.staff.forEach(function (st) { nameSet[st.name] = true; });
-          });
+          localStorage.setItem(cacheKey, JSON.stringify(res.data.shifts));
+          applyShifts(res.data.shifts);
+        } else if (!cached) {
+          renderGrid();
         }
-        // スタッフシートが読み込まれていない場合のみ月内スタッフで補完
-        if (allStaff.length === 0) {
-          allStaff = Object.keys(nameSet).sort();
-          populateNameFilter();
-        }
-        renderGrid();
-        loadDayDetail();
       })
-      .catch(function () { renderGrid(); });
+      .catch(function () { if (!cached) renderGrid(); });
   }
 
   function renderGrid() {
