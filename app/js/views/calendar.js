@@ -41,6 +41,7 @@ var CalendarView = (function () {
     });
     document.getElementById('cal-name-filter').addEventListener('change', function () {
       selectedName = this.value;
+      renderGrid();
       loadDayDetail();
     });
 
