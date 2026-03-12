@@ -12,7 +12,8 @@ function onOpen() {
     .addItem('シート初期化', 'initSheets')
     .addItem('「設定」シート作成', 'createSettingsSheet')
     .addSeparator()
-    .addItem('PDF解析 → シート取込', 'menuParsePdf')
+    .addItem('PDF解析 → シート取込（手動）', 'menuParsePdf')
+    .addItem('PDF自動取込（即時実行）', 'autoProcessPdfFromDrive')
     .addItem('リマインド手動送信', 'menuSendReminder')
     .addSeparator()
     .addItem('スタッフ更新', 'menuRefreshStaff')
@@ -506,7 +507,7 @@ function updateTriggersFromSettings_() {
   // 既存のトリガーを削除
   ['triggerShiftReminder', 'triggerShortageAlert', 'triggerFollowUpReminder',
    'triggerDeleteLastMonthShifts', 'triggerWeeklyMeetupShare', 'weeklyMeetupCarousel',
-   'dailyMeetupUpdate', 'cleanupPastMeetups',
+   'dailyMeetupUpdate', 'cleanupPastMeetups', 'autoProcessPdfFromDrive',
    'fetchMeetupSchedule', 'fetchAllUpcomingMeetups', 'main'].forEach(deleteExistingTriggers_);
 
   // 設定シートから時間を取得
@@ -531,8 +532,14 @@ function updateTriggersFromSettings_() {
   // 週次Meetupカルーセル共有（毎週日曜・Meetup告知Bot）
   ScriptApp.newTrigger('weeklyMeetupCarousel').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(meetupShareHour).create();
 
+  // PDF自動取込（05:00 / 10:00 / 19:00 / 22:00 JST）
+  [5, 10, 19, 22].forEach(function(hour) {
+    ScriptApp.newTrigger('autoProcessPdfFromDrive').timeBased().atHour(hour).everyDays(1).inTimezone(TIMEZONE).create();
+  });
+
   return 'リマインド(' + reminderHour + '時) / 不足警告(' + shortageHour + '時) / 追っかけ(' + followUpHour + '時)\n' +
-         'Meetup日次更新(' + meetupHour + '時) / Meetupカルーセル共有(毎週日曜' + meetupShareHour + '時) / 過去削除(毎日0時)';
+         'Meetup日次更新(' + meetupHour + '時) / Meetupカルーセル共有(毎週日曜' + meetupShareHour + '時) / 過去削除(毎日0時)\n' +
+         'PDF自動取込(5時/10時/19時/22時)';
 }
 
 /**

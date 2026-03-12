@@ -382,6 +382,92 @@ function main() {
   // triggerFollowUpReminder(); // 17:00に別途実行される
 }
 
+/**
+ * DriveフォルダのPDFを自動取込する（時間トリガー実行用）
+ * UIなしで動作するため、時間ベーストリガーから安全に呼び出せる
+ * 実行時間: 05:00 / 10:00 / 19:00 / 22:00 (JST)
+ */
+function autoProcessPdfFromDrive() {
+  Logger.log('=== PDF自動取込 開始 ===');
+
+  const pdfFiles = getShiftPdfsFromDrive(DRIVE_FOLDER_ID);
+  if (pdfFiles.length === 0) {
+    Logger.log('取込対象PDFなし（終了）');
+    return;
+  }
+
+  Logger.log('取込対象PDF: ' + pdfFiles.length + '件');
+
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(SHEET_SHIFTS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_SHIFTS);
+    sheet.getRange(1, 1, 1, 8).setValues([['日付', '曜日', 'スタッフ名', '開始時刻', '終了時刻', '業務内容', '登録日時', '登録元']]);
+    sheet.getRange(1, 1, 1, 8).setFontWeight('bold');
+  }
+
+  // 重複チェック用キャッシュを構築
+  const existingData = sheet.getDataRange().getValues();
+  const shiftCache = new Set();
+  for (let j = 1; j < existingData.length; j++) {
+    const d = existingData[j][0] instanceof Date ? formatDateToISO_(existingData[j][0]) : String(existingData[j][0]);
+    const name = String(existingData[j][2]).trim();
+    const startTime = formatCellTime_(existingData[j][3]);
+    shiftCache.add(d + '|' + name + '|' + startTime);
+  }
+
+  let totalImported = 0;
+  let totalSkipped = 0;
+  let registeredCountTotal = 0;
+  let processedCount = 0;
+
+  for (let i = 0; i < pdfFiles.length; i++) {
+    const pdfFile = pdfFiles[i];
+    const fileName = pdfFile.getName();
+    Logger.log('--- PDF処理: ' + fileName + ' ---');
+
+    const shiftText = extractTextFromPdf(pdfFile);
+    if (!shiftText) {
+      Logger.log('テキスト抽出失敗: ' + fileName);
+      continue;
+    }
+
+    const allShifts = parseAllShiftsFromText_(shiftText);
+    let fileImported = 0;
+    let fileSkipped = 0;
+
+    // カレンダー登録
+    const calendarCount = registerShiftsToCalendar(allShifts);
+    registeredCountTotal += calendarCount;
+
+    // シートへ書き込み
+    for (const entry of allShifts) {
+      for (const staff of entry.shifts) {
+        const key = entry.date + '|' + staff.name + '|' + staff.start;
+        if (shiftCache.has(key)) {
+          fileSkipped++;
+          continue;
+        }
+        const tasks = staff.tasks.length > 0 ? staff.tasks.join(' / ') : '';
+        sheet.appendRow([entry.date, entry.dayOfWeek, staff.name, staff.start, staff.end, tasks, new Date(), 'pdf_auto']);
+        shiftCache.add(key);
+        fileImported++;
+      }
+    }
+
+    // 処理済みPDFをゴミ箱へ
+    pdfFile.setTrashed(true);
+    processedCount++;
+    totalImported += fileImported;
+    totalSkipped += fileSkipped;
+    Logger.log(fileName + ': 新規=' + fileImported + '件, スキップ=' + fileSkipped + '件, カレンダー=' + calendarCount + '件');
+  }
+
+  writeLogToSheets_('pdf_auto_import', totalImported, 'auto', 'success',
+    'PDF自動取込: ' + processedCount + 'ファイル, 新規' + totalImported + '件, カレンダー' + registeredCountTotal + '件');
+  Logger.log('=== PDF自動取込 完了: 新規=' + totalImported + '件 ===');
+}
+
 // ============================================================
 // Sheets 連携関数
 // ============================================================
@@ -808,9 +894,15 @@ function parseAllShiftsFromText_(text) {
           results.push({ date: currentDateStr, dayOfWeek: currentDayOfWeek, shifts: shifts });
         }
       }
-      // YYYY-MM-DD形式
-      currentDateStr = dateMatch[1] + '-' + String(dateMatch[2]).padStart(2, '0') + '-' + String(dateMatch[3]).padStart(2, '0');
-      currentDayOfWeek = dateMatch[4]; // 曜日 (月, 火, ...) 
+      // YYYY-MM-DD形式（年が現在から2年以上ずれている場合はOCR誤認識として今年に補正）
+      var parsedYear = parseInt(dateMatch[1]);
+      var currentYear = new Date().getFullYear();
+      if (Math.abs(parsedYear - currentYear) >= 2) {
+        Logger.log('年のOCR誤認識を補正: ' + parsedYear + ' → ' + currentYear + ' (' + dateMatch[2] + '月' + dateMatch[3] + '日)');
+        parsedYear = currentYear;
+      }
+      currentDateStr = parsedYear + '-' + String(dateMatch[2]).padStart(2, '0') + '-' + String(dateMatch[3]).padStart(2, '0');
+      currentDayOfWeek = dateMatch[4]; // 曜日 (月, 火, ...)
       currentBlock = [];
       continue;
     }
