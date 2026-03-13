@@ -172,7 +172,6 @@
   <button id="prevBtn">◀</button>
   <div class="month-label" id="monthLabel"></div>
   <button id="nextBtn">▶</button>
-  <button id="refreshBtn" title="最新データに更新" style="background:transparent;color:#1a3a5c;font-size:1.1rem;padding:6px 8px;border:1px solid #c0cfe0;border-radius:8px;">🔄</button>
 </div>
 
 <div class="calendar-wrap">
@@ -282,10 +281,6 @@
     fetchFromAPI(force);
   }
 
-  document.getElementById('refreshBtn').addEventListener('click', function () {
-    clearAllCache();
-    loadCalendar(true); // nocache=1 でGASキャッシュもスキップ
-  });
 
   function renderCalendar(days) {
     var grid = document.getElementById('calendarGrid');
