@@ -134,11 +134,22 @@
     }
 
     @media (max-width: 520px) {
-      header h1   { font-size: 1.05rem; }
-      .day-cell   { min-height: 68px; padding: 5px 4px; }
-      .hours      { font-size: 0.68rem; }
-      .day-num    { font-size: 0.8rem; }
+      header h1    { font-size: 1.05rem; }
+      .day-cell    { min-height: 62px; padding: 5px 3px; }
+      .day-num     { font-size: 0.78rem; }
+      .hours       { font-size: 0.65rem; }
+      .closed-label { font-size: 0.62rem; }
       .month-label { font-size: 1.1rem; min-width: 120px; }
+      /* バッジは非表示 → セル上部のボーダーで貸切を表現 */
+      .kashikiri-badge        { display: none; }
+      .day-cell.kashikiri     { border-top: 3px solid #ff6d00; }
+      /* 時間を1行表示に変更するためのクラス */
+      .hours-mobile           { display: block; }
+      .hours-desktop          { display: none; }
+    }
+    @media (min-width: 521px) {
+      .hours-mobile  { display: none; }
+      .hours-desktop { display: block; }
     }
   </style>
 </head>
@@ -289,7 +300,9 @@
       var html = '<div class="day-num">' + dayNum + '</div>';
 
       if (day.isOpen) {
-        html += '<div class="hours">' + day.open + '&nbsp;〜<br>' + day.close + '</div>';
+        // デスクトップ: 2行表示 / モバイル: 1行表示
+        html += '<div class="hours hours-desktop">' + day.open + '&nbsp;〜<br>' + day.close + '</div>';
+        html += '<div class="hours hours-mobile">' + day.open + '-' + day.close + '</div>';
         if (day.isKashikiri) {
           html += '<div class="kashikiri-badge">貸切あり</div>';
         }
