@@ -107,7 +107,7 @@ function parseShiftData(text, tomorrow) {
   }
 
   // ブロック内からスタッフ情報を抽出
-  return parseStaffLines(targetBlock);
+  return parseStaffLines(targetBlock).shifts;
 }
 
 /**
@@ -223,14 +223,61 @@ function parseStaffLines(blockLines) {
     });
   }
 
-  if (standaloneNames.length !== standaloneTimes.length) {
-    Logger.log('警告: 未ペア名前=' + (standaloneNames.length - pairCount) + '件, 未ペア時刻=' + (standaloneTimes.length - pairCount) + '件');
+  var unpairedNames = standaloneNames.slice(pairCount);
+  if (unpairedNames.length > 0 || standaloneTimes.length > pairCount) {
+    Logger.log('警告: 未ペア名前=' + unpairedNames.length + '件, 未ペア時刻=' + (standaloneTimes.length - pairCount) + '件');
   }
 
   results.sort(function(a, b) { return a.start.localeCompare(b.start); });
 
   Logger.log('スタッフ抽出結果: ' + results.length + '名 (同一行:' + (results.length - pairCount) + ', ペア化:' + pairCount + ', タスク件数:' + standaloneTasks.length + ')');
-  return results;
+  return { shifts: results, unpairedNames: unpairedNames };
+}
+
+/**
+ * ブロック先頭の名前行が出現するまでの時刻行を抽出する
+ * OCRが前ブロックの時刻を次ブロック冒頭に読み込んでしまう場合（3/16問題）の対応
+ * @param {string[]} blockLines
+ * @param {number} maxCount - 最大何件取り出すか
+ * @returns {{ times: Array<{start,end,tasks}>, remainingLines: string[] }}
+ */
+function extractLeadingTimes_(blockLines, maxCount) {
+  const timePattern = /(\d{1,2}:\d{2})(?:[〜~～\-]|\s+)(\d{1,2}:\d{2})/;
+  const taskKeywords = ['清掃', '在報', '棚卸', '発注', '研修', 'MTG', 'ミーティング', '引継', '営業中研修', 'OP研修'];
+  const validNameChars = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
+  const namePatternSpaced = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+[\s　]+[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
+  const namePatternUnspaced = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]{3,8}$/u;
+  const skipKeywords = ['スタッフ', '開始', '終了', '時刻', '計:'];
+
+  const times = [];
+  const consumedIndices = new Set();
+
+  for (var i = 0; i < blockLines.length && times.length < maxCount; i++) {
+    const trimmed = blockLines[i].trim();
+    if (!trimmed) continue;
+    if (skipKeywords.some(function(kw) { return trimmed.includes(kw); })) continue;
+
+    // 名前行に当たったら終了
+    const namePart = trimmed.replace(/[\s　]+/g, '');
+    if (validNameChars.test(namePart) &&
+        (namePatternSpaced.test(trimmed) || namePatternUnspaced.test(trimmed))) {
+      break;
+    }
+
+    // 時刻行
+    const timeMatch = trimmed.match(timePattern);
+    if (timeMatch) {
+      times.push({
+        start: normalizeTime_(timeMatch[1]),
+        end: normalizeTime_(timeMatch[2]),
+        tasks: extractTasks(trimmed, taskKeywords)
+      });
+      consumedIndices.add(i);
+    }
+  }
+
+  const remainingLines = blockLines.filter(function(_, i) { return !consumedIndices.has(i); });
+  return { times: times, remainingLines: remainingLines };
 }
 
 /**

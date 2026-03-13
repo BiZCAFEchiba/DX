@@ -876,6 +876,10 @@ function menuParsePdf() {
 
 /**
  * PDF全文から全日付のシフトを抽出する（menuParsePdf用）
+ *
+ * OCRがPDFの表を列ごとに読む場合、前の日付ブロックのスタッフ名と
+ * 時刻が次の日付ブロックに分断されることがある（例: 3/16問題）。
+ * carryoverNames でその未ペア名前を次ブロック冒頭の時刻と繋げる。
  */
 function parseAllShiftsFromText_(text) {
   const lines = text.split('\n');
@@ -883,18 +887,55 @@ function parseAllShiftsFromText_(text) {
   let currentBlock = null;
   let currentDateStr = null;
   let currentDayOfWeek = null;
+  let carryoverNames = [];    // 前ブロックで時刻と対応できなかった名前
+  let carryoverDateStr = null;
+  let carryoverDayOfWeek = null;
+
+  const flushBlock_ = function() {
+    if (!currentBlock || !currentDateStr) return;
+    let blockToProcess = currentBlock;
+
+    // キャリーオーバー名前がある場合: 次ブロック先頭の時刻で補完
+    if (carryoverNames.length > 0) {
+      const extracted = extractLeadingTimes_(blockToProcess, carryoverNames.length);
+      const pCount = Math.min(carryoverNames.length, extracted.times.length);
+      if (pCount > 0) {
+        const carryoverShifts = [];
+        for (let ci = 0; ci < pCount; ci++) {
+          carryoverShifts.push({
+            name: carryoverNames[ci],
+            start: extracted.times[ci].start,
+            end: extracted.times[ci].end,
+            tasks: extracted.times[ci].tasks
+          });
+        }
+        Logger.log('キャリーオーバー解決: ' + carryoverDateStr + ' に ' + pCount + '名追加');
+        results.push({ date: carryoverDateStr, dayOfWeek: carryoverDayOfWeek, shifts: carryoverShifts });
+        blockToProcess = extracted.remainingLines; // 消費した時刻行を除いた残り
+      }
+      carryoverNames = [];
+      carryoverDateStr = null;
+      carryoverDayOfWeek = null;
+    }
+
+    const parsed = parseStaffLines(blockToProcess);
+    if (parsed.shifts.length > 0) {
+      results.push({ date: currentDateStr, dayOfWeek: currentDayOfWeek, shifts: parsed.shifts });
+    }
+    // 未ペア名前を次ブロックへ持ち越す
+    if (parsed.unpairedNames.length > 0) {
+      Logger.log('キャリーオーバー発生: ' + currentDateStr + ' 未ペア名前=' + parsed.unpairedNames.join(','));
+      carryoverNames = parsed.unpairedNames;
+      carryoverDateStr = currentDateStr;
+      carryoverDayOfWeek = currentDayOfWeek;
+    }
+  };
 
   for (const line of lines) {
     const dateMatch = line.match(/(\d{4})年(\d{1,2})月(\d{1,2})日\s*[（(](.)[）)]/);
     if (dateMatch) {
-      // 前のブロックを処理
-      if (currentBlock && currentDateStr) {
-        const shifts = parseStaffLines(currentBlock);
-        if (shifts.length > 0) {
-          results.push({ date: currentDateStr, dayOfWeek: currentDayOfWeek, shifts: shifts });
-        }
-      }
-      // YYYY-MM-DD形式（年が現在から2年以上ずれている場合はOCR誤認識として今年に補正）
+      flushBlock_();
+      // 年のOCR誤認識補正（例: 2016 → 2026）
       var parsedYear = parseInt(dateMatch[1]);
       var currentYear = new Date().getFullYear();
       if (Math.abs(parsedYear - currentYear) >= 2) {
@@ -902,7 +943,7 @@ function parseAllShiftsFromText_(text) {
         parsedYear = currentYear;
       }
       currentDateStr = parsedYear + '-' + String(dateMatch[2]).padStart(2, '0') + '-' + String(dateMatch[3]).padStart(2, '0');
-      currentDayOfWeek = dateMatch[4]; // 曜日 (月, 火, ...)
+      currentDayOfWeek = dateMatch[4];
       currentBlock = [];
       continue;
     }
@@ -911,12 +952,7 @@ function parseAllShiftsFromText_(text) {
     }
   }
   // 最後のブロック
-  if (currentBlock && currentDateStr) {
-    const shifts = parseStaffLines(currentBlock);
-    if (shifts.length > 0) {
-      results.push({ date: currentDateStr, dayOfWeek: currentDayOfWeek, shifts: shifts });
-    }
-  }
+  flushBlock_();
 
   return results;
 }
