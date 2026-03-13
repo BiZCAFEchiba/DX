@@ -2550,13 +2550,6 @@ function syncMeetupFormChoices_() {
   // --- 企業選択チェックボックスを同期 ---
   syncFormSection26_(form, sec26PBIndex, sec27PBIndex, companies);
 
-  // --- 企業ごとのアピールポイント記入欄を同期 ---
-  if (sec27PBIndex >= 0) {
-    syncFormSection27_(form, sec27PBIndex, companies);
-  } else {
-    Logger.log('syncMeetupFormChoices_: アピールポイントセクションが見つかりません（スキップ）');
-  }
-
   Logger.log('syncMeetupFormChoices_完了: ' + companies.length + '社');
   return companies.length;
 }
@@ -2603,50 +2596,6 @@ function syncFormSection26_(form, sec26PBIndex, sec27PBIndex, companies) {
   }
 }
 
-/**
- * 企業ごとのアピールポイント記入欄を同期する
- * @param {GoogleAppsScript.Forms.Form} form
- * @param {number} sec27PBIndex - アピールポイントセクションのPAGE_BREAKのインデックス
- * @param {string[]} companies
- */
-function syncFormSection27_(form, sec27PBIndex, companies) {
-  var items = form.getItems();
-  var existingItems = []; // { item, title }
-
-  // 次のPAGE_BREAKまでの範囲でPARAGRAPH_TEXTを収集
-  for (var i = sec27PBIndex + 1; i < items.length; i++) {
-    var t = items[i].getType();
-    if (t === FormApp.ItemType.PAGE_BREAK) break;
-    if (t === FormApp.ItemType.PARAGRAPH_TEXT) {
-      existingItems.push({ item: items[i], title: String(items[i].getTitle()).trim() });
-    }
-  }
-
-  var existingTitles = existingItems.map(function(x) { return x.title; });
-
-  // 不要な企業の記入欄を削除
-  existingItems.forEach(function(entry) {
-    if (companies.indexOf(entry.title) === -1) {
-      form.deleteItem(entry.item);
-      Logger.log('アピールポイント欄 削除: ' + entry.title);
-    }
-  });
-
-  // 新規企業の記入欄を追加
-  var addedCount = 0;
-  for (var c = 0; c < companies.length; c++) {
-    if (existingTitles.indexOf(companies[c]) !== -1) continue;
-    var newPara = form.addParagraphTextItem();
-    newPara.setTitle(companies[c]);
-    newPara.setHelpText('アピールポイントを記入してください');
-    var fi = form.getItems();
-    form.moveItem(fi.length - 1, sec27PBIndex + 1 + addedCount);
-    addedCount++;
-    Logger.log('アピールポイント欄 追加: ' + companies[c]);
-  }
-
-  Logger.log('アピールポイント欄 同期完了: 追加' + addedCount + '件');
-}
 
 /**
  * フォーム送信時にアピールポイントを企業IDマスターのD列以降に蓄積する

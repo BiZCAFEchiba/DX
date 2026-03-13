@@ -25,7 +25,7 @@ function weeklyMeetupCarousel() {
   sendMeetupGroupText_(
     '━━━━━━━━━━━━━━━━━━━━\n' +
     '✨ 来週のMeetup予定 ✨\n' +
-    ws + ' 〜 ' + we + '　全' + companies.length + '社\n' +
+    ws + ' 〜 ' + we + '　厳選' + companies.length + '社\n' +
     '━━━━━━━━━━━━━━━━━━━━'
   );
 

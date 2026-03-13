@@ -11,6 +11,7 @@ function onOpen() {
   ui.createMenu('ShiftReminder')
     .addItem('シート初期化', 'initSheets')
     .addItem('「設定」シート作成', 'createSettingsSheet')
+    .addItem('「期間設定」シート作成', 'initPeriodSettingsSheet')
     .addSeparator()
     .addItem('PDF解析 → シート取込（手動）', 'menuParsePdf')
     .addItem('PDF自動取込（即時実行）', 'autoProcessPdfFromDrive')
@@ -166,6 +167,98 @@ function menuRefetchAllFields() {
  * 必要なシート（シフト, スタッフ, 送信ログ, 営業時間）を作成し、ヘッダーを設定する
  * 誤操作防止のため確認ダイアログを表示
  */
+
+/**
+ * 「期間設定」シートを作成・初期化する
+ * 授業期間とターム休みの日程を管理する
+ *
+ * 列構成: A:開始日 | B:終了日 | C:種別（授業期間 or ターム休み）
+ */
+function initPeriodSettingsSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(SHEET_PERIOD_SETTINGS);
+
+  if (sheet) {
+    const ui = SpreadsheetApp.getUi();
+    const res = ui.alert('「期間設定」シートは既に存在します。再作成しますか？', ui.ButtonSet.YES_NO);
+    if (res !== ui.Button.YES) return;
+    ss.deleteSheet(sheet);
+  }
+
+  sheet = ss.insertSheet(SHEET_PERIOD_SETTINGS);
+
+  // ヘッダー
+  sheet.getRange(1, 1, 1, 3).setValues([['開始日', '終了日', '種別']]);
+  sheet.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#e8f0fe');
+
+  // サンプルデータ（千葉大学の一般的なターム構成）
+  const today = new Date();
+  const year = today.getFullYear();
+  const sampleData = [
+    [new Date(year, 3, 1),  new Date(year, 6, 17), '授業期間'],   // 4/1〜7/17
+    [new Date(year, 6, 18), new Date(year, 8, 30), 'ターム休み'], // 7/18〜9/30
+    [new Date(year, 9, 1),  new Date(year, 11, 25), '授業期間'],  // 10/1〜12/25
+    [new Date(year, 11, 26), new Date(year + 1, 2, 31), 'ターム休み'] // 12/26〜翌3/31
+  ];
+  sheet.getRange(2, 1, sampleData.length, 3).setValues(sampleData);
+
+  // 日付列のフォーマット
+  sheet.getRange(2, 1, sampleData.length, 2).setNumberFormat('yyyy/MM/dd');
+
+  // 種別列にドロップダウン
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(['授業期間', 'ターム休み'], true)
+    .build();
+  sheet.getRange(2, 3, 50, 1).setDataValidation(rule);
+
+  // 列幅調整
+  sheet.setColumnWidth(1, 120);
+  sheet.setColumnWidth(2, 120);
+  sheet.setColumnWidth(3, 120);
+
+  // 営業時間シートのヘッダーも更新
+  updateBusinessHoursSheetHeader_();
+
+  SpreadsheetApp.getUi().alert(
+    '「期間設定」シートを作成しました。\n\n' +
+    '開始日・終了日・種別を入力してください。\n\n' +
+    '【重要】「営業時間」シートに\nターム休みの営業時間（E〜G列）を追加してください。'
+  );
+}
+
+/**
+ * 「営業時間」シートのヘッダーをターム対応に更新する
+ */
+function updateBusinessHoursSheetHeader_() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(BUSINESS_HOURS_SHEET_NAME);
+    if (!sheet) return;
+
+    // 現在のヘッダーを確認
+    const header = sheet.getRange(1, 1, 1, 7).getValues()[0];
+
+    // E〜G列がまだ設定されていなければ追加
+    if (!header[4]) {
+      sheet.getRange(1, 1, 1, 7).setValues([[
+        '曜日',
+        '授業期間_開始', '授業期間_終了', '授業期間_営業',
+        'ターム休み_開始', 'ターム休み_終了', 'ターム休み_営業'
+      ]]);
+      sheet.getRange(1, 1, 1, 7).setFontWeight('bold');
+
+      // 授業期間ヘッダー背景
+      sheet.getRange(1, 2, 1, 3).setBackground('#e8f5e9');
+      // ターム休みヘッダー背景
+      sheet.getRange(1, 5, 1, 3).setBackground('#fff3e0');
+
+      Logger.log('営業時間シートのヘッダーを更新しました');
+    }
+  } catch (e) {
+    Logger.log('ヘッダー更新エラー: ' + e.message);
+  }
+}
+
 function initSheets() {
   const ui = SpreadsheetApp.getUi();
 

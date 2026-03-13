@@ -119,6 +119,9 @@ const BUSINESS_HOURS_SHEET_NAME = '営業時間';            // シート名
 // --- アラート設定 ---
 const SHIFT_SHORTAGE_ALERT_DAYS = 5; // 何日後のシフト不足を検知するか
 
+// --- 期間設定 ---
+const SHEET_PERIOD_SETTINGS = '期間設定'; // 授業期間/ターム休みの日程管理シート
+
 // --- スタッフマッピング ---
 // 初期値（フォールバック用）。PWA運用後は「スタッフ」シートから自動読み込み。
 // main() 実行時に loadStaffMappingFromSheets_() で上書きされる。

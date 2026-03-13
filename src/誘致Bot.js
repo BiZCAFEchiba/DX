@@ -139,18 +139,19 @@ function onYuchiFormSubmit(e) {
       return;
     }
 
-    // 1問目 = スタッフ名
-    var staffName = String(items[0].getResponse()).trim();
-    Logger.log('onYuchiFormSubmit: 回答者=' + staffName);
-
-    // チェックボックス（配列回答）から選択企業を抽出
+    // 質問タイトルでスタッフ名を取得
+    var staffName = '';
     var selectedCompanies = [];
-    for (var i = 1; i < items.length; i++) {
+    for (var i = 0; i < items.length; i++) {
+      var title = String(items[i].getItem().getTitle()).trim();
       var ans = items[i].getResponse();
-      if (Array.isArray(ans) && ans.length > 0) {
+      if (title === 'スタッフ名（フルネーム）') {
+        staffName = String(ans).trim();
+      } else if (Array.isArray(ans) && ans.length > 0) {
         selectedCompanies = selectedCompanies.concat(ans);
       }
     }
+    Logger.log('onYuchiFormSubmit: 回答者=' + staffName);
     Logger.log('選択企業: ' + selectedCompanies.join(', '));
 
     if (selectedCompanies.length === 0) {
@@ -306,6 +307,66 @@ function getWebAppUrl_() {
 // ============================================================
 // テスト用
 // ============================================================
+
+/**
+ * 今日すでに送信されたフォーム回答を使って手動でDMを再送する
+ * トリガー未登録だった場合のリカバリ用
+ */
+function replayTodayYuchiFormResponses() {
+  var form = FormApp.openById(MEETUP_FORM_ID);
+  var allResponses = form.getResponses();
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  var mappings = loadStaffMappingFromSheets_();
+  var sendMap = mappings ? mappings.send : {};
+  var webAppUrl = getWebAppUrl_();
+  if (!webAppUrl) {
+    Logger.log('WebApp URLが未設定です。setWebAppUrl() を実行してください。');
+    return;
+  }
+
+  var count = 0;
+  allResponses.forEach(function(response) {
+    var timestamp = response.getTimestamp();
+    if (timestamp < today) return; // 今日以外はスキップ
+
+    var items = response.getItemResponses();
+    if (!items || items.length === 0) return;
+
+    var staffName = '';
+    var selectedCompanies = [];
+    for (var i = 0; i < items.length; i++) {
+      var title = String(items[i].getItem().getTitle()).trim();
+      var ans = items[i].getResponse();
+      if (title === 'スタッフ名（フルネーム）') {
+        staffName = String(ans).trim();
+      } else if (Array.isArray(ans) && ans.length > 0) {
+        selectedCompanies = selectedCompanies.concat(ans);
+      }
+    }
+
+    if (selectedCompanies.length === 0) {
+      Logger.log('企業未選択のためスキップ: ' + staffName);
+      return;
+    }
+
+    var userId = sendMap[staffName];
+    if (!userId) {
+      Logger.log('LINE WORKS ID未登録のスタッフ: ' + staffName);
+      return;
+    }
+
+    var formUrl = webAppUrl + '?page=yuchi&name=' + encodeURIComponent(staffName)
+      + '&companies=' + encodeURIComponent(selectedCompanies.join(','));
+    var msg = staffName + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。\n\n' + formUrl;
+    var success = sendLineWorksMessage(userId, msg);
+    Logger.log('再送' + (success ? '成功' : '失敗') + ': ' + staffName + ' / ' + selectedCompanies.join(', '));
+    count++;
+  });
+
+  Logger.log('replayTodayYuchiFormResponses 完了: ' + count + '件処理');
+}
 
 /**
  * テストグループにフォームURLを送信する

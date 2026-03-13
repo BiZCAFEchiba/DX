@@ -37,7 +37,7 @@ function getCustomerCalendarData_(year, month) {
 
     const kashikiriList = kashikiriMap[dateISO] || [];
     if (kashikiriList.length === 0) {
-      results.push({ date: dateISO, isOpen: true, open: normalHours.start, close: normalHours.end, isKashikiri: false, kashikiriTime: null, note: null });
+      results.push({ date: dateISO, isOpen: true, open: normalHours.start, close: normalHours.end, isKashikiri: false, kashikiriTime: null, note: null, period: normalHours.period || null });
       continue;
     }
 
@@ -51,7 +51,8 @@ function getCustomerCalendarData_(year, month) {
       close: adjusted.close,
       isKashikiri: true,
       kashikiriTime: k.start + '〜' + k.end,
-      note: adjusted.note
+      note: adjusted.note,
+      period: normalHours.period || null
     });
   }
 

@@ -42,10 +42,52 @@ function loadStaffMappingFromSheets_() {
 }
 
 /**
+ * 指定日が授業期間かターム休みかを返す
+ * 「期間設定」シート（A:開始日, B:終了日, C:種別）を参照
+ * @param {Date} targetDate
+ * @returns {string} '授業期間' | 'ターム休み' | '授業期間'（未設定時はデフォルト）
+ */
+function getTermPeriod_(targetDate) {
+  try {
+    const ss = SpreadsheetApp.openById(BUSINESS_HOURS_SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEET_PERIOD_SETTINGS);
+    if (!sheet || sheet.getLastRow() <= 1) return '授業期間';
+
+    const data = sheet.getDataRange().getValues();
+    const targetTime = targetDate.getTime();
+
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      if (!row[0] || !row[1] || !row[2]) continue;
+
+      const start = row[0] instanceof Date ? row[0] : new Date(row[0]);
+      const end   = row[1] instanceof Date ? row[1] : new Date(row[1]);
+      const kind  = String(row[2]).trim();
+
+      // 終了日は当日23:59:59まで含む
+      const endOfDay = new Date(end);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      if (targetTime >= start.getTime() && targetTime <= endOfDay.getTime()) {
+        return kind;
+      }
+    }
+  } catch (e) {
+    Logger.log('getTermPeriod_ エラー: ' + e.message);
+  }
+  return '授業期間'; // デフォルト
+}
+
+/**
  * 指定された日付の営業時間を取得する
  * 「営業時間」シートから検索
+ *
+ * 【シート列構成】
+ * A: 曜日 | B: 授業期間_開始 | C: 授業期間_終了 | D: 授業期間_営業
+ *          | E: ターム休み_開始 | F: ターム休み_終了 | G: ターム休み_営業
+ *
  * @param {Date} targetDate
- * @returns {{ start: string, end: string } | null} 営業時間 or null（休業/設定なし）
+ * @returns {{ start: string, end: string, period: string } | null}
  */
 function getBusinessHours(targetDate) {
   if (!targetDate) {
@@ -60,49 +102,43 @@ function getBusinessHours(targetDate) {
   }
 
   const data = sheet.getDataRange().getValues();
-  // A列: 曜日(月,火...), B: Open, C: Close, D: IsClosed(Boolean)
-  // 1行目はヘッダー
+  const dayOfWeekJaMap = { 0: '日', 1: '月', 2: '火', 3: '水', 4: '木', 5: '金', 6: '土' };
+  const targetDayJa = dayOfWeekJaMap[targetDate.getDay()];
 
-  const dayOfWeekEn = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][targetDate.getDay()];
-  const dayOfWeekJaMap = { 'Sun': '日', 'Mon': '月', 'Tue': '火', 'Wed': '水', 'Thu': '木', 'Fri': '金', 'Sat': '土' };
-  const targetDayJa = dayOfWeekJaMap[dayOfWeekEn];
+  // 授業期間 or ターム休み を判定
+  const period = getTermPeriod_(targetDate);
+  const isTermBreak = (period === 'ターム休み');
+
+  // 列インデックス: 授業期間=B(1),C(2),D(3) / ターム休み=E(4),F(5),G(6)
+  const colOpen    = isTermBreak ? 4 : 1;
+  const colClose   = isTermBreak ? 5 : 2;
+  const colIsOpen  = isTermBreak ? 6 : 3;
 
   let validSetting = null;
-
-  /**
-   * 営業時間のテスト用関数
-   */
-  function testBusinessHours() {
-    const today = new Date();
-    Logger.log('今日(' + today + ')の営業時間を確認します');
-    const result = getBusinessHours(today);
-    Logger.log(JSON.stringify(result));
-  }
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
     const day = String(row[0]).trim();
-    const isOpen = formatTime_(row[1]);
-    const isClose = formatTime_(row[2]);
-    const isBusinessDay = row[3] === true || row[3] === 'TRUE';
+    if (day !== targetDayJa) continue;
 
-    if (day === targetDayJa) {
-      if (!isBusinessDay || isJapaneseHoliday_(targetDate)) {
-        return null; // チェックがない場合、または祝日の場合は定休日扱い
-      }
-      validSetting = {
-        open: isOpen,
-        close: isClose
-      };
-      break; // 該当曜日が見つかれば終了
+    // ターム休み列が未設定の場合、授業期間列にフォールバック
+    const openVal  = row[colOpen]  || row[1];
+    const closeVal = row[colClose] || row[2];
+    const isOpenVal = (row[colIsOpen] !== undefined && row[colIsOpen] !== '') ? row[colIsOpen] : row[3];
+
+    const isBusinessDay = isOpenVal === true || String(isOpenVal).toUpperCase() === 'TRUE';
+
+    if (!isBusinessDay || isJapaneseHoliday_(targetDate)) {
+      return null;
     }
+    validSetting = { open: formatTime_(openVal), close: formatTime_(closeVal) };
+    break;
   }
 
   if (validSetting) {
-    return { start: validSetting.open, end: validSetting.close };
+    return { start: validSetting.open, end: validSetting.close, period: period };
   } else {
-    // データがない場合のデフォルト
-    return { start: '10:00', end: '20:00' };
+    return { start: '10:00', end: '20:00', period: period };
   }
 }
 
