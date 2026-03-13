@@ -12,6 +12,7 @@ function onOpen() {
     .addItem('シート初期化', 'initSheets')
     .addItem('「設定」シート作成', 'createSettingsSheet')
     .addItem('「期間設定」シート作成', 'initPeriodSettingsSheet')
+    .addItem('「スタッフ勤務時間」シート作成', 'initStaffHoursSheet')
     .addSeparator()
     .addItem('PDF解析 → シート取込（手動）', 'menuParsePdf')
     .addItem('PDF自動取込（即時実行）', 'autoProcessPdfFromDrive')
@@ -224,6 +225,70 @@ function initPeriodSettingsSheet() {
     '「期間設定」シートを作成しました。\n\n' +
     '開始日と種別を入力してください。\n終了日は次の行の開始日の前日として自動計算されます。\n\n' +
     '【重要】「営業時間」シートに\nターム休みの営業時間（E〜G列）を追加してください。'
+  );
+}
+
+/**
+ * 「スタッフ勤務時間」シートを作成・初期化する
+ * シフト不足チェックに使用するスタッフの実働時間を管理する
+ *
+ * 列構成: A:曜日 | B:授業期間_開始 | C:授業期間_終了 | D:授業期間_営業
+ *                | E:ターム休み_開始 | F:ターム休み_終了 | G:ターム休み_営業
+ */
+function initStaffHoursSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(STAFF_HOURS_SHEET_NAME);
+
+  if (sheet) {
+    const ui = SpreadsheetApp.getUi();
+    const res = ui.alert('「スタッフ勤務時間」シートは既に存在します。再作成しますか？', ui.ButtonSet.YES_NO);
+    if (res !== ui.Button.YES) return;
+    ss.deleteSheet(sheet);
+  }
+
+  sheet = ss.insertSheet(STAFF_HOURS_SHEET_NAME);
+
+  // ヘッダー
+  sheet.getRange(1, 1, 1, 7).setValues([[
+    '曜日',
+    '授業期間_開始', '授業期間_終了', '授業期間_営業',
+    'ターム休み_開始', 'ターム休み_終了', 'ターム休み_営業'
+  ]]);
+  sheet.getRange(1, 1, 1, 7).setFontWeight('bold');
+  sheet.getRange(1, 2, 1, 3).setBackground('#e8f5e9'); // 授業期間（緑）
+  sheet.getRange(1, 5, 1, 3).setBackground('#fff3e0'); // ターム休み（橙）
+
+  // デフォルトデータ（授業期間とターム休みで異なる例）
+  const days = ['月', '火', '水', '木', '金', '土', '日'];
+  const defaultData = days.map(function(day) {
+    const isWeekend = (day === '土' || day === '日');
+    return [
+      day,
+      '10:00', '20:00', !isWeekend,  // 授業期間
+      '10:00', '18:00', !isWeekend   // ターム休み（短縮例）
+    ];
+  });
+  sheet.getRange(2, 1, defaultData.length, 7).setValues(defaultData);
+
+  // D列・G列にチェックボックス
+  sheet.getRange(2, 4, days.length, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireCheckbox().build()
+  );
+  sheet.getRange(2, 7, days.length, 1).setDataValidation(
+    SpreadsheetApp.newDataValidation().requireCheckbox().build()
+  );
+
+  // 列幅
+  sheet.setColumnWidth(1, 60);
+  sheet.setColumnWidth(2, 110); sheet.setColumnWidth(3, 110); sheet.setColumnWidth(4, 110);
+  sheet.setColumnWidth(5, 110); sheet.setColumnWidth(6, 110); sheet.setColumnWidth(7, 110);
+  sheet.setFrozenRows(1);
+
+  SpreadsheetApp.getUi().alert(
+    '「スタッフ勤務時間」シートを作成しました。\n\n' +
+    'このシートはシフト不足チェックに使用されます。\n' +
+    'お客様向け営業時間は「営業時間」シートで管理します。\n\n' +
+    '授業期間・ターム休みそれぞれの勤務時間を設定してください。'
   );
 }
 

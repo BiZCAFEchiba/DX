@@ -43,9 +43,11 @@ function loadStaffMappingFromSheets_() {
 
 /**
  * 指定日が授業期間かターム休みかを返す
- * 「期間設定」シート（A:開始日, B:終了日, C:種別）を参照
+ * 「期間設定」シート（A:開始日, B:種別）を参照
+ * 終了日は「次の行の開始日の前日」として自動計算
+ *
  * @param {Date} targetDate
- * @returns {string} '授業期間' | 'ターム休み' | '授業期間'（未設定時はデフォルト）
+ * @returns {string} '授業期間' | 'ターム休み'（未設定時は'授業期間'）
  */
 function getTermPeriod_(targetDate) {
   try {
@@ -54,50 +56,56 @@ function getTermPeriod_(targetDate) {
     if (!sheet || sheet.getLastRow() <= 1) return '授業期間';
 
     const data = sheet.getDataRange().getValues();
-    const targetTime = targetDate.getTime();
 
+    // 有効な行だけ抽出して開始日順にソート
+    const rows = [];
     for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      if (!row[0] || !row[1] || !row[2]) continue;
+      if (!data[i][0] || !data[i][1]) continue;
+      const start = data[i][0] instanceof Date ? data[i][0] : new Date(data[i][0]);
+      if (isNaN(start.getTime())) continue;
+      start.setHours(0, 0, 0, 0);
+      rows.push({ start: start, kind: String(data[i][1]).trim() });
+    }
+    rows.sort(function(a, b) { return a.start - b.start; });
 
-      const start = row[0] instanceof Date ? row[0] : new Date(row[0]);
-      const end   = row[1] instanceof Date ? row[1] : new Date(row[1]);
-      const kind  = String(row[2]).trim();
+    // targetDateより後の最初の開始日を探し、その前日が終了日
+    // → targetDateが含まれる期間 = targetDate以前の最後の開始日の行
+    const targetMidnight = new Date(targetDate);
+    targetMidnight.setHours(0, 0, 0, 0);
 
-      // 終了日は当日23:59:59まで含む
-      const endOfDay = new Date(end);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      if (targetTime >= start.getTime() && targetTime <= endOfDay.getTime()) {
-        return kind;
+    let matched = null;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].start <= targetMidnight) {
+        matched = rows[i];
+      } else {
+        break;
       }
     }
+
+    return matched ? matched.kind : '授業期間';
   } catch (e) {
     Logger.log('getTermPeriod_ エラー: ' + e.message);
   }
-  return '授業期間'; // デフォルト
+  return '授業期間';
 }
 
 /**
- * 指定された日付の営業時間を取得する
- * 「営業時間」シートから検索
+ * 指定シートから曜日・期間に応じた時間設定を取得する内部関数
  *
  * 【シート列構成】
  * A: 曜日 | B: 授業期間_開始 | C: 授業期間_終了 | D: 授業期間_営業
  *          | E: ターム休み_開始 | F: ターム休み_終了 | G: ターム休み_営業
  *
  * @param {Date} targetDate
+ * @param {string} sheetName - 読み込むシート名
  * @returns {{ start: string, end: string, period: string } | null}
  */
-function getBusinessHours(targetDate) {
-  if (!targetDate) {
-    Logger.log('getBusinessHours: targetDate is undefined or null');
-    return null;
-  }
+function getHoursFromSheet_(targetDate, sheetName) {
+  if (!targetDate) return null;
 
-  const sheet = SpreadsheetApp.openById(BUSINESS_HOURS_SPREADSHEET_ID).getSheetByName(BUSINESS_HOURS_SHEET_NAME);
+  const sheet = SpreadsheetApp.openById(BUSINESS_HOURS_SPREADSHEET_ID).getSheetByName(sheetName);
   if (!sheet) {
-    Logger.log('「営業時間」シートが見つかりません。');
+    Logger.log('「' + sheetName + '」シートが見つかりません。');
     return null;
   }
 
@@ -105,41 +113,55 @@ function getBusinessHours(targetDate) {
   const dayOfWeekJaMap = { 0: '日', 1: '月', 2: '火', 3: '水', 4: '木', 5: '金', 6: '土' };
   const targetDayJa = dayOfWeekJaMap[targetDate.getDay()];
 
-  // 授業期間 or ターム休み を判定
   const period = getTermPeriod_(targetDate);
   const isTermBreak = (period === 'ターム休み');
 
   // 列インデックス: 授業期間=B(1),C(2),D(3) / ターム休み=E(4),F(5),G(6)
-  const colOpen    = isTermBreak ? 4 : 1;
-  const colClose   = isTermBreak ? 5 : 2;
-  const colIsOpen  = isTermBreak ? 6 : 3;
-
-  let validSetting = null;
+  const colOpen   = isTermBreak ? 4 : 1;
+  const colClose  = isTermBreak ? 5 : 2;
+  const colIsOpen = isTermBreak ? 6 : 3;
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const day = String(row[0]).trim();
-    if (day !== targetDayJa) continue;
+    if (String(row[0]).trim() !== targetDayJa) continue;
 
     // ターム休み列が未設定の場合、授業期間列にフォールバック
-    const openVal  = row[colOpen]  || row[1];
-    const closeVal = row[colClose] || row[2];
+    const openVal   = row[colOpen]   || row[1];
+    const closeVal  = row[colClose]  || row[2];
     const isOpenVal = (row[colIsOpen] !== undefined && row[colIsOpen] !== '') ? row[colIsOpen] : row[3];
 
     const isBusinessDay = isOpenVal === true || String(isOpenVal).toUpperCase() === 'TRUE';
+    if (!isBusinessDay || isJapaneseHoliday_(targetDate)) return null;
 
-    if (!isBusinessDay || isJapaneseHoliday_(targetDate)) {
-      return null;
-    }
-    validSetting = { open: formatTime_(openVal), close: formatTime_(closeVal) };
-    break;
+    return { start: formatTime_(openVal), end: formatTime_(closeVal), period: period };
   }
 
-  if (validSetting) {
-    return { start: validSetting.open, end: validSetting.close, period: period };
-  } else {
-    return { start: '10:00', end: '20:00', period: period };
-  }
+  return { start: '10:00', end: '20:00', period: period };
+}
+
+/**
+ * お客様向け営業時間を取得する（顧客カレンダー用）
+ * 「営業時間」シートを参照
+ *
+ * @param {Date} targetDate
+ * @returns {{ start: string, end: string, period: string } | null}
+ */
+function getBusinessHours(targetDate) {
+  return getHoursFromSheet_(targetDate, BUSINESS_HOURS_SHEET_NAME);
+}
+
+/**
+ * スタッフ勤務時間を取得する（シフト不足チェック用）
+ * 「スタッフ勤務時間」シートを参照。シートがなければ「営業時間」シートにフォールバック
+ *
+ * @param {Date} targetDate
+ * @returns {{ start: string, end: string, period: string } | null}
+ */
+function getStaffHours(targetDate) {
+  const result = getHoursFromSheet_(targetDate, STAFF_HOURS_SHEET_NAME);
+  if (result !== null) return result;
+  // シートが未作成の場合は営業時間シートで代用
+  return getHoursFromSheet_(targetDate, BUSINESS_HOURS_SHEET_NAME);
 }
 
 /**
@@ -316,9 +338,9 @@ function getShiftsForDate(date) {
  * @returns {string[]} 不足している時間帯のリスト（例: ["10:00〜11:00", "13:00〜14:00"]）
  */
 function checkShiftShortageForDate(targetDate) {
-  const businessHours = getBusinessHours(targetDate);
+  const businessHours = getStaffHours(targetDate); // スタッフ勤務時間でチェック
   if (!businessHours || !businessHours.start || !businessHours.end) {
-    return []; // 営業時間設定なし or 休業日
+    return []; // 勤務時間設定なし or 休業日
   }
 
   const shifts = getShiftsForDate(targetDate);
