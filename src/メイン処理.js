@@ -33,14 +33,36 @@ function doPost(e) {
  * ?page=yuchi で誘致フォームを表示
  */
 function doGet(e) {
-  if (e && e.parameter && e.parameter.page === 'yuchi') {
+  var param = (e && e.parameter) ? e.parameter : {};
+
+  // --- 誘致フォーム ---
+  if (param.page === 'yuchi') {
     var template = HtmlService.createTemplateFromFile('誘致フォーム');
-    template.staffName = e.parameter.name || '';
-    template.preselected = e.parameter.companies || '';
+    template.staffName = param.name || '';
+    template.preselected = param.companies || '';
     return template.evaluate()
       .setTitle('誘致情報入力')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
+
+  // --- お客様向け営業カレンダー ---
+  if (param.page === 'calendar') {
+    // JSONデータAPIモード
+    if (param.action === 'data') {
+      var year  = parseInt(param.year)  || new Date().getFullYear();
+      var month = parseInt(param.month) || (new Date().getMonth() + 1);
+      var data  = getCustomerCalendarData_(year, month);
+      return ContentService.createTextOutput(JSON.stringify(data))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // HTMLページモード
+    var calTemplate = HtmlService.createTemplateFromFile('顧客カレンダー');
+    calTemplate.appUrl = ScriptApp.getService().getUrl();
+    return calTemplate.evaluate()
+      .setTitle('営業カレンダー | BizCAFE 千葉大学店')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   return ContentService.createTextOutput('Shift Reminder Bot is active.');
 }
 
