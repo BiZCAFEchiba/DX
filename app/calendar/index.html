@@ -272,13 +272,15 @@
       });
   }
 
-  function loadCalendar(force) {
+  function loadCalendar() {
     document.getElementById('monthLabel').textContent = currentYear + '年 ' + currentMonth + '月';
-    if (!force) {
-      var cached = loadFromCache();
-      if (cached) { renderCalendar(cached); return; }
+    var cached = loadFromCache();
+    if (cached) {
+      renderCalendar(cached);
+      return;
     }
-    fetchFromAPI(force);
+    // localStorage にキャッシュなし = 初回アクセス → GASキャッシュもスキップして最新データを取得
+    fetchFromAPI(true);
   }
 
 
