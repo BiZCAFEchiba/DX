@@ -187,44 +187,52 @@ function findNextBusinessDay_(startDate) {
   return tomorrow;
 }
 
+// 祝日キャッシュ（GAS実行1回につき月単位で保持）
+var _holidayCache_ = {};
+
 /**
  * 指定日が日本の祝日かどうかを判定する
+ * 同じ月のリクエストはキャッシュを使い CalendarApp 呼び出しを1回に抑える
  * @param {Date} date
  * @returns {boolean}
  */
 function isJapaneseHoliday_(date) {
   try {
-    const calendarIds = [
-      'ja.japanese#holiday@group.v.calendar.google.com',
-      'japanese__ja@holiday.calendar.google.com',
-      'en.japanese#holiday@group.v.calendar.google.com'
-    ];
+    const monthKey = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
 
-    let calendar = null;
-    // 1. IDで検索
-    for (const id of calendarIds) {
-      calendar = CalendarApp.getCalendarById(id);
-      if (calendar) break;
-    }
-
-    // 2. 名前で検索（IDで見つからない場合）
-    if (!calendar) {
-      const calendars = CalendarApp.getCalendarsByName('日本の祝日');
-      if (calendars && calendars.length > 0) {
-        calendar = calendars[0];
+    // 月単位で祝日セットを一括取得（初回のみ）
+    if (!_holidayCache_[monthKey]) {
+      const set = {};
+      const calendarIds = [
+        'ja.japanese#holiday@group.v.calendar.google.com',
+        'japanese__ja@holiday.calendar.google.com',
+        'en.japanese#holiday@group.v.calendar.google.com'
+      ];
+      let calendar = null;
+      for (let i = 0; i < calendarIds.length; i++) {
+        calendar = CalendarApp.getCalendarById(calendarIds[i]);
+        if (calendar) break;
       }
+      if (!calendar) {
+        const cals = CalendarApp.getCalendarsByName('日本の祝日');
+        if (cals && cals.length > 0) calendar = cals[0];
+      }
+      if (calendar) {
+        const start = new Date(date.getFullYear(), date.getMonth(), 1);
+        const end   = new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59);
+        const events = calendar.getEvents(start, end);
+        events.forEach(function(e) {
+          set[Utilities.formatDate(e.getStartTime(), TIMEZONE, 'yyyy-MM-dd')] = true;
+        });
+        Logger.log('祝日一括取得: ' + monthKey + ' → ' + Object.keys(set).length + '件');
+      } else {
+        Logger.log('警告: 日本の祝日カレンダーが見つかりませんでした。');
+      }
+      _holidayCache_[monthKey] = set;
     }
 
-    if (calendar) {
-      const events = calendar.getEventsForDay(date);
-      if (events.length > 0) {
-        Logger.log('祝日判定: ' + Utilities.formatDate(date, TIMEZONE, 'yyyy-MM-dd') + ' は祝日です (' + events[0].getTitle() + ')');
-        return true;
-      }
-    } else {
-      Logger.log('警告: 日本の祝日カレンダーが見つかりませんでした。');
-    }
-    return false;
+    const iso = Utilities.formatDate(date, TIMEZONE, 'yyyy-MM-dd');
+    return !!_holidayCache_[monthKey][iso];
   } catch (e) {
     Logger.log('祝日判定エラー: ' + e.message);
     return false;

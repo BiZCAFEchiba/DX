@@ -201,8 +201,38 @@
     loadCalendar();
   });
 
+  var CACHE_TTL = 2 * 60 * 60 * 1000; // 2時間
+
+  function getCacheKey() {
+    return 'bizcafe_cal_' + currentYear + '_' + currentMonth;
+  }
+
+  function loadFromCache() {
+    try {
+      var raw = localStorage.getItem(getCacheKey());
+      if (!raw) return null;
+      var entry = JSON.parse(raw);
+      if (Date.now() - entry.ts < CACHE_TTL) return entry.data;
+    } catch (e) {}
+    return null;
+  }
+
+  function saveToCache(data) {
+    try {
+      localStorage.setItem(getCacheKey(), JSON.stringify({ ts: Date.now(), data: data }));
+    } catch (e) {}
+  }
+
   function loadCalendar() {
     document.getElementById('monthLabel').textContent = currentYear + '年 ' + currentMonth + '月';
+
+    // キャッシュがあれば即表示
+    var cached = loadFromCache();
+    if (cached) {
+      renderCalendar(cached);
+      return;
+    }
+
     document.getElementById('calendarGrid').innerHTML = '<div class="loading">読み込み中...</div>';
 
     var url = GAS_API_URL
@@ -212,7 +242,10 @@
 
     fetch(url)
       .then(function (r) { return r.json(); })
-      .then(function (data) { renderCalendar(data); })
+      .then(function (data) {
+        saveToCache(data);
+        renderCalendar(data);
+      })
       .catch(function () {
         document.getElementById('calendarGrid').innerHTML =
           '<div class="loading">データの取得に失敗しました。しばらくしてから再度お試しください。</div>';

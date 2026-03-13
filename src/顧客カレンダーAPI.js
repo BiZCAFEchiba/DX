@@ -19,6 +19,17 @@
  * }>}
  */
 function getCustomerCalendarData_(year, month) {
+  // GAS CacheService で1時間キャッシュ（スプシ・カレンダーAPI呼び出しを省略）
+  const cacheKey = 'customerCal_' + year + '_' + month;
+  const cache = CacheService.getScriptCache();
+  const cached = cache.get(cacheKey);
+  if (cached) {
+    try {
+      Logger.log('顧客カレンダー: キャッシュヒット ' + year + '/' + month);
+      return JSON.parse(cached);
+    } catch (e) {}
+  }
+
   const results = [];
   const daysInMonth = new Date(year, month, 0).getDate();
 
@@ -54,6 +65,11 @@ function getCustomerCalendarData_(year, month) {
       note: adjusted.note,
       period: normalHours.period || null
     });
+  }
+
+  // 結果をキャッシュ（最大6時間だが1時間に設定）
+  try { cache.put(cacheKey, JSON.stringify(results), 3600); } catch (e) {
+    Logger.log('カレンダーキャッシュ保存失敗: ' + e.message);
   }
 
   return results;
