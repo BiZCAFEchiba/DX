@@ -172,7 +172,8 @@ function menuRefetchAllFields() {
  * 「期間設定」シートを作成・初期化する
  * 授業期間とターム休みの日程を管理する
  *
- * 列構成: A:開始日 | B:終了日 | C:種別（授業期間 or ターム休み）
+ * 列構成: A:開始日 | B:種別（授業期間 or ターム休み）
+ * ※終了日は次の行の開始日の前日として自動計算される
  */
 function initPeriodSettingsSheet() {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
@@ -188,40 +189,40 @@ function initPeriodSettingsSheet() {
   sheet = ss.insertSheet(SHEET_PERIOD_SETTINGS);
 
   // ヘッダー
-  sheet.getRange(1, 1, 1, 3).setValues([['開始日', '終了日', '種別']]);
-  sheet.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#e8f0fe');
+  sheet.getRange(1, 1, 1, 2).setValues([['開始日', '種別']]);
+  sheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#e8f0fe');
 
   // サンプルデータ（千葉大学の一般的なターム構成）
+  // 終了日は次の行の開始日の前日として自動計算されるため、開始日と種別のみ入力
   const today = new Date();
   const year = today.getFullYear();
   const sampleData = [
-    [new Date(year, 3, 1),  new Date(year, 6, 17), '授業期間'],   // 4/1〜7/17
-    [new Date(year, 6, 18), new Date(year, 8, 30), 'ターム休み'], // 7/18〜9/30
-    [new Date(year, 9, 1),  new Date(year, 11, 25), '授業期間'],  // 10/1〜12/25
-    [new Date(year, 11, 26), new Date(year + 1, 2, 31), 'ターム休み'] // 12/26〜翌3/31
+    [new Date(year, 3, 1),   '授業期間'],   // 4/1〜（次の開始日の前日まで）
+    [new Date(year, 6, 18),  'ターム休み'], // 7/18〜
+    [new Date(year, 9, 1),   '授業期間'],   // 10/1〜
+    [new Date(year, 11, 26), 'ターム休み']  // 12/26〜
   ];
-  sheet.getRange(2, 1, sampleData.length, 3).setValues(sampleData);
+  sheet.getRange(2, 1, sampleData.length, 2).setValues(sampleData);
 
   // 日付列のフォーマット
-  sheet.getRange(2, 1, sampleData.length, 2).setNumberFormat('yyyy/MM/dd');
+  sheet.getRange(2, 1, sampleData.length, 1).setNumberFormat('yyyy/MM/dd');
 
   // 種別列にドロップダウン
   const rule = SpreadsheetApp.newDataValidation()
     .requireValueInList(['授業期間', 'ターム休み'], true)
     .build();
-  sheet.getRange(2, 3, 50, 1).setDataValidation(rule);
+  sheet.getRange(2, 2, 50, 1).setDataValidation(rule);
 
   // 列幅調整
   sheet.setColumnWidth(1, 120);
   sheet.setColumnWidth(2, 120);
-  sheet.setColumnWidth(3, 120);
 
   // 営業時間シートのヘッダーも更新
   updateBusinessHoursSheetHeader_();
 
   SpreadsheetApp.getUi().alert(
     '「期間設定」シートを作成しました。\n\n' +
-    '開始日・終了日・種別を入力してください。\n\n' +
+    '開始日と種別を入力してください。\n終了日は次の行の開始日の前日として自動計算されます。\n\n' +
     '【重要】「営業時間」シートに\nターム休みの営業時間（E〜G列）を追加してください。'
   );
 }
