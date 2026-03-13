@@ -18,16 +18,21 @@
  *   note: string|null
  * }>}
  */
-function getCustomerCalendarData_(year, month) {
+function getCustomerCalendarData_(year, month, nocache) {
   // GAS CacheService で1時間キャッシュ（スプシ・カレンダーAPI呼び出しを省略）
   const cacheKey = 'customerCal_' + year + '_' + month;
   const cache = CacheService.getScriptCache();
-  const cached = cache.get(cacheKey);
-  if (cached) {
-    try {
-      Logger.log('顧客カレンダー: キャッシュヒット ' + year + '/' + month);
-      return JSON.parse(cached);
-    } catch (e) {}
+  if (!nocache) {
+    const cached = cache.get(cacheKey);
+    if (cached) {
+      try {
+        Logger.log('顧客カレンダー: キャッシュヒット ' + year + '/' + month);
+        return JSON.parse(cached);
+      } catch (e) {}
+    }
+  } else {
+    cache.remove(cacheKey);
+    Logger.log('顧客カレンダー: キャッシュクリア ' + year + '/' + month);
   }
 
   const results = [];

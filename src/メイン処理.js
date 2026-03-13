@@ -49,11 +49,13 @@ function doGet(e) {
   if (param.page === 'calendar') {
     // JSONデータAPIモード
     if (param.action === 'data') {
-      var year  = parseInt(param.year)  || new Date().getFullYear();
-      var month = parseInt(param.month) || (new Date().getMonth() + 1);
-      var data  = getCustomerCalendarData_(year, month);
-      return ContentService.createTextOutput(JSON.stringify(data))
+      var year    = parseInt(param.year)  || new Date().getFullYear();
+      var month   = parseInt(param.month) || (new Date().getMonth() + 1);
+      var nocache = param.nocache === '1';
+      var data    = getCustomerCalendarData_(year, month, nocache);
+      var output  = ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
+      return output;
     }
     // HTMLページモード
     var calTemplate = HtmlService.createTemplateFromFile('顧客カレンダー');
