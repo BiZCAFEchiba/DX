@@ -425,9 +425,14 @@
       });
   }
 
+  var splashHideAt = Date.now() + 1500; // 最低1.5秒表示
+
   function hideSplash() {
-    var splash = document.getElementById('splash');
-    if (splash) splash.classList.add('hidden');
+    var delay = Math.max(0, splashHideAt - Date.now());
+    setTimeout(function() {
+      var splash = document.getElementById('splash');
+      if (splash) splash.classList.add('hidden');
+    }, delay);
   }
 
   function renderCalendar(days) {
