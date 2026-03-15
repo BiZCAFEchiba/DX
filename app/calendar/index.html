@@ -454,15 +454,22 @@
     try { localStorage.setItem(getCacheKey(), JSON.stringify({ ts: Date.now(), data: data })); } catch(e) {}
   }
 
+  var calReqId = 0;
   function loadCalendar(onReady) {
-    document.getElementById('monthLabel').textContent = currentYear + '年 ' + currentMonth + '月';
+    var reqId = ++calReqId;
+    var year = currentYear, month = currentMonth;
+    document.getElementById('monthLabel').textContent = year + '年 ' + month + '月';
     var cached = loadFromCache();
     if (cached) { renderCalendar(cached); if (onReady) onReady(); return; }
     document.getElementById('calendarGrid').innerHTML = '<div class="loading">読み込み中...</div>';
-    fetch(GAS_API_URL + '?page=calendar&action=data&year=' + currentYear + '&month=' + currentMonth + '&nocache=1')
+    fetch(GAS_API_URL + '?page=calendar&action=data&year=' + year + '&month=' + month + '&nocache=1')
       .then(function(r) { return r.json(); })
-      .then(function(data) { saveToCache(data); renderCalendar(data); if (onReady) onReady(); })
+      .then(function(data) {
+        if (reqId !== calReqId) return; // 古いリクエストは無視
+        saveToCache(data); renderCalendar(data); if (onReady) onReady();
+      })
       .catch(function() {
+        if (reqId !== calReqId) return;
         document.getElementById('calendarGrid').innerHTML = '<div class="loading">データの取得に失敗しました。</div>';
         if (onReady) onReady();
       });
