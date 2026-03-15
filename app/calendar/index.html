@@ -7,6 +7,29 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ===== スプラッシュ画面 ===== */
+    #splash {
+      position: fixed;
+      inset: 0;
+      z-index: 99999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f0ece4;
+      transition: opacity 0.5s ease, visibility 0.5s ease;
+    }
+    #splash.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #splash img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+
     body {
       font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
       background: #f5f7fa;
@@ -289,6 +312,11 @@
 </head>
 <body>
 
+<!-- スプラッシュ画面 -->
+<div id="splash">
+  <img src="/bizcafe-splash.png" alt="BizCAFE">
+</div>
+
 <div id="loadingToast"></div>
 
 <header>
@@ -392,11 +420,18 @@
       .then(function(r) { return r.json(); })
       .then(function(data) { saveToCache(data); renderCalendar(data); })
       .catch(function() {
+        hideSplash();
         document.getElementById('calendarGrid').innerHTML = '<div class="loading">データの取得に失敗しました。</div>';
       });
   }
 
+  function hideSplash() {
+    var splash = document.getElementById('splash');
+    if (splash) splash.classList.add('hidden');
+  }
+
   function renderCalendar(days) {
+    hideSplash();
     var grid = document.getElementById('calendarGrid');
     grid.innerHTML = '';
     if (!days || days.length === 0) {
