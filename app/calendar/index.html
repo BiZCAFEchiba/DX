@@ -14,6 +14,20 @@
       min-height: 100vh;
     }
 
+    /* 読み込みトースト（画面上部固定） */
+    #loadingToast {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      background: #1a3a5c;
+      color: #fff;
+      text-align: center;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+    }
+
     header {
       background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
       color: white;
@@ -77,6 +91,7 @@
     .day-cell.normal    { background: #eaf6f0; border: 1px solid #b2dfc5; }
     .day-cell.kashikiri { background: #fff8e1; border: 1px solid #ffd54f; }
     .day-cell.today     { outline: 2.5px solid #1a3a5c; outline-offset: -2px; }
+    .day-cell.selected  { outline: 3px solid #e65100 !important; outline-offset: -2px; }
 
     .day-num { font-size: 0.9rem; font-weight: 700; }
     .day-cell.closed    .day-num { color: #bdbdbd; }
@@ -103,6 +118,26 @@
       width: fit-content;
     }
 
+    /* 営業日ボタン（セル全面） */
+    .day-open-btn {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+      min-height: 70px;
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      text-align: left;
+      -webkit-tap-highlight-color: rgba(26,58,92,0.15);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .day-open-btn:active { opacity: 0.6; }
+    .day-open-btn:focus  { outline: none; }
+
     .loading { text-align: center; padding: 48px; color: #888; grid-column: 1 / -1; }
 
     .legend {
@@ -126,12 +161,113 @@
 
     .notice {
       max-width: 840px;
-      margin: 8px auto 24px;
+      margin: 8px auto 16px;
       padding: 10px 16px;
       font-size: 0.78rem;
       color: #777;
       text-align: center;
     }
+
+    /* --- Meetupパネル --- */
+    .meetup-panel {
+      max-width: 840px;
+      margin: 0 auto;
+      padding: 0 12px 40px;
+      display: none;
+    }
+    .meetup-panel.visible { display: block; }
+
+    .meetup-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-top: 16px;
+    }
+    .meetup-panel-title { font-size: 1.05rem; font-weight: 700; color: #1a3a5c; }
+    .meetup-close {
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      color: #888;
+      padding: 4px 8px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+    .meetup-close:hover { background: #f0f0f0; color: #333; }
+
+    /* 卒年フィルター */
+    .grad-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .grad-btn {
+      background: #eaf0f7;
+      border: 1.5px solid #b0c4d8;
+      color: #1a3a5c;
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .grad-btn.active { background: #1a3a5c; border-color: #1a3a5c; color: #fff; }
+    .grad-btn:hover:not(.active) { background: #d0dff0; }
+
+    /* Meetupカード */
+    .meetup-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .meetup-card {
+      background: #fff;
+      border: 1px solid #dde6f0;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .meetup-img-wrap {
+      flex-shrink: 0;
+      width: 110px;
+      background: #eaf0f7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .meetup-img { width: 110px; height: 110px; object-fit: cover; display: block; }
+    .meetup-img-placeholder {
+      width: 110px; height: 110px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.2rem; color: #b0c4d8;
+    }
+
+    .meetup-body { flex: 1; padding: 12px 14px; min-width: 0; }
+    .meetup-company { font-size: 0.82rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .meetup-theme { font-size: 0.92rem; font-weight: 600; color: #222; line-height: 1.45; margin-bottom: 8px; }
+    .meetup-theme.no-theme { color: #999; font-weight: 400; font-style: italic; }
+    .meetup-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.78rem; }
+    .meetup-time { color: #555; }
+    .meetup-kind { background: #eaf6f0; color: #2e7d32; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
+    .meetup-grad { background: #fff3e0; color: #e65100; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
+
+    .meetup-empty {
+      text-align: center; padding: 32px; color: #888; font-size: 0.9rem;
+      background: #fff; border: 1px solid #e0e7ef; border-radius: 12px;
+    }
+
+    .meetup-loading {
+      text-align: center; padding: 32px; color: #888;
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #dde6f0;
+      border-top-color: #1a3a5c;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     @media (max-width: 520px) {
       header h1    { font-size: 1.05rem; }
@@ -141,27 +277,19 @@
       .day-num     { font-size: 0.75rem; }
       .hours       { font-size: 0.6rem; line-height: 1.3; }
       .closed-label { font-size: 0.58rem; }
-      /* バッジをセル幅いっぱいに広げて折り返しを防ぐ */
-      .kashikiri-badge {
-        font-size: 0.5rem;
-        padding: 1px 2px;
-        width: 100%;
-        text-align: center;
-        border-radius: 3px;
-        margin-top: 1px;
-      }
+      .kashikiri-badge { font-size: 0.5rem; padding: 1px 2px; width: 100%; text-align: center; border-radius: 3px; margin-top: 1px; }
       .month-label { font-size: 1.1rem; min-width: 120px; }
-      /* 時間を1行表示に切り替え */
-      .hours-mobile  { display: block; }
-      .hours-desktop { display: none; }
-    }
-    @media (min-width: 521px) {
-      .hours-mobile  { display: none; }
-      .hours-desktop { display: block; }
+      .day-open-btn { min-height: 62px; }
+      .meetup-card { flex-direction: column; }
+      .meetup-img-wrap { width: 100%; height: 160px; }
+      .meetup-img { width: 100%; height: 160px; }
+      .meetup-img-placeholder { width: 100%; height: 160px; font-size: 3rem; }
     }
   </style>
 </head>
 <body>
+
+<div id="loadingToast"></div>
 
 <header>
   <h1>🏪 BizCAFE 千葉大学店</h1>
@@ -194,9 +322,16 @@
   <div class="legend-item"><div class="legend-dot kashikiri"></div>貸切あり（時間変更）</div>
   <div class="legend-item"><div class="legend-dot closed"></div>定休日</div>
 </div>
-<div class="notice">
-  ※ 貸切の日は通常と異なる営業時間になります。<br>
-  最新情報は店舗にお問い合わせください。
+<div class="notice">※ 営業日をタップするとその日のMeetup予定が表示されます。</div>
+
+<!-- Meetupパネル -->
+<div class="meetup-panel" id="meetupPanel">
+  <div class="meetup-panel-header">
+    <div class="meetup-panel-title" id="meetupPanelTitle"></div>
+    <button class="meetup-close" id="meetupClose">✕</button>
+  </div>
+  <div class="grad-filter" id="gradFilter"></div>
+  <div class="meetup-list" id="meetupList"></div>
 </div>
 
 <script>
@@ -209,133 +344,266 @@
     + String(today.getMonth() + 1).padStart(2, '0') + '-'
     + String(today.getDate()).padStart(2, '0');
 
+  var selectedDateISO = null;
+  var allMeetups = [];
+  var activeGradFilter = 'all';
+
   document.getElementById('prevBtn').addEventListener('click', function () {
     currentMonth--;
     if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+    closeMeetupPanel();
     loadCalendar();
   });
   document.getElementById('nextBtn').addEventListener('click', function () {
     currentMonth++;
     if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    closeMeetupPanel();
     loadCalendar();
   });
+  document.getElementById('meetupClose').addEventListener('click', function() { closeMeetupPanel(); });
 
-  var CACHE_VERSION = 'v4';
-  var CACHE_TTL = 60 * 60 * 1000; // 1時間
+  // ---- キャッシュ ----
+  var CACHE_VERSION = 'v5';
+  var CACHE_TTL = 60 * 60 * 1000;
 
   function getCacheKey() {
     return 'bizcafe_cal_' + CACHE_VERSION + '_' + currentYear + '_' + currentMonth;
   }
-
-  function clearAllCache() {
-    try {
-      var keys = Object.keys(localStorage);
-      keys.forEach(function(k) {
-        if (k.indexOf('bizcafe_cal_') === 0) localStorage.removeItem(k);
-      });
-    } catch (e) {}
-  }
-
   function loadFromCache() {
     try {
       var raw = localStorage.getItem(getCacheKey());
       if (!raw) return null;
       var entry = JSON.parse(raw);
       if (Date.now() - entry.ts < CACHE_TTL) return entry.data;
-    } catch (e) {}
+    } catch(e) {}
     return null;
   }
-
   function saveToCache(data) {
-    try {
-      localStorage.setItem(getCacheKey(), JSON.stringify({ ts: Date.now(), data: data }));
-    } catch (e) {}
+    try { localStorage.setItem(getCacheKey(), JSON.stringify({ ts: Date.now(), data: data })); } catch(e) {}
   }
 
-  function fetchFromAPI(nocache) {
-    document.getElementById('calendarGrid').innerHTML = '<div class="loading">読み込み中...</div>';
-    var url = GAS_API_URL
-      + '?page=calendar&action=data'
-      + '&year=' + currentYear
-      + '&month=' + currentMonth
-      + (nocache ? '&nocache=1' : '');
-
-    fetch(url)
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        saveToCache(data);
-        renderCalendar(data);
-      })
-      .catch(function () {
-        document.getElementById('calendarGrid').innerHTML =
-          '<div class="loading">データの取得に失敗しました。しばらくしてから再度お試しください。</div>';
-      });
-  }
-
+  // ---- カレンダー読み込み ----
   function loadCalendar() {
     document.getElementById('monthLabel').textContent = currentYear + '年 ' + currentMonth + '月';
     var cached = loadFromCache();
-    if (cached) {
-      renderCalendar(cached);
-      return;
-    }
-    // localStorage にキャッシュなし = 初回アクセス → GASキャッシュもスキップして最新データを取得
-    fetchFromAPI(true);
+    if (cached) { renderCalendar(cached); return; }
+    document.getElementById('calendarGrid').innerHTML = '<div class="loading">読み込み中...</div>';
+    fetch(GAS_API_URL + '?page=calendar&action=data&year=' + currentYear + '&month=' + currentMonth + '&nocache=1')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { saveToCache(data); renderCalendar(data); })
+      .catch(function() {
+        document.getElementById('calendarGrid').innerHTML = '<div class="loading">データの取得に失敗しました。</div>';
+      });
   }
-
 
   function renderCalendar(days) {
     var grid = document.getElementById('calendarGrid');
     grid.innerHTML = '';
-
     if (!days || days.length === 0) {
       grid.innerHTML = '<div class="loading">データがありません</div>';
       return;
     }
 
-    var firstDate = new Date(days[0].date + 'T00:00:00');
-    var firstDow  = firstDate.getDay();
+    var firstDow = new Date(days[0].date + 'T00:00:00').getDay();
     for (var i = 0; i < firstDow; i++) {
       var empty = document.createElement('div');
       empty.className = 'day-cell empty';
       grid.appendChild(empty);
     }
 
-    days.forEach(function (day) {
-      var cell   = document.createElement('div');
-      var d      = new Date(day.date + 'T00:00:00');
-      var dow    = d.getDay();
-      var dayNum = d.getDate();
+    days.forEach(function(day) {
+      var cell = document.createElement('div');
+      var d    = new Date(day.date + 'T00:00:00');
+      var dow  = d.getDay();
 
       var classes = ['day-cell'];
       if (!day.isOpen)          classes.push('closed');
       else if (day.isKashikiri) classes.push('kashikiri');
       else                      classes.push('normal');
-
-      if (day.date === todayISO) classes.push('today');
+      if (day.date === todayISO)        classes.push('today');
+      if (day.date === selectedDateISO) classes.push('selected');
       if (dow === 0) classes.push('day-sun');
       if (dow === 6) classes.push('day-sat');
-
       cell.className = classes.join(' ');
-
-      var html = '<div class="day-num">' + dayNum + '</div>';
+      cell.dataset.date = day.date;
 
       if (day.isOpen) {
-        // デスクトップ: 2行表示 / モバイル: 1行表示
-        html += '<div class="hours hours-desktop">' + day.open + '&nbsp;〜<br>' + day.close + '</div>';
-        html += '<div class="hours hours-mobile">' + day.open + '-' + day.close + '</div>';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'day-open-btn';
+
+        var numEl = document.createElement('div');
+        numEl.className = 'day-num';
+        numEl.textContent = d.getDate();
+        btn.appendChild(numEl);
+
+        var hoursEl = document.createElement('div');
+        hoursEl.className = 'hours';
+        hoursEl.innerHTML = day.open + '&nbsp;〜<br>' + day.close;
+        btn.appendChild(hoursEl);
+
         if (day.isKashikiri) {
-          html += '<div class="kashikiri-badge">貸切あり</div>';
+          var badge = document.createElement('div');
+          badge.className = 'kashikiri-badge';
+          badge.textContent = '貸切あり';
+          btn.appendChild(badge);
         }
+
+        (function(dateISO) {
+          btn.addEventListener('click', function() { onDayClick(dateISO); });
+        })(day.date);
+
+        cell.appendChild(btn);
       } else {
         var lbl = day.note || '定休日';
-        var extraClass = (lbl === '終日貸切') ? ' full-kashikiri' : '';
-        html += '<div class="closed-label' + extraClass + '">' + lbl + '</div>';
+        var ec  = lbl === '終日貸切' ? ' full-kashikiri' : '';
+        cell.innerHTML = '<div class="day-num">' + d.getDate() + '</div>'
+          + '<div class="closed-label' + ec + '">' + lbl + '</div>';
       }
 
-      cell.innerHTML = html;
       grid.appendChild(cell);
     });
+  }
+
+  // ---- Meetupパネル ----
+  function onDayClick(dateISO) {
+    // 同じ日なら閉じる
+    if (selectedDateISO === dateISO) { closeMeetupPanel(); return; }
+
+    // 選択状態を更新
+    var prev = document.querySelector('.day-cell.selected');
+    if (prev) prev.classList.remove('selected');
+    var cell = document.querySelector('[data-date="' + dateISO + '"]');
+    if (cell) cell.classList.add('selected');
+    selectedDateISO = dateISO;
+
+    var d   = new Date(dateISO + 'T00:00:00');
+    var DOW = ['日','月','火','水','木','金','土'];
+    var label = (d.getMonth()+1) + '月' + d.getDate() + '日（' + DOW[d.getDay()] + '）';
+
+    // トースト表示
+    var toast = document.getElementById('loadingToast');
+    toast.textContent = '📅 ' + label + ' のMeetup情報を読み込み中...';
+    toast.style.display = 'block';
+
+    // パネルをローディング状態で開く
+    document.getElementById('meetupPanelTitle').textContent = label + ' のMeetup';
+    document.getElementById('gradFilter').innerHTML = '';
+    document.getElementById('meetupList').innerHTML =
+      '<div class="meetup-loading"><div class="spinner"></div>読み込み中...</div>';
+    document.getElementById('meetupPanel').classList.add('visible');
+    document.getElementById('meetupPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // GASからMeetupデータ取得
+    fetch(GAS_API_URL + '?page=calendar&action=meetups&date=' + dateISO)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        toast.style.display = 'none';
+        allMeetups = data;
+        activeGradFilter = 'all';
+        renderGradFilter(data);
+        renderMeetups(data, 'all');
+      })
+      .catch(function() {
+        toast.style.display = 'none';
+        document.getElementById('meetupList').innerHTML =
+          '<div class="meetup-empty">データの取得に失敗しました。</div>';
+      });
+  }
+
+  function closeMeetupPanel() {
+    document.getElementById('meetupPanel').classList.remove('visible');
+    var prev = document.querySelector('.day-cell.selected');
+    if (prev) prev.classList.remove('selected');
+    selectedDateISO = null;
+  }
+
+  function renderGradFilter(meetups) {
+    var gradSet = {};
+    meetups.forEach(function(m) {
+      if (!m.gradYear) return;
+      String(m.gradYear).split(/[\s,、]+/).forEach(function(g) { if (g) gradSet[g] = true; });
+    });
+    var grads = Object.keys(gradSet).sort();
+    var container = document.getElementById('gradFilter');
+    container.innerHTML = '';
+    if (grads.length <= 1) return;
+
+    var allBtn = document.createElement('button');
+    allBtn.className = 'grad-btn active';
+    allBtn.textContent = 'すべて';
+    allBtn.addEventListener('click', function() { setGradFilter('all'); });
+    container.appendChild(allBtn);
+
+    grads.forEach(function(g) {
+      var btn = document.createElement('button');
+      btn.className = 'grad-btn';
+      btn.textContent = g;
+      btn.addEventListener('click', function() { setGradFilter(g); });
+      container.appendChild(btn);
+    });
+  }
+
+  function setGradFilter(grad) {
+    activeGradFilter = grad;
+    document.querySelectorAll('.grad-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.textContent === grad || (grad === 'all' && btn.textContent === 'すべて'));
+    });
+    renderMeetups(allMeetups, grad);
+  }
+
+  function renderMeetups(meetups, gradFilter) {
+    var list = document.getElementById('meetupList');
+    list.innerHTML = '';
+
+    var filtered = meetups.filter(function(m) {
+      if (gradFilter === 'all') return true;
+      if (!m.gradYear) return false;
+      return String(m.gradYear).split(/[\s,、]+/).indexOf(gradFilter) !== -1;
+    });
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="meetup-empty">この日のMeetup予定はありません。</div>';
+      return;
+    }
+
+    filtered.forEach(function(m) {
+      var card = document.createElement('div');
+      card.className = 'meetup-card';
+
+      var imgWrap = document.createElement('div');
+      imgWrap.className = 'meetup-img-wrap';
+      if (m.imageUrl) {
+        var img = document.createElement('img');
+        img.className = 'meetup-img';
+        img.src = m.imageUrl;
+        img.alt = 'Meetupイメージ';
+        img.onerror = function() { this.parentNode.innerHTML = '<div class="meetup-img-placeholder">🏢</div>'; };
+        imgWrap.appendChild(img);
+      } else {
+        imgWrap.innerHTML = '<div class="meetup-img-placeholder">🏢</div>';
+      }
+
+      var body = document.createElement('div');
+      body.className = 'meetup-body';
+      body.innerHTML =
+        '<div class="meetup-company">' + escHtml(m.company) + '</div>'
+        + '<div class="meetup-theme' + (m.theme ? '' : ' no-theme') + '">' + escHtml(m.theme || 'テーマ未登録') + '</div>'
+        + '<div class="meetup-meta">'
+        +   '<span class="meetup-time">' + escHtml(m.time) + '</span>'
+        +   (m.kind ? '<span class="meetup-kind">' + escHtml(m.kind) + '</span>' : '')
+        +   (m.gradYear ? '<span class="meetup-grad">🎓 ' + escHtml(m.gradYear) + '</span>' : '')
+        + '</div>';
+
+      card.appendChild(imgWrap);
+      card.appendChild(body);
+      list.appendChild(card);
+    });
+  }
+
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   loadCalendar();
