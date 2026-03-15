@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>営業カレンダー | BizCAFE 千葉大学店</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -163,6 +166,218 @@
       text-align: center;
     }
 
+    /* 選択された日 */
+    .day-cell.selected { outline: 3px solid #e65100 !important; outline-offset: -2px; }
+
+    /* 営業日の全面ボタン */
+    .day-open-btn {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      width: 100%;
+      height: 100%;
+      min-height: 70px;
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      text-align: left;
+      -webkit-tap-highlight-color: rgba(26,58,92,0.2);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .day-open-btn:active { opacity: 0.65; }
+    .day-open-btn:focus { outline: none; }
+
+    /* 読み込みトースト（画面上部固定） */
+    #loadingToast {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 9999;
+      background: #1a3a5c;
+      color: #fff;
+      text-align: center;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    #loadingToast.visible { display: block; }
+
+    /* --- Meetupパネル --- */
+    .meetup-panel {
+      max-width: 840px;
+      margin: 16px auto 0;
+      padding: 0 12px 32px;
+      display: none;
+    }
+    .meetup-panel.visible { display: block; }
+
+    .meetup-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .meetup-panel-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1a3a5c;
+    }
+    .meetup-close {
+      background: none;
+      border: none;
+      font-size: 1.3rem;
+      cursor: pointer;
+      color: #888;
+      padding: 4px 8px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+    .meetup-close:hover { background: #f0f0f0; color: #333; }
+
+    /* 卒年フィルター */
+    .grad-filter {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .grad-btn {
+      background: #eaf0f7;
+      border: 1.5px solid #b0c4d8;
+      color: #1a3a5c;
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .grad-btn.active {
+      background: #1a3a5c;
+      border-color: #1a3a5c;
+      color: #fff;
+    }
+    .grad-btn:hover:not(.active) { background: #d0dff0; }
+
+    /* Meetupカード */
+    .meetup-list { display: flex; flex-direction: column; gap: 12px; }
+
+    .meetup-card {
+      background: #fff;
+      border: 1px solid #dde6f0;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      gap: 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      transition: box-shadow 0.2s;
+    }
+    .meetup-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,0.10); }
+
+    .meetup-img-wrap {
+      flex-shrink: 0;
+      width: 110px;
+      background: #eaf0f7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .meetup-img {
+      width: 110px;
+      height: 110px;
+      object-fit: cover;
+      display: block;
+    }
+    .meetup-img-placeholder {
+      width: 110px;
+      height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.2rem;
+      color: #b0c4d8;
+    }
+
+    .meetup-body {
+      flex: 1;
+      padding: 12px 14px;
+      min-width: 0;
+    }
+    .meetup-company {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1a3a5c;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meetup-theme {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: #222;
+      line-height: 1.45;
+      margin-bottom: 8px;
+    }
+    .meetup-theme.no-theme { color: #999; font-weight: 400; font-style: italic; }
+    .meetup-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 0.78rem;
+    }
+    .meetup-time { color: #555; }
+    .meetup-kind {
+      background: #eaf6f0;
+      color: #2e7d32;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-weight: 600;
+    }
+    .meetup-grad {
+      background: #fff3e0;
+      color: #e65100;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-weight: 600;
+    }
+
+    .meetup-empty {
+      text-align: center;
+      padding: 32px;
+      color: #888;
+      font-size: 0.9rem;
+      background: #fff;
+      border: 1px solid #e0e7ef;
+      border-radius: 12px;
+    }
+
+    /* ローディング（Meetup用） */
+    .meetup-loading {
+      text-align: center;
+      padding: 32px;
+      color: #888;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #dde6f0;
+      border-top-color: #1a3a5c;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     /* レスポンシブ */
     @media (max-width: 520px) {
       header h1 { font-size: 1.05rem; }
@@ -170,10 +385,31 @@
       .hours     { font-size: 0.68rem; }
       .day-num   { font-size: 0.8rem; }
       .month-label { font-size: 1.1rem; min-width: 120px; }
+
+      /* カードを縦積みレイアウトに */
+      .meetup-card { flex-direction: column; }
+      .meetup-img-wrap {
+        width: 100%;
+        height: 160px;
+      }
+      .meetup-img {
+        width: 100%;
+        height: 160px;
+        object-fit: cover;
+      }
+      .meetup-img-placeholder {
+        width: 100%;
+        height: 160px;
+        font-size: 3rem;
+      }
+      .meetup-body { padding: 10px 12px 12px; }
+      .meetup-theme { font-size: 0.88rem; }
     }
   </style>
 </head>
 <body>
+
+<div id="loadingToast">📅 Meetup情報を読み込んでいます...</div>
 
 <header>
   <h1>🏪 BizCAFE 千葉大学店</h1>
@@ -206,7 +442,17 @@
   <div class="legend-item"><div class="legend-dot kashikiri"></div>貸切あり（時間変更）</div>
   <div class="legend-item"><div class="legend-dot closed"></div>定休日</div>
 </div>
-<div class="notice">※ 貸切の日は通常と異なる営業時間になります。<br>最新情報は店舗にお問い合わせください。</div>
+<div class="notice">※ 営業日をクリックするとその日のMeetup予定が表示されます。</div>
+
+<!-- Meetupパネル -->
+<div class="meetup-panel" id="meetupPanel">
+  <div class="meetup-panel-header">
+    <div class="meetup-panel-title" id="meetupPanelTitle"></div>
+    <button class="meetup-close" id="meetupClose" title="閉じる">✕</button>
+  </div>
+  <div class="grad-filter" id="gradFilter"></div>
+  <div class="meetup-list" id="meetupList"></div>
+</div>
 
 <script>
   var APP_URL = '<?= appUrl ?>';
@@ -218,16 +464,32 @@
     + String(today.getMonth() + 1).padStart(2, '0') + '-'
     + String(today.getDate()).padStart(2, '0');
 
+  var selectedDateISO = null;
+  var allMeetups = [];
+  var activeGradFilter = 'all';
+
   document.getElementById('prevBtn').addEventListener('click', function () {
     currentMonth--;
     if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+    closeMeetupPanel();
     loadCalendar();
   });
   document.getElementById('nextBtn').addEventListener('click', function () {
     currentMonth++;
     if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    closeMeetupPanel();
     loadCalendar();
   });
+  document.getElementById('meetupClose').addEventListener('click', closeMeetupPanel);
+
+  function closeMeetupPanel() {
+    document.getElementById('meetupPanel').classList.remove('visible');
+    if (selectedDateISO) {
+      var prev = document.querySelector('.day-cell.selected');
+      if (prev) prev.classList.remove('selected');
+      selectedDateISO = null;
+    }
+  }
 
   function loadCalendar() {
     document.getElementById('monthLabel').textContent = currentYear + '年 ' + currentMonth + '月';
@@ -271,27 +533,218 @@
       else if (day.isKashikiri) classes.push('kashikiri');
       else                      classes.push('normal');
 
-      if (day.date === todayISO) classes.push('today');
+      if (day.date === todayISO)     classes.push('today');
+      if (day.date === selectedDateISO) classes.push('selected');
       if (dow === 0) classes.push('day-sun');
       if (dow === 6) classes.push('day-sat');
 
       cell.className = classes.join(' ');
-
-      var html = '<div class="day-num">' + dayNum + '</div>';
+      cell.dataset.date = day.date;
 
       if (day.isOpen) {
-        html += '<div class="hours">' + day.open + '&nbsp;〜<br>' + day.close + '</div>';
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'day-open-btn';
+        btn.dataset.date = day.date;
+
+        var numEl = document.createElement('div');
+        numEl.className = 'day-num';
+        numEl.textContent = dayNum;
+        btn.appendChild(numEl);
+
+        var hoursEl = document.createElement('div');
+        hoursEl.className = 'hours';
+        hoursEl.innerHTML = day.open + '&nbsp;〜<br>' + day.close;
+        btn.appendChild(hoursEl);
+
         if (day.isKashikiri) {
-          html += '<div class="kashikiri-badge">貸切あり</div>';
+          var badge = document.createElement('div');
+          badge.className = 'kashikiri-badge';
+          badge.textContent = '貸切あり';
+          btn.appendChild(badge);
         }
+
+        (function(dateISO) {
+          btn.addEventListener('click', function() { window.onDayClick(dateISO); });
+        })(day.date);
+
+        cell.appendChild(btn);
       } else {
         var lbl = day.note || '定休日';
         var extraClass = (lbl === '終日貸切') ? ' full-kashikiri' : '';
-        html += '<div class="closed-label' + extraClass + '">' + lbl + '</div>';
+        cell.innerHTML = '<div class="day-num">' + dayNum + '</div><div class="closed-label' + extraClass + '">' + lbl + '</div>';
       }
 
-      cell.innerHTML = html;
       grid.appendChild(cell);
+    });
+  }
+
+  window.onDayClick = function(dateISO) {
+    // 同じ日を再タップしたら閉じる
+    if (selectedDateISO === dateISO) {
+      closeMeetupPanel();
+      return;
+    }
+
+    // 前の選択を解除
+    var prev = document.querySelector('.day-cell.selected');
+    if (prev) prev.classList.remove('selected');
+    var cell = document.querySelector('.day-cell[data-date="' + dateISO + '"]');
+    if (cell) cell.classList.add('selected');
+    selectedDateISO = dateISO;
+
+    // パネル表示・ローディング
+    var d = new Date(dateISO + 'T00:00:00');
+    var DOW = ['日', '月', '火', '水', '木', '金', '土'];
+    var dateLabel = (d.getMonth() + 1) + '月' + d.getDate() + '日（' + DOW[d.getDay()] + '）';
+    document.getElementById('meetupPanelTitle').textContent = dateLabel + 'のMeetup';
+    document.getElementById('gradFilter').innerHTML = '';
+    document.getElementById('meetupList').innerHTML =
+      '<div class="meetup-loading"><div class="spinner"></div>読み込み中...</div>';
+    document.getElementById('meetupPanel').classList.add('visible');
+    document.getElementById('loadingToast').textContent = '📅 ' + dateLabel + ' のMeetup情報を読み込み中...';
+    document.getElementById('loadingToast').classList.add('visible');
+
+    // パネルまでスクロール
+    document.getElementById('meetupPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Meetupデータ取得
+    var url = APP_URL + '?page=calendar&action=meetups&date=' + dateISO;
+    fetch(url)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        document.getElementById('loadingToast').classList.remove('visible');
+        allMeetups = data;
+        activeGradFilter = 'all';
+        renderGradFilter(data);
+        renderMeetups(data, 'all');
+      })
+      .catch(function () {
+        document.getElementById('loadingToast').classList.remove('visible');
+        document.getElementById('meetupList').innerHTML =
+          '<div class="meetup-empty">データの取得に失敗しました。</div>';
+      });
+  }
+
+  function renderGradFilter(meetups) {
+    // 卒年の一覧を収集
+    var gradSet = {};
+    meetups.forEach(function (m) {
+      if (!m.gradYear) return;
+      m.gradYear.split(/\s+/).forEach(function (g) {
+        if (g) gradSet[g] = true;
+      });
+    });
+    var grads = Object.keys(gradSet).sort();
+
+    var container = document.getElementById('gradFilter');
+    container.innerHTML = '';
+    if (grads.length <= 1) return; // 1種類以下はフィルター不要
+
+    // 「すべて」ボタン
+    var allBtn = document.createElement('button');
+    allBtn.className = 'grad-btn active';
+    allBtn.textContent = 'すべて';
+    allBtn.dataset.grad = 'all';
+    allBtn.addEventListener('click', function () { setGradFilter('all'); });
+    container.appendChild(allBtn);
+
+    grads.forEach(function (g) {
+      var btn = document.createElement('button');
+      btn.className = 'grad-btn';
+      btn.textContent = g;
+      btn.dataset.grad = g;
+      btn.addEventListener('click', function () { setGradFilter(g); });
+      container.appendChild(btn);
+    });
+  }
+
+  function setGradFilter(grad) {
+    activeGradFilter = grad;
+    // ボタンのアクティブ状態を更新
+    document.querySelectorAll('.grad-btn').forEach(function (btn) {
+      btn.classList.toggle('active', btn.dataset.grad === grad);
+    });
+    renderMeetups(allMeetups, grad);
+  }
+
+  function renderMeetups(meetups, gradFilter) {
+    var list = document.getElementById('meetupList');
+    list.innerHTML = '';
+
+    // フィルタリング
+    var filtered = meetups.filter(function (m) {
+      if (gradFilter === 'all') return true;
+      if (!m.gradYear) return false;
+      return m.gradYear.split(/\s+/).indexOf(gradFilter) !== -1;
+    });
+
+    if (filtered.length === 0) {
+      list.innerHTML = '<div class="meetup-empty">この日のMeetup予定はありません。</div>';
+      return;
+    }
+
+    filtered.forEach(function (m) {
+      var card = document.createElement('div');
+      card.className = 'meetup-card';
+
+      // 画像エリア
+      var imgWrap = document.createElement('div');
+      imgWrap.className = 'meetup-img-wrap';
+      if (m.imageUrl) {
+        var img = document.createElement('img');
+        img.className = 'meetup-img';
+        img.src = m.imageUrl;
+        img.alt = 'Meetupイメージ';
+        img.onerror = function () {
+          this.parentNode.innerHTML = '<div class="meetup-img-placeholder">🏢</div>';
+        };
+        imgWrap.appendChild(img);
+      } else {
+        imgWrap.innerHTML = '<div class="meetup-img-placeholder">🏢</div>';
+      }
+
+      // 本文エリア
+      var body = document.createElement('div');
+      body.className = 'meetup-body';
+
+      var companyEl = document.createElement('div');
+      companyEl.className = 'meetup-company';
+      companyEl.textContent = m.company;
+
+      var themeEl = document.createElement('div');
+      themeEl.className = 'meetup-theme' + (m.theme ? '' : ' no-theme');
+      themeEl.textContent = m.theme || 'テーマ未登録';
+
+      var metaEl = document.createElement('div');
+      metaEl.className = 'meetup-meta';
+
+      var timeEl = document.createElement('span');
+      timeEl.className = 'meetup-time';
+      timeEl.textContent = m.time;
+      metaEl.appendChild(timeEl);
+
+      if (m.kind) {
+        var kindEl = document.createElement('span');
+        kindEl.className = 'meetup-kind';
+        kindEl.textContent = m.kind;
+        metaEl.appendChild(kindEl);
+      }
+
+      if (m.gradYear) {
+        var gradEl = document.createElement('span');
+        gradEl.className = 'meetup-grad';
+        gradEl.textContent = '🎓 ' + m.gradYear;
+        metaEl.appendChild(gradEl);
+      }
+
+      body.appendChild(companyEl);
+      body.appendChild(themeEl);
+      body.appendChild(metaEl);
+
+      card.appendChild(imgWrap);
+      card.appendChild(body);
+      list.appendChild(card);
     });
   }
 

@@ -144,9 +144,9 @@ function fetchAllUpcomingMeetups() {
     sheet.getRange(1, 5, 1000, 1).setNumberFormat('@');
   }
 
-  // ヘッダーが古い場合（6列）は7列に更新
-  if (sheet.getLastRow() >= 1 && sheet.getLastColumn() < 7) {
-    sheet.getRange(1, 1, 1, 7).setValues([['日付', '企業名', '時間', '種別', '参加数', '予約ID', '卒年']]);
+  // ヘッダーが古い場合（6列 or 7列）は8列に更新
+  if (sheet.getLastRow() >= 1 && sheet.getLastColumn() < 8) {
+    sheet.getRange(1, 1, 1, 8).setValues([['日付', '企業名', '時間', '種別', '参加数', '予約ID', '卒年', 'イメージURL']]);
     sheet.getRange(1, 5, 1000, 1).setNumberFormat('@');
   }
 
@@ -166,6 +166,7 @@ function fetchAllUpcomingMeetups() {
   Logger.log('既存データ: ' + Object.keys(existingKeys).length + '件');
 
   // 今日から30日分を取得して新規行のみ追記
+  const fetchedKeys = {}; // 取得済みキーを記録（キャンセル検知に使用）
   const newRows = [];
   for (let i = 0; i < 30; i++) {
     const targetDate = new Date(today);
@@ -177,12 +178,16 @@ function fetchAllUpcomingMeetups() {
       const cName = String(reserve.sponsor_name || '').trim();
       const time = reserve.time || '';
       const key = cName + '_' + dateStr + '_' + time;
+      fetchedKeys[key] = true;
       if (!existingKeys[key]) {
         newRows.push([targetDate, cName, time, reserve.kind || '', '', '', '']);
         existingKeys[key] = true;
       }
     });
   }
+
+  // キャンセル検知: 既存シートの将来分で取得データにないものを削除して通知
+  removeDeletedMeetups_(sheet, fetchedKeys, today);
 
   if (newRows.length > 0) {
     const insertRow = sheet.getLastRow() + 1;
@@ -200,6 +205,63 @@ function fetchAllUpcomingMeetups() {
   // 企業IDマスターに未登録の企業を追加し、テーマ・業界・アピールポイントを取得
   Logger.log('企業IDマスター同期開始...');
   syncNewCompaniesToMaster_(cookies);
+}
+
+/**
+ * キャンセル検知: シートの将来イベントのうち取得データにないものを削除し LINE WORKS 通知
+ * @param {Sheet} sheet - Meetup予定シート
+ * @param {Object} fetchedKeys - { "企業名_日付_時間": true } の形式
+ * @param {Date} today - 本日 00:00:00
+ */
+function removeDeletedMeetups_(sheet, fetchedKeys, today) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return;
+
+  const data = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  const todayTime = today.getTime();
+  const deleted = [];
+
+  // 後ろから削除（行番号ずれ防止）
+  for (let i = data.length - 1; i >= 0; i--) {
+    const dateVal = data[i][0];
+    if (!dateVal) continue;
+    const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+    if (isNaN(d.getTime())) continue;
+    if (d.getTime() < todayTime) continue; // 過去のデータは対象外
+
+    const dateStr = Utilities.formatDate(d, TIMEZONE, 'yyyy-MM-dd');
+    const cName = String(data[i][1] || '').trim();
+    const time  = String(data[i][2] || '').trim();
+    const kind  = String(data[i][3] || '').trim();
+    const key = cName + '_' + dateStr + '_' + time;
+
+    if (!fetchedKeys[key]) {
+      deleted.push({
+        dateLabel: Utilities.formatDate(d, TIMEZONE, 'M/d(E)'),
+        company: cName,
+        time: time,
+        kind: kind
+      });
+      sheet.deleteRow(i + 2);
+      Logger.log('キャンセル削除: ' + cName + ' ' + dateStr + ' ' + time);
+    }
+  }
+
+  if (deleted.length === 0) return;
+
+  Logger.log('キャンセル削除合計: ' + deleted.length + '件');
+
+  // LINE WORKS グループに通知
+  let msg = '🚫 【Meetupキャンセル通知】\n';
+  msg += '以下のMeetupがキャンセル（または変更）されました。\n\n';
+  deleted.forEach(function(item) {
+    msg += '📅 ' + item.dateLabel + '　' + item.time + '\n';
+    msg += '🏢 ' + item.company;
+    if (item.kind) msg += '（' + item.kind + '）';
+    msg += '\n\n';
+  });
+  msg += 'シフト・準備の調整をお願いします。';
+  sendLineWorksGroupMessage(msg);
 }
 
 /**
@@ -280,6 +342,9 @@ function updateMeetupParticipation_(sheet, cookies) {
       if (apiCache[reserveId].gradYear && !String(row[6] || '').trim()) {
         sheet.getRange(i + 2, 7).setValue(apiCache[reserveId].gradYear);
       }
+      if (apiCache[reserveId].imageUrl && !String(row[7] || '').trim()) {
+        sheet.getRange(i + 2, 8).setValue(apiCache[reserveId].imageUrl);
+      }
       updated++;
       return;
     }
@@ -314,6 +379,8 @@ function updateMeetupParticipation_(sheet, cookies) {
         }).filter(function(v) { return v; });
         gradYear = years.filter(function(v, i, a) { return a.indexOf(v) === i; }).sort().join(' ');
       }
+      // イメージURL（meetup_image_url = S3フルURL）
+      const imageUrl = String(record.meetup_image_url || '').trim();
       // 学生予約人数（分子）= 詳細HTMLページから取得
       Utilities.sleep(400);
       const yoyaku = fetchYoyakuFromHtml_(reserveId, cookies);
@@ -325,10 +392,11 @@ function updateMeetupParticipation_(sheet, cookies) {
       } else {
         displayVal = '';
       }
-      apiCache[reserveId] = { displayVal: displayVal, gradYear: gradYear };
+      apiCache[reserveId] = { displayVal: displayVal, gradYear: gradYear, imageUrl: imageUrl };
       sheet.getRange(i + 2, 5).setValue(displayVal);
       if (gradYear) sheet.getRange(i + 2, 7).setValue(gradYear);
-      Logger.log('参加数書込: ' + companyName + ' → ' + displayVal + ' / 卒年: ' + gradYear + ' (行' + (i + 2) + ')');
+      if (imageUrl) sheet.getRange(i + 2, 8).setValue(imageUrl);
+      Logger.log('参加数書込: ' + companyName + ' → ' + displayVal + ' / 卒年: ' + gradYear + ' / 画像: ' + (imageUrl ? 'あり' : 'なし') + ' (行' + (i + 2) + ')');
       updated++;
     } catch (e) {
       Logger.log('参加数取得エラー (' + companyName + '): ' + e.message);
@@ -1429,7 +1497,7 @@ function refetchThemesFromSHIRUCAFE() {
  * @returns {Object} 
  */
 function fetchMeetupFields_(reserveId, cookies, companyName) {
-  const result = { targetYear: '', theme: '', industry: '', hookPoint: '', sponsorName: '' };
+  const result = { targetYear: '', theme: '', industry: '', hookPoint: '', sponsorName: '', imageUrl: '' };
   if (!reserveId) return result;
   try {
     // HTMLスクレイピングではなくJSON APIを使用（確実にフィールドを取得）
@@ -1475,7 +1543,10 @@ function fetchMeetupFields_(reserveId, cookies, companyName) {
       result.sponsorName = String(record.sponsor.name).trim();
     }
 
-    Logger.log('Fields取得 (ID=' + reserveId + '): テーマ=' + result.theme.substring(0, 20) + ', 卒年=' + result.targetYear + ', 業界=' + result.industry.substring(0, 20));
+    // ⑤ イメージURL（meetup_image_url = S3フルURL）
+    result.imageUrl = String(record.meetup_image_url || '').trim();
+
+    Logger.log('Fields取得 (ID=' + reserveId + '): テーマ=' + result.theme.substring(0, 20) + ', 卒年=' + result.targetYear + ', 業界=' + result.industry.substring(0, 20) + ', 画像=' + (result.imageUrl ? 'あり' : 'なし'));
   } catch (e) {
     Logger.log('fetchMeetupFields_ エラー (ID=' + reserveId + '): ' + e.message);
   }

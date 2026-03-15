@@ -47,7 +47,7 @@ function doGet(e) {
 
   // --- お客様向け営業カレンダー ---
   if (param.page === 'calendar') {
-    // JSONデータAPIモード
+    // JSONデータAPIモード（カレンダー）
     if (param.action === 'data') {
       var year    = parseInt(param.year)  || new Date().getFullYear();
       var month   = parseInt(param.month) || (new Date().getMonth() + 1);
@@ -56,6 +56,13 @@ function doGet(e) {
       var output  = ContentService.createTextOutput(JSON.stringify(data))
         .setMimeType(ContentService.MimeType.JSON);
       return output;
+    }
+    // JSONデータAPIモード（指定日のMeetup一覧）
+    if (param.action === 'meetups') {
+      var meetupDate = param.date || '';
+      var meetups = getMeetupsForCustomer_(meetupDate);
+      return ContentService.createTextOutput(JSON.stringify(meetups))
+        .setMimeType(ContentService.MimeType.JSON);
     }
     // HTMLページモード
     var calTemplate = HtmlService.createTemplateFromFile('顧客カレンダー');

@@ -154,6 +154,76 @@ function adjustHoursForKashikiri_(normalOpen, normalClose, kStart, kEnd) {
   }
 }
 
+/**
+ * 指定日のMeetup予定を顧客向けに返す
+ * Meetup予定シート + 企業IDマスターを結合して返す
+ * @param {string} dateISO - YYYY-MM-DD
+ * @returns {Array<{
+ *   company: string,
+ *   time: string,
+ *   kind: string,
+ *   gradYear: string,
+ *   theme: string,
+ *   imageUrl: string,
+ *   industry: string
+ * }>}
+ */
+function getMeetupsForCustomer_(dateISO) {
+  if (!dateISO) return [];
+
+  // 15分キャッシュ
+  var cacheKey = 'meetupsCustomer_' + dateISO;
+  var cache = CacheService.getScriptCache();
+  var cached = cache.get(cacheKey);
+  if (cached) {
+    try { return JSON.parse(cached); } catch (e) {}
+  }
+
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_MEETUP);
+    if (!sheet || sheet.getLastRow() <= 1) return [];
+
+    var masterMap = loadCompanyIdMaster_();
+
+    var numCols = Math.max(sheet.getLastColumn(), 8);
+    var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, numCols).getValues();
+    var results = [];
+
+    for (var i = 0; i < data.length; i++) {
+      var dateVal = data[i][0];
+      if (!dateVal) continue;
+      var d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+      if (isNaN(d.getTime())) continue;
+      if (formatDateToISO_(d) !== dateISO) continue;
+
+      var company  = String(data[i][1] || '').trim();
+      var time     = String(data[i][2] || '').trim();
+      var kind     = String(data[i][3] || '').trim();
+      var gradYear = String(data[i][6] || '').trim(); // G列
+      var imageUrl = String(data[i][7] || '').trim(); // H列
+
+      var masterInfo = masterMap[company] || {};
+
+      results.push({
+        company:  company,
+        time:     time,
+        kind:     kind,
+        gradYear: gradYear,
+        theme:    masterInfo.theme    || '',
+        imageUrl: imageUrl,
+        industry: masterInfo.industry || ''
+      });
+    }
+
+    try { cache.put(cacheKey, JSON.stringify(results), 900); } catch (e) {}
+    return results;
+  } catch (e) {
+    Logger.log('getMeetupsForCustomer_ エラー: ' + e.message);
+    return [];
+  }
+}
+
 function timeToMin_(timeStr) {
   const p = String(timeStr).split(':');
   return parseInt(p[0]) * 60 + parseInt(p[1]);

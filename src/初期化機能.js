@@ -3,6 +3,109 @@
 // ============================================================
 
 /**
+ * ① Meetup予定シートの状態を診断する（手動実行）
+ *    ログに「何件あるか」「最新5件」「H列(画像URL)の状況」を出力する
+ */
+function diagnoseMeetupSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_MEETUP);
+  if (!sheet) { Logger.log('❌ Meetup予定シートが存在しません'); return; }
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  Logger.log('Meetup予定シート: ' + (lastRow - 1) + '行 / ' + lastCol + '列');
+
+  if (lastRow <= 1) { Logger.log('❌ データが0件です。fetchAllUpcomingMeetups を実行してください'); return; }
+
+  const data = sheet.getRange(2, 1, Math.min(lastRow - 1, 10), Math.max(lastCol, 8)).getValues();
+  Logger.log('--- 先頭10件 ---');
+  data.forEach(function(row, i) {
+    const d = row[0] instanceof Date ? Utilities.formatDate(row[0], 'Asia/Tokyo', 'M/d') : String(row[0]);
+    const imgUrl = String(row[7] || '');
+    Logger.log((i+1) + '. ' + d + ' | ' + row[1] + ' | ID:' + row[5] + ' | 卒年:' + row[6] + ' | 画像:' + (imgUrl ? '✅ あり' : '❌ なし'));
+  });
+
+  // 今日以降のデータ件数
+  const today = new Date(); today.setHours(0,0,0,0);
+  const allData = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+  let future = 0;
+  allData.forEach(function(r) {
+    const d = r[0] instanceof Date ? r[0] : new Date(r[0]);
+    if (!isNaN(d.getTime()) && d >= today) future++;
+  });
+  Logger.log('今日以降のMeetup: ' + future + '件');
+  if (future === 0) Logger.log('⚠️ 今後の予定がありません → fetchAllUpcomingMeetups を実行してデータを取得してください');
+}
+
+/**
+ * ② 特定予約IDのAPIレスポンス全フィールドをログに出力する（画像フィールド名調査用）
+ *    reserveId を実際のIDに書き換えて実行してください（例: '66432'）
+ */
+function debugMeetupApiFields() {
+  const reserveId = '66432'; // ← 実際のIDに変更して実行
+  const cookies = loginToShirucafe_();
+  if (!cookies) { Logger.log('❌ ログイン失敗'); return; }
+
+  const xsrfToken = decodeURIComponent(cookies['XSRF-TOKEN'] || '');
+  const res = UrlFetchApp.fetch('https://admin.shirucafe.com/api/shiru_reserves/' + reserveId, {
+    headers: {
+      'Cookie': buildCookieString_(cookies),
+      'Accept': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-XSRF-TOKEN': xsrfToken
+    },
+    muteHttpExceptions: true
+  });
+
+  if (res.getResponseCode() !== 200) { Logger.log('❌ HTTP ' + res.getResponseCode()); return; }
+
+  const apiData = JSON.parse(res.getContentText());
+  const record = apiData.reserve || apiData;
+  Logger.log('=== APIレスポンスの全フィールド ===');
+  Object.keys(record).forEach(function(key) {
+    const val = record[key];
+    if (val !== null && val !== '' && typeof val !== 'object') {
+      Logger.log(key + ': ' + String(val).substring(0, 100));
+    } else if (typeof val === 'object' && val !== null) {
+      Logger.log(key + ': [object] keys=' + Object.keys(val).join(','));
+    }
+  });
+}
+
+/**
+ * 期間設定シートに「2026/1/1 ターム休み」を追記する（一度だけ手動実行）
+ * 4/1の授業期間開始より前をターム休みとして認識させるための設定
+ */
+function setSpringTermBreak2026() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_PERIOD_SETTINGS);
+  if (!sheet) {
+    Logger.log('期間設定シートが見つかりません');
+    return;
+  }
+
+  // 既存データを確認して重複追加を防止
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    const d = data[i][0] instanceof Date ? data[i][0] : new Date(data[i][0]);
+    if (isNaN(d.getTime())) continue;
+    const iso = Utilities.formatDate(d, 'Asia/Tokyo', 'yyyy-MM-dd');
+    if (iso === '2026-01-01') {
+      Logger.log('2026/1/1 の行は既に存在します: ' + data[i][1]);
+      return;
+    }
+  }
+
+  // 1行目（ヘッダー）の直後に挿入
+  sheet.insertRowAfter(1);
+  sheet.getRange(2, 1).setValue(new Date(2026, 0, 1)); // 2026/1/1
+  sheet.getRange(2, 2).setValue('ターム休み');
+  sheet.getRange(2, 1).setNumberFormat('yyyy/M/d');
+
+  Logger.log('期間設定シートに 2026/1/1 ターム休み を追加しました');
+}
+
+/**
  * スプレッドシートを開いたときに実行される
  * メニュー「設定」→「初期化」を追加
  */
