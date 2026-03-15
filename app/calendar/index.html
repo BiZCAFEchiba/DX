@@ -94,6 +94,16 @@
     .congestion-sublabel {
       font-size: 0.82rem; color: #888;
     }
+    .business-hours-label {
+      font-size: 0.8rem; color: #666; margin-top: 8px;
+    }
+    .outside-banner {
+      display: none;
+      background: #f5f5f5; border: 1.5px solid #e0e0e0;
+      border-radius: 10px; padding: 14px 16px; text-align: center;
+      margin-bottom: 20px; color: #888; font-size: 0.95rem; font-weight: 600;
+    }
+    .outside-banner.visible { display: block; }
     /* 混雑レベル別色 */
     .icon-active-1  { fill: #4caf50; }
     .icon-active-2  { fill: #8bc34a; }
@@ -263,12 +273,14 @@
       <div class="congestion-wrap">
         <div class="congestion-title">現在の混雑状況</div>
         <div class="congestion-updated" id="congestionUpdated">読み込み中...</div>
-        <div class="congestion-card">
+        <div class="outside-banner" id="outsideBanner">🕐 現在は営業時間外です</div>
+        <div class="congestion-card" id="congestionCard">
           <div class="person-icons" id="personIcons">
             <!-- JS で生成 -->
           </div>
           <div class="congestion-label" id="congestionLabel">-</div>
           <div class="congestion-sublabel" id="congestionSublabel">スタッフが更新します</div>
+          <div class="business-hours-label" id="businessHoursLabel"></div>
         </div>
       </div>
     </div>
@@ -369,7 +381,37 @@
       .catch(function() { renderCongestion(0, ''); hideSplash(); });
   }
 
-  // 30秒ごとに自動更新
+  // ===== 営業状況 =====
+  function loadBusinessStatus() {
+    fetch(GAS_API_URL + '?page=calendar&action=businessStatus')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { renderBusinessStatus(d); })
+      .catch(function() {});
+  }
+
+  function renderBusinessStatus(d) {
+    var banner  = document.getElementById('outsideBanner');
+    var card    = document.getElementById('congestionCard');
+    var hoursLbl = document.getElementById('businessHoursLabel');
+    var isOutside = (d.status === 'outside' || d.status === 'closed');
+
+    banner.classList.toggle('visible', isOutside);
+
+    // 営業時間ラベル
+    if (d.openTime) {
+      var txt = '営業時間　' + d.openTime + ' 〜 ' + d.closeTime;
+      if (d.loTime) txt += '　LO ' + d.loTime;
+      hoursLbl.textContent = txt;
+    } else {
+      hoursLbl.textContent = '本日は定休日です';
+    }
+  }
+
+  // 5分ごとに営業状況を更新
+  loadBusinessStatus();
+  setInterval(loadBusinessStatus, 5 * 60 * 1000);
+
+  // 30秒ごとに混雑状況を自動更新
   loadCongestion();
   setInterval(loadCongestion, 30000);
 

@@ -407,21 +407,17 @@ function updateBusinessHoursSheetHeader_() {
     // 現在のヘッダーを確認
     const header = sheet.getRange(1, 1, 1, 7).getValues()[0];
 
-    // E〜G列がまだ設定されていなければ追加
-    if (!header[4]) {
-      sheet.getRange(1, 1, 1, 7).setValues([[
+    // H〜I列（LO）がまだ設定されていなければヘッダーを9列に更新
+    if (!header[4] || !header[7]) {
+      sheet.getRange(1, 1, 1, 9).setValues([[
         '曜日',
-        '授業期間_開始', '授業期間_終了', '授業期間_営業',
-        'ターム休み_開始', 'ターム休み_終了', 'ターム休み_営業'
+        '授業期間_開始', '授業期間_終了', '授業期間_営業', '授業期間_LO',
+        'ターム休み_開始', 'ターム休み_終了', 'ターム休み_営業', 'ターム休み_LO'
       ]]);
-      sheet.getRange(1, 1, 1, 7).setFontWeight('bold');
-
-      // 授業期間ヘッダー背景
-      sheet.getRange(1, 2, 1, 3).setBackground('#e8f5e9');
-      // ターム休みヘッダー背景
-      sheet.getRange(1, 5, 1, 3).setBackground('#fff3e0');
-
-      Logger.log('営業時間シートのヘッダーを更新しました');
+      sheet.getRange(1, 1, 1, 9).setFontWeight('bold');
+      sheet.getRange(1, 2, 1, 4).setBackground('#e8f5e9'); // 授業期間
+      sheet.getRange(1, 6, 1, 4).setBackground('#fff3e0'); // ターム休み
+      Logger.log('営業時間シートのヘッダーを更新しました（LO列追加）');
     }
   } catch (e) {
     Logger.log('ヘッダー更新エラー: ' + e.message);

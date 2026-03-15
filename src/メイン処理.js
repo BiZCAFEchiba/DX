@@ -64,6 +64,36 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(meetups))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 現在の営業状況（営業中・LO後・営業時間外）を返す
+    if (param.action === 'businessStatus') {
+      var now = new Date();
+      var hours = getBusinessHours(now);
+      var nowMin = now.getHours() * 60 + now.getMinutes();
+      var status = 'closed'; // デフォルト: 定休日 or 時間外
+      var openTime = null, loTime = null, closeTime = null;
+      if (hours) {
+        openTime  = hours.start;
+        loTime    = hours.lo || null;
+        closeTime = hours.end;
+        var openMin  = timeToMin_(hours.start);
+        var closeMin = timeToMin_(hours.end);
+        var loMin    = loTime ? timeToMin_(loTime) : closeMin;
+        if (nowMin >= openMin && nowMin < loMin) {
+          status = 'open';
+        } else if (loTime && nowMin >= loMin && nowMin < closeMin) {
+          status = 'lo'; // LO後・閉店前
+        } else {
+          status = 'outside'; // 開店前 or 閉店後
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status:    status,
+        openTime:  openTime,
+        loTime:    loTime,
+        closeTime: closeTime,
+        nowTime:   Utilities.formatDate(now, TIMEZONE, 'HH:mm')
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
     // 混雑状況取得
     if (param.action === 'congestion') {
       var props = PropertiesService.getScriptProperties();

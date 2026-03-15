@@ -93,12 +93,12 @@ function getTermPeriod_(targetDate) {
  * 指定シートから曜日・期間に応じた時間設定を取得する内部関数
  *
  * 【シート列構成】
- * A: 曜日 | B: 授業期間_開始 | C: 授業期間_終了 | D: 授業期間_営業
- *          | E: ターム休み_開始 | F: ターム休み_終了 | G: ターム休み_営業
+ * A: 曜日 | B: 授業期間_開始 | C: 授業期間_終了 | D: 授業期間_営業 | H: 授業期間_LO
+ *          | E: ターム休み_開始 | F: ターム休み_終了 | G: ターム休み_営業 | I: ターム休み_LO
  *
  * @param {Date} targetDate
  * @param {string} sheetName - 読み込むシート名
- * @returns {{ start: string, end: string, period: string } | null}
+ * @returns {{ start: string, end: string, lo: string|null, period: string } | null}
  */
 function getHoursFromSheet_(targetDate, sheetName) {
   if (!targetDate) return null;
@@ -116,10 +116,11 @@ function getHoursFromSheet_(targetDate, sheetName) {
   const period = getTermPeriod_(targetDate);
   const isTermBreak = (period === 'ターム休み');
 
-  // 列インデックス: 授業期間=B(1),C(2),D(3) / ターム休み=E(4),F(5),G(6)
+  // 列インデックス（0始まり）: 授業期間=B(1),C(2),D(3),H(7) / ターム休み=E(4),F(5),G(6),I(8)
   const colOpen   = isTermBreak ? 4 : 1;
   const colClose  = isTermBreak ? 5 : 2;
   const colIsOpen = isTermBreak ? 6 : 3;
+  const colLo     = isTermBreak ? 8 : 7;
 
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
@@ -129,14 +130,20 @@ function getHoursFromSheet_(targetDate, sheetName) {
     const openVal   = row[colOpen]   || row[1];
     const closeVal  = row[colClose]  || row[2];
     const isOpenVal = (row[colIsOpen] !== undefined && row[colIsOpen] !== '') ? row[colIsOpen] : row[3];
+    const loVal     = row[colLo] || row[7] || null;
 
     const isBusinessDay = isOpenVal === true || String(isOpenVal).toUpperCase() === 'TRUE';
     if (!isBusinessDay || isJapaneseHoliday_(targetDate)) return null;
 
-    return { start: formatTime_(openVal), end: formatTime_(closeVal), period: period };
+    return {
+      start: formatTime_(openVal),
+      end:   formatTime_(closeVal),
+      lo:    loVal ? formatTime_(loVal) : null,
+      period: period
+    };
   }
 
-  return { start: '10:00', end: '20:00', period: period };
+  return { start: '10:00', end: '20:00', lo: null, period: period };
 }
 
 /**
