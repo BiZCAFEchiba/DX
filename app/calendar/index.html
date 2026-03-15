@@ -219,17 +219,6 @@
     .spinner { width: 32px; height: 32px; border: 3px solid #dde6f0; border-top-color: #1a3a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ===== 採用ページ ===== */
-    #paneRecruit { height: calc(100vh - 120px); display: none; flex-direction: column; }
-    #paneRecruit.active { display: flex; }
-    #recruitFrame { flex: 1; border: none; width: 100%; }
-    .recruit-fallback {
-      display: none; padding: 40px 20px; text-align: center; color: #555;
-    }
-    .recruit-fallback a {
-      display: inline-block; margin-top: 16px; background: #1a3a5c; color: white;
-      padding: 12px 28px; border-radius: 10px; text-decoration: none; font-weight: 700;
-    }
 
     /* ===== モバイル: 横タブ ===== */
     @media (max-width: 600px) {
@@ -275,7 +264,7 @@
     <button class="tab-btn" id="tabBtnCalendar" onclick="switchTab('calendar')">
       <span class="tab-icon">📅</span>カレンダー
     </button>
-    <button class="tab-btn" id="tabBtnRecruit" onclick="switchTab('recruit')">
+    <button class="tab-btn" id="tabBtnRecruit" onclick="window.open('https://recruit.shirucafe.com/','_blank')">
       <span class="tab-icon">✨</span>採用
     </button>
   </nav>
@@ -283,14 +272,6 @@
   <!-- コンテンツ -->
   <div class="tab-content">
 
-    <!-- 採用ページ -->
-    <div class="tab-pane" id="paneRecruit">
-      <iframe id="recruitFrame" src="about:blank" title="採用ページ" allowfullscreen></iframe>
-      <div class="recruit-fallback" id="recruitFallback">
-        採用ページを読み込めませんでした。<br>
-        <a href="https://recruit.shirucafe.com/" target="_blank">採用ページを開く →</a>
-      </div>
-    </div>
 
     <!-- 混雑状況パネル -->
     <div class="tab-pane active" id="paneCongesion">
@@ -369,17 +350,6 @@
     var paneId = { recruit: 'Recruit', congestion: 'Congesion', calendar: 'Calendar' }[name];
     document.getElementById('tabBtn' + btnId).classList.add('active');
     document.getElementById('pane' + paneId).classList.add('active');
-    // 採用タブ: 初回のみiframeをロード
-    if (name === 'recruit') {
-      var frame = document.getElementById('recruitFrame');
-      if (frame.src === 'about:blank' || frame.src === window.location.href) {
-        frame.src = 'https://recruit.shirucafe.com/';
-        frame.onerror = function() {
-          frame.style.display = 'none';
-          document.getElementById('recruitFallback').style.display = 'block';
-        };
-      }
-    }
   }
 
   // ===== 混雑状況 =====
