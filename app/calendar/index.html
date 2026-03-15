@@ -350,7 +350,7 @@
     }
     document.getElementById('congestionLabel').textContent = CONGESTION_LABELS[level] || '未確認';
     document.getElementById('congestionLabel').style.color = CONGESTION_COLORS[level] || '#bbb';
-    document.getElementById('congestionSublabel').textContent = level === 0 ? '現在未設定です' : '（スタッフが更新）';
+    document.getElementById('congestionSublabel').textContent = level === 0 ? '現在未設定です' : '';
     if (updatedAt) {
       var d = new Date(updatedAt);
       var hh = String(d.getHours()).padStart(2,'0');
