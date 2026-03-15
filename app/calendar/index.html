@@ -219,6 +219,71 @@
     .spinner { width: 32px; height: 32px; border: 3px solid #dde6f0; border-top-color: #1a3a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ===== 採用ページ ===== */
+    .recruit-wrap { max-width: 680px; margin: 0 auto; padding-bottom: 60px; }
+
+    .recruit-hero {
+      background: linear-gradient(160deg, #1a3a5c 0%, #2a5f8f 60%, #3a7fbf 100%);
+      color: white; text-align: center; padding: 56px 24px 48px;
+    }
+    .recruit-hero-catch {
+      font-size: 1.9rem; font-weight: 800; line-height: 1.5;
+      letter-spacing: 0.04em; margin-bottom: 20px;
+    }
+    .recruit-hero-sub {
+      font-size: 0.95rem; opacity: 0.85; font-weight: 500; letter-spacing: 0.05em;
+    }
+
+    .recruit-section { padding: 40px 20px 0; }
+    .recruit-section-tag {
+      font-size: 0.72rem; font-weight: 700; color: #2a5f8f;
+      letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px;
+    }
+    .recruit-section-title {
+      font-size: 1.25rem; font-weight: 800; color: #1a3a5c; margin-bottom: 6px;
+    }
+    .recruit-section-subtitle {
+      font-size: 0.8rem; color: #888; margin-bottom: 20px; font-weight: 600;
+    }
+    .recruit-section-body {
+      font-size: 0.92rem; line-height: 1.85; color: #444;
+    }
+
+    .recruit-cards { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+    .recruit-card {
+      background: white; border-radius: 14px; padding: 18px 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07); border-left: 4px solid #2a5f8f;
+    }
+    .recruit-card-title { font-size: 0.95rem; font-weight: 700; color: #1a3a5c; margin-bottom: 6px; }
+    .recruit-card-body  { font-size: 0.85rem; color: #555; line-height: 1.7; }
+
+    .recruit-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.88rem; }
+    .recruit-table tr { border-bottom: 1px solid #e8eef5; }
+    .recruit-table td { padding: 12px 8px; vertical-align: top; }
+    .recruit-table td:first-child {
+      font-weight: 700; color: #1a3a5c; white-space: nowrap;
+      width: 100px; padding-right: 16px;
+    }
+    .recruit-table td:last-child { color: #444; line-height: 1.7; }
+
+    .recruit-divider {
+      border: none; border-top: 1px solid #e0e7ef; margin: 40px 20px 0;
+    }
+
+    .recruit-cta {
+      margin: 40px 20px 0; background: #1a3a5c; color: white;
+      border-radius: 16px; padding: 32px 24px; text-align: center;
+    }
+    .recruit-cta-title { font-size: 1.1rem; font-weight: 800; margin-bottom: 8px; }
+    .recruit-cta-sub   { font-size: 0.85rem; opacity: 0.85; margin-bottom: 24px; line-height: 1.6; }
+    .recruit-apply-btn {
+      display: inline-block; background: white; color: #1a3a5c;
+      font-size: 1rem; font-weight: 800; padding: 14px 36px;
+      border-radius: 50px; text-decoration: none; letter-spacing: 0.04em;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15); transition: opacity 0.2s;
+    }
+    .recruit-apply-btn:active { opacity: 0.8; }
+
     /* ===== モバイル: 横タブ ===== */
     @media (max-width: 600px) {
       .app-layout { flex-direction: column; }
@@ -257,6 +322,9 @@
 
   <!-- 縦タブ（PC）/ 横タブ（モバイル） -->
   <nav class="tab-nav">
+    <button class="tab-btn" id="tabBtnRecruit" onclick="switchTab('recruit')">
+      <span class="tab-icon">✨</span>採用
+    </button>
     <button class="tab-btn active" id="tabBtnCongestion" onclick="switchTab('congestion')">
       <span class="tab-icon">👥</span>混雑状況
     </button>
@@ -267,6 +335,75 @@
 
   <!-- コンテンツ -->
   <div class="tab-content">
+
+    <!-- 採用ページ -->
+    <div class="tab-pane" id="paneRecruit">
+      <div class="recruit-wrap">
+
+        <div class="recruit-hero">
+          <div class="recruit-hero-catch">新たな挑戦を<br>新たな仲間と<br>この場から。</div>
+          <div class="recruit-hero-sub">ここは新しい自分に出会う場所</div>
+        </div>
+
+        <div class="recruit-section">
+          <div class="recruit-section-tag">About us</div>
+          <div class="recruit-section-title">私たちの想い</div>
+          <div class="recruit-section-subtitle">― 学生が運営する、学生のためのカフェ ―</div>
+          <div class="recruit-section-body">
+            BizCAFEは、千葉大学内で学生スタッフが主体となって運営するカフェです。<br><br>
+            接客はもちろん、Meetup（企業×学生の交流イベント）の運営、SNS・広報活動、シフト管理など、店舗運営のすべてに携わることができます。<br><br>
+            学生のうちにしか得られない経験がある。ここでの挑戦が、あなたの未来をひらく力になります。
+          </div>
+        </div>
+
+        <hr class="recruit-divider">
+
+        <div class="recruit-section">
+          <div class="recruit-section-tag">Position</div>
+          <div class="recruit-section-title">仕事内容</div>
+          <div class="recruit-section-subtitle">― あなたが挑戦できること ―</div>
+          <div class="recruit-cards">
+            <div class="recruit-card">
+              <div class="recruit-card-title">☕ 接客・カフェ業務</div>
+              <div class="recruit-card-body">ドリンク提供・レジ・店内環境の管理など、カフェ運営の基本を学べます。</div>
+            </div>
+            <div class="recruit-card">
+              <div class="recruit-card-title">🤝 Meetupサポート</div>
+              <div class="recruit-card-body">企業と学生をつなぐ交流イベントの企画・運営・当日サポートを担当します。</div>
+            </div>
+            <div class="recruit-card">
+              <div class="recruit-card-title">📱 SNS・広報</div>
+              <div class="recruit-card-body">Instagram等のSNS運用や集客コンテンツの企画・制作に挑戦できます。</div>
+            </div>
+            <div class="recruit-card">
+              <div class="recruit-card-title">🗂 店舗運営・マネジメント</div>
+              <div class="recruit-card-body">シフト管理・スタッフ育成・採用活動など、経営に近い業務も経験できます。</div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="recruit-divider">
+
+        <div class="recruit-section">
+          <div class="recruit-section-tag">Recruit</div>
+          <div class="recruit-section-title">募集要項</div>
+          <div class="recruit-section-subtitle">― 採用フロー・募集条件 ―</div>
+          <table class="recruit-table">
+            <tr><td>応募資格</td><td>千葉大学に在籍する学生（学年・学部・経験不問）</td></tr>
+            <tr><td>勤務地</td><td>千葉大学西千葉キャンパス内 BizCAFE</td></tr>
+            <tr><td>勤務時間</td><td>シフト制（週2〜 / 1日3〜5時間程度）</td></tr>
+            <tr><td>採用フロー</td><td>応募 → 面談 → 採用 → 研修スタート</td></tr>
+          </table>
+        </div>
+
+        <div class="recruit-cta">
+          <div class="recruit-cta-title">\ 一緒に働く仲間を募集中 /</div>
+          <div class="recruit-cta-sub">共に充実した学生生活を送りましょう！</div>
+          <a class="recruit-apply-btn" href="https://docs.google.com/forms/d/e/DUMMY" target="_blank">BizCAFEスタッフに応募する</a>
+        </div>
+
+      </div>
+    </div>
 
     <!-- 混雑状況パネル -->
     <div class="tab-pane active" id="paneCongesion">
@@ -341,8 +478,10 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
-    document.getElementById('tabBtn' + (name === 'congestion' ? 'Congestion' : 'Calendar')).classList.add('active');
-    document.getElementById('pane' + (name === 'congestion' ? 'Congesion' : 'Calendar')).classList.add('active');
+    var btnId = { recruit: 'Recruit', congestion: 'Congestion', calendar: 'Calendar' }[name];
+    var paneId = { recruit: 'Recruit', congestion: 'Congesion', calendar: 'Calendar' }[name];
+    document.getElementById('tabBtn' + btnId).classList.add('active');
+    document.getElementById('pane' + paneId).classList.add('active');
   }
 
   // ===== 混雑状況 =====
