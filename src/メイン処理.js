@@ -64,6 +64,31 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(meetups))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 混雑状況取得
+    if (param.action === 'congestion') {
+      var props = PropertiesService.getScriptProperties();
+      var level = parseInt(props.getProperty('CONGESTION_LEVEL') || '0');
+      var updatedAt = props.getProperty('CONGESTION_UPDATED_AT') || '';
+      return ContentService.createTextOutput(JSON.stringify({ level: level, updatedAt: updatedAt }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 混雑状況更新（スタッフ用）
+    if (param.action === 'setCongestion') {
+      var newLevel = parseInt(param.level || '0');
+      var pin = param.pin || '';
+      var correctPin = PropertiesService.getScriptProperties().getProperty('CONGESTION_PIN') || 'bizcafe1';
+      if (pin === correctPin && newLevel >= 0 && newLevel <= 5) {
+        var now = Utilities.formatDate(new Date(), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+        PropertiesService.getScriptProperties().setProperties({
+          'CONGESTION_LEVEL': String(newLevel),
+          'CONGESTION_UPDATED_AT': now
+        });
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, level: newLevel, updatedAt: now }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'unauthorized' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // HTMLページモード
     var calTemplate = HtmlService.createTemplateFromFile('顧客カレンダー');
     calTemplate.appUrl = ScriptApp.getService().getUrl();

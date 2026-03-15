@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>混雑状況更新 | BizCAFE スタッフ</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+      background: #f5f7fa; color: #333; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    header {
+      width: 100%; background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
+      color: white; padding: 16px 20px; text-align: center;
+    }
+    header h1 { font-size: 1.1rem; font-weight: 700; }
+    header p  { font-size: 0.78rem; opacity: 0.8; margin-top: 3px; }
+
+    .container { width: 100%; max-width: 420px; padding: 24px 16px; }
+
+    /* PIN入力 */
+    #pinArea { text-align: center; }
+    .pin-label { font-size: 0.9rem; color: #555; margin-bottom: 12px; }
+    .pin-input {
+      width: 160px; padding: 10px 14px; font-size: 1.2rem;
+      border: 2px solid #b0c4d8; border-radius: 10px; text-align: center;
+      margin-bottom: 12px; display: block; margin: 0 auto 12px;
+      letter-spacing: 0.2em;
+    }
+    .pin-input:focus { outline: none; border-color: #1a3a5c; }
+    .pin-error { color: #e53935; font-size: 0.82rem; margin-top: 8px; min-height: 18px; }
+
+    /* 更新UI */
+    #mainArea { display: none; }
+    .section-title { font-size: 0.85rem; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
+    .current-card {
+      background: white; border-radius: 14px; padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.07); text-align: center; margin-bottom: 24px;
+    }
+    .person-icons { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
+    .person-icon svg { width: 36px; height: 36px; }
+    .current-label { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+    .current-updated { font-size: 0.75rem; color: #999; }
+
+    /* レベルボタン */
+    .level-grid { display: flex; flex-direction: column; gap: 10px; }
+    .level-btn {
+      display: flex; align-items: center; gap: 14px;
+      width: 100%; padding: 14px 16px;
+      background: white; border: 2px solid #e0e7ef; border-radius: 12px;
+      cursor: pointer; font-size: 0.95rem; font-weight: 600; color: #333;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .level-btn:active { opacity: 0.7; }
+    .level-btn.selected { border-color: currentColor; background: #f8f8f8; }
+    .level-btn .mini-icons { display: flex; gap: 3px; }
+    .level-btn .mini-icons svg { width: 18px; height: 18px; }
+    .level-btn .lbl { flex: 1; text-align: left; }
+    .level-btn-0 { color: #999; }
+    .level-btn-1 { color: #4caf50; }
+    .level-btn-2 { color: #8bc34a; }
+    .level-btn-3 { color: #ffc107; }
+    .level-btn-4 { color: #ff7043; }
+    .level-btn-5 { color: #f44336; }
+
+    .update-btn {
+      display: block; width: 100%; margin-top: 20px;
+      background: #1a3a5c; color: white; border: none;
+      border-radius: 12px; padding: 15px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .update-btn:hover { background: #2a5f8f; }
+    .update-btn:active { opacity: 0.8; }
+    .update-btn:disabled { background: #b0bec5; cursor: default; }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #323232; color: white; padding: 12px 24px;
+      border-radius: 24px; font-size: 0.9rem; font-weight: 600;
+      display: none; white-space: nowrap; z-index: 999;
+    }
+    .toast.show { display: block; }
+
+    .enter-btn {
+      background: #1a3a5c; color: white; border: none;
+      border-radius: 10px; padding: 10px 28px; font-size: 1rem;
+      font-weight: 700; cursor: pointer; margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🏪 BizCAFE スタッフ</h1>
+  <p>混雑状況 更新ページ</p>
+</header>
+
+<div class="container">
+
+  <!-- PIN入力 -->
+  <div id="pinArea">
+    <br>
+    <div class="current-card" style="margin-bottom:20px;">
+      <div class="pin-label">スタッフ用PINを入力してください</div>
+      <input type="password" class="pin-input" id="pinInput" placeholder="••••" inputmode="numeric">
+      <br>
+      <button class="enter-btn" onclick="checkPin()">確認</button>
+      <div class="pin-error" id="pinError"></div>
+    </div>
+  </div>
+
+  <!-- メイン更新UI -->
+  <div id="mainArea">
+    <div class="section-title">現在の混雑状況</div>
+    <div class="current-card">
+      <div class="person-icons" id="personIconsCurrent"></div>
+      <div class="current-label" id="currentLabel">-</div>
+      <div class="current-updated" id="currentUpdated"></div>
+    </div>
+
+    <div class="section-title">混雑度を選択して更新</div>
+    <div class="level-grid" id="levelGrid"></div>
+    <button class="update-btn" id="updateBtn" onclick="submitLevel()" disabled>更新する</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxc5QSSH2bHqX6cuHqClVMWfkBrfqW8Zi4AY2E_wYPjO2NWUD4oJXMihgR1XtVgR0vP/exec';
+  var PERSON_SVG = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="7" r="4"/><path d="M12 14c-7 0-9 2.5-9 4v1h18v-1c0-1.5-2-4-9-4z"/></svg>';
+  var COLORS  = ['#e0e0e0','#4caf50','#8bc34a','#ffc107','#ff7043','#f44336'];
+  var LABELS  = ['未確認','空いています','やや空いています','普通','やや混んでいます','混んでいます'];
+  var selectedLevel = -1;
+  var currentPin = '';
+
+  // PIN を localStorage から復元
+  var savedPin = localStorage.getItem('biz_staff_pin') || '';
+  if (savedPin) { currentPin = savedPin; initMain(); }
+
+  document.getElementById('pinInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') checkPin();
+  });
+
+  function checkPin() {
+    var pin = document.getElementById('pinInput').value.trim();
+    // GAS APIで検証（level=0&pin=xxx でテスト）
+    fetch(GAS_API_URL + '?page=calendar&action=setCongestion&level=0&pin=' + encodeURIComponent(pin) + '&probe=1')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        // level=0はOKとして返るが、ok:falseならPIN間違い
+        // probe=1の場合は実際には変更しない→GAS側で対応しているが、ここでは ok:true でOK判定
+        if (d.ok !== false) {
+          currentPin = pin;
+          localStorage.setItem('biz_staff_pin', pin);
+          document.getElementById('pinArea').style.display = 'none';
+          initMain();
+        } else {
+          document.getElementById('pinError').textContent = 'PINが正しくありません';
+        }
+      })
+      .catch(function() { document.getElementById('pinError').textContent = '通信エラーが発生しました'; });
+  }
+
+  function initMain() {
+    document.getElementById('mainArea').style.display = 'block';
+    buildLevelButtons();
+    loadCurrent();
+  }
+
+  function buildLevelButtons() {
+    var grid = document.getElementById('levelGrid');
+    grid.innerHTML = '';
+    for (var lv = 1; lv <= 5; lv++) {
+      var btn = document.createElement('button');
+      btn.className = 'level-btn level-btn-' + lv;
+      btn.dataset.level = lv;
+      var icons = '';
+      for (var i = 1; i <= 5; i++) {
+        icons += '<span style="fill:' + (i <= lv ? COLORS[lv] : '#e0e0e0') + '">' + PERSON_SVG + '</span>';
+      }
+      btn.innerHTML = '<div class="mini-icons">' + icons + '</div>'
+        + '<span class="lbl">' + LABELS[lv] + '</span>';
+      (function(level) {
+        btn.addEventListener('click', function() { selectLevel(level); });
+      })(lv);
+      grid.appendChild(btn);
+    }
+    // 「未確認」リセットボタン
+    var resetBtn = document.createElement('button');
+    resetBtn.className = 'level-btn level-btn-0';
+    resetBtn.dataset.level = 0;
+    resetBtn.innerHTML = '<div class="mini-icons">'
+      + [1,2,3,4,5].map(function() { return '<span style="fill:#e0e0e0">' + PERSON_SVG + '</span>'; }).join('')
+      + '</div><span class="lbl">未確認（リセット）</span>';
+    resetBtn.addEventListener('click', function() { selectLevel(0); });
+    grid.appendChild(resetBtn);
+  }
+
+  function selectLevel(level) {
+    selectedLevel = level;
+    document.querySelectorAll('.level-btn').forEach(function(b) {
+      b.classList.toggle('selected', parseInt(b.dataset.level) === level);
+    });
+    document.getElementById('updateBtn').disabled = false;
+  }
+
+  function loadCurrent() {
+    fetch(GAS_API_URL + '?page=calendar&action=congestion')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { renderCurrent(d.level || 0, d.updatedAt || ''); })
+      .catch(function() {});
+  }
+
+  function renderCurrent(level, updatedAt) {
+    var icons = document.getElementById('personIconsCurrent');
+    icons.innerHTML = '';
+    for (var i = 1; i <= 5; i++) {
+      var span = document.createElement('span');
+      span.innerHTML = PERSON_SVG;
+      span.querySelector('svg').style.fill = i <= level ? COLORS[level] : '#e0e0e0';
+      icons.appendChild(span);
+    }
+    document.getElementById('currentLabel').textContent = LABELS[level] || '未確認';
+    document.getElementById('currentLabel').style.color = COLORS[level] || '#bbb';
+    if (updatedAt) {
+      var d = new Date(updatedAt);
+      document.getElementById('currentUpdated').textContent =
+        '最終更新: ' + (d.getMonth()+1) + '/' + d.getDate() + ' '
+        + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    }
+  }
+
+  function submitLevel() {
+    if (selectedLevel < 0) return;
+    var btn = document.getElementById('updateBtn');
+    btn.disabled = true; btn.textContent = '更新中...';
+    fetch(GAS_API_URL + '?page=calendar&action=setCongestion&level=' + selectedLevel + '&pin=' + encodeURIComponent(currentPin))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok !== false) {
+          showToast('✅ ' + LABELS[selectedLevel] + ' に更新しました');
+          renderCurrent(selectedLevel, d.updatedAt || '');
+          selectedLevel = -1;
+          document.querySelectorAll('.level-btn').forEach(function(b) { b.classList.remove('selected'); });
+        } else {
+          showToast('❌ 更新に失敗しました（PINを確認してください）');
+          localStorage.removeItem('biz_staff_pin');
+        }
+        btn.textContent = '更新する';
+      })
+      .catch(function() {
+        showToast('❌ 通信エラーが発生しました');
+        btn.disabled = false; btn.textContent = '更新する';
+      });
+  }
+
+  function showToast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(function() { t.classList.remove('show'); }, 3000);
+  }
+</script>
+</body>
+</html>

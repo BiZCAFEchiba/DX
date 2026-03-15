@@ -3,112 +3,135 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>営業カレンダー | BizCAFE 千葉大学店</title>
+  <title>BizCAFE 千葉大学店</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ===== スプラッシュ画面 ===== */
+    /* ===== スプラッシュ ===== */
     #splash {
-      position: fixed;
-      inset: 0;
-      z-index: 99999;
-      overflow: hidden;
-      background: #f0ece4;
+      position: fixed; inset: 0; z-index: 99999;
+      overflow: hidden; background: #f0ece4;
       transition: opacity 0.5s ease, visibility 0.5s ease;
     }
-    #splash.hidden {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-    }
-    #splash img {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
+    #splash.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+    #splash img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+
+    /* ===== 読み込みトースト ===== */
+    #loadingToast {
+      display: none; position: fixed; top: 0; left: 0; right: 0;
+      z-index: 9999; background: #1a3a5c; color: #fff;
+      text-align: center; padding: 12px; font-size: 0.95rem; font-weight: 700;
     }
 
     body {
       font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-      background: #f5f7fa;
-      color: #333;
-      min-height: 100vh;
+      background: #f5f7fa; color: #333; min-height: 100vh;
+      display: flex; flex-direction: column;
     }
 
-    /* 読み込みトースト（画面上部固定） */
-    #loadingToast {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 9999;
-      background: #1a3a5c;
-      color: #fff;
-      text-align: center;
-      padding: 12px;
-      font-size: 0.95rem;
-      font-weight: 700;
-    }
-
+    /* ===== ヘッダー ===== */
     header {
       background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
-      color: white;
-      padding: 20px;
-      text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      color: white; padding: 16px 20px; text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2); flex-shrink: 0;
     }
-    header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: 0.05em; }
-    header p  { font-size: 0.82rem; opacity: 0.85; margin-top: 4px; }
+    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.05em; }
+    header p  { font-size: 0.8rem; opacity: 0.85; margin-top: 3px; }
+
+    /* ===== アプリレイアウト ===== */
+    .app-layout {
+      display: flex; flex: 1;
+    }
+
+    /* ===== 縦タブ（PC） ===== */
+    .tab-nav {
+      width: 72px; flex-shrink: 0;
+      background: white; border-right: 1px solid #e0e7ef;
+      display: flex; flex-direction: column;
+    }
+    .tab-btn {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 16px 4px; gap: 5px; cursor: pointer;
+      border: none; background: none;
+      border-left: 3px solid transparent;
+      font-size: 0.62rem; color: #888; font-weight: 600;
+      line-height: 1.3; transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn .tab-icon { font-size: 1.4rem; }
+    .tab-btn.active {
+      border-left-color: #1a3a5c; color: #1a3a5c; background: #eaf2fb;
+    }
+    .tab-btn:active { opacity: 0.7; }
+
+    .tab-content { flex: 1; overflow-y: auto; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ===== 混雑状況パネル ===== */
+    .congestion-wrap {
+      max-width: 600px; margin: 0 auto; padding: 20px 16px 40px;
+    }
+    .congestion-title {
+      font-size: 1rem; font-weight: 700; color: #1a3a5c; margin-bottom: 6px;
+    }
+    .congestion-updated {
+      font-size: 0.75rem; color: #999; margin-bottom: 20px;
+    }
+    .congestion-card {
+      background: white; border-radius: 16px; padding: 24px 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08); text-align: center;
+    }
+    .person-icons {
+      display: flex; justify-content: center; gap: 10px; margin-bottom: 16px;
+    }
+    .person-icon svg {
+      width: 40px; height: 40px; transition: fill 0.3s;
+    }
+    .congestion-label {
+      font-size: 1.25rem; font-weight: 700; margin-bottom: 6px;
+    }
+    .congestion-sublabel {
+      font-size: 0.82rem; color: #888;
+    }
+    /* 混雑レベル別色 */
+    .icon-active-1  { fill: #4caf50; }
+    .icon-active-2  { fill: #8bc34a; }
+    .icon-active-3  { fill: #ffc107; }
+    .icon-active-4  { fill: #ff7043; }
+    .icon-active-5  { fill: #f44336; }
+    .icon-inactive  { fill: #e0e0e0; }
+    .label-0 { color: #bbb; }
+    .label-1 { color: #4caf50; }
+    .label-2 { color: #8bc34a; }
+    .label-3 { color: #ffc107; }
+    .label-4 { color: #ff7043; }
+    .label-5 { color: #f44336; }
+
+    /* ===== カレンダー ===== */
+    .calendar-outer { padding: 0 0 40px; }
 
     .nav {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 24px;
-      padding: 14px 20px;
-      background: white;
+      display: flex; align-items: center; justify-content: center;
+      gap: 24px; padding: 14px 20px; background: white;
       border-bottom: 1px solid #e0e7ef;
     }
     .nav button {
-      background: #1a3a5c;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 18px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background 0.2s;
+      background: #1a3a5c; color: white; border: none;
+      border-radius: 8px; padding: 8px 18px; font-size: 1rem;
+      cursor: pointer; transition: background 0.2s;
     }
     .nav button:hover { background: #2a5f8f; }
-    .month-label { font-size: 1.35rem; font-weight: 700; min-width: 150px; text-align: center; color: #1a3a5c; }
+    .month-label { font-size: 1.25rem; font-weight: 700; min-width: 140px; text-align: center; color: #1a3a5c; }
 
     .calendar-wrap { max-width: 840px; margin: 16px auto 0; padding: 0 12px; }
-
-    .weekdays {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-      margin-bottom: 4px;
-    }
+    .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
     .weekday { text-align: center; font-size: 0.78rem; font-weight: 700; padding: 6px 0; color: #666; }
     .weekday.sun { color: #e53935; }
     .weekday.sat { color: #1565c0; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 
-    .calendar-grid {
-      display: grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 4px;
-    }
-
-    .day-cell {
-      min-height: 82px;
-      border-radius: 10px;
-      padding: 7px 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
+    .day-cell { min-height: 82px; border-radius: 10px; padding: 7px 6px; display: flex; flex-direction: column; gap: 2px; }
     .day-cell.empty     { background: transparent; }
     .day-cell.closed    { background: #efefef; border: 1px solid #e0e0e0; }
     .day-cell.normal    { background: #eaf6f0; border: 1px solid #b2dfc5; }
@@ -124,147 +147,55 @@
     .day-sat .day-num { color: #1565c0 !important; }
 
     .hours { font-size: 0.75rem; font-weight: 600; line-height: 1.5; color: #2e7d32; }
-    .kashikiri .hours { color: #bf360c; }
-
     .closed-label { font-size: 0.72rem; color: #9e9e9e; margin-top: auto; }
     .closed-label.full-kashikiri { color: #e65100; font-weight: 600; }
-
     .kashikiri-badge {
-      display: inline-block;
-      background: #ff6d00;
-      color: white;
-      font-size: 0.6rem;
-      font-weight: 700;
-      padding: 2px 5px;
-      border-radius: 4px;
-      margin-top: 2px;
-      width: fit-content;
+      display: inline-block; background: #ff6d00; color: white;
+      font-size: 0.6rem; font-weight: 700; padding: 2px 5px;
+      border-radius: 4px; margin-top: 2px; width: fit-content;
     }
+    .loading { text-align: center; padding: 48px; color: #888; grid-column: 1 / -1; }
 
-    /* 営業日ボタン（セル全面） */
+    /* 営業日ボタン */
     .day-open-btn {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      width: 100%;
-      min-height: 70px;
-      background: none;
-      border: none;
-      padding: 0;
-      margin: 0;
-      cursor: pointer;
-      text-align: left;
+      display: flex; flex-direction: column; gap: 2px;
+      width: 100%; min-height: 70px;
+      background: none; border: none; padding: 0; margin: 0;
+      cursor: pointer; text-align: left;
       -webkit-tap-highlight-color: rgba(26,58,92,0.15);
-      -webkit-appearance: none;
-      appearance: none;
+      -webkit-appearance: none; appearance: none;
     }
     .day-open-btn:active { opacity: 0.6; }
     .day-open-btn:focus  { outline: none; }
 
-    .loading { text-align: center; padding: 48px; color: #888; grid-column: 1 / -1; }
-
     .legend {
-      max-width: 840px;
-      margin: 14px 12px 8px;
-      padding: 10px 16px;
-      background: white;
-      border-radius: 10px;
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      font-size: 0.82rem;
-      color: #555;
-      border: 1px solid #e0e7ef;
+      max-width: 840px; margin: 14px 12px 8px;
+      padding: 10px 16px; background: white; border-radius: 10px;
+      display: flex; gap: 20px; flex-wrap: wrap;
+      font-size: 0.82rem; color: #555; border: 1px solid #e0e7ef;
     }
     .legend-item { display: flex; align-items: center; gap: 7px; }
     .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
     .legend-dot.normal    { background: #eaf6f0; border: 1px solid #b2dfc5; }
     .legend-dot.kashikiri { background: #fff8e1; border: 1px solid #ffd54f; }
     .legend-dot.closed    { background: #efefef; border: 1px solid #e0e0e0; }
+    .notice { max-width: 840px; margin: 8px auto 16px; padding: 10px 16px; font-size: 0.78rem; color: #777; text-align: center; }
 
-    .notice {
-      max-width: 840px;
-      margin: 8px auto 16px;
-      padding: 10px 16px;
-      font-size: 0.78rem;
-      color: #777;
-      text-align: center;
-    }
-
-    /* --- Meetupパネル --- */
-    .meetup-panel {
-      max-width: 840px;
-      margin: 0 auto;
-      padding: 0 12px 40px;
-      display: none;
-    }
+    /* Meetupパネル */
+    .meetup-panel { max-width: 840px; margin: 0 auto; padding: 0 12px 40px; display: none; }
     .meetup-panel.visible { display: block; }
-
-    .meetup-panel-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding-top: 16px;
-    }
+    .meetup-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; padding-top: 16px; }
     .meetup-panel-title { font-size: 1.05rem; font-weight: 700; color: #1a3a5c; }
-    .meetup-close {
-      background: none;
-      border: none;
-      font-size: 1.3rem;
-      cursor: pointer;
-      color: #888;
-      padding: 4px 8px;
-      border-radius: 6px;
-      line-height: 1;
-    }
+    .meetup-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #888; padding: 4px 8px; border-radius: 6px; line-height: 1; }
     .meetup-close:hover { background: #f0f0f0; color: #333; }
-
-    /* 卒年フィルター */
     .grad-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-    .grad-btn {
-      background: #eaf0f7;
-      border: 1.5px solid #b0c4d8;
-      color: #1a3a5c;
-      border-radius: 20px;
-      padding: 5px 14px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
+    .grad-btn { background: #eaf0f7; border: 1.5px solid #b0c4d8; color: #1a3a5c; border-radius: 20px; padding: 5px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
     .grad-btn.active { background: #1a3a5c; border-color: #1a3a5c; color: #fff; }
-    .grad-btn:hover:not(.active) { background: #d0dff0; }
-
-    /* Meetupカード */
     .meetup-list { display: flex; flex-direction: column; gap: 12px; }
-
-    .meetup-card {
-      background: #fff;
-      border: 1px solid #dde6f0;
-      border-radius: 12px;
-      overflow: hidden;
-      display: flex;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    }
-
-    .meetup-img-wrap {
-      flex-shrink: 0;
-      width: 110px;
-      background: #eaf0f7;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+    .meetup-card { background: #fff; border: 1px solid #dde6f0; border-radius: 12px; overflow: hidden; display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .meetup-img-wrap { flex-shrink: 0; width: 110px; background: #eaf0f7; display: flex; align-items: center; justify-content: center; }
     .meetup-img { width: 110px; height: 110px; object-fit: cover; display: block; }
-    .meetup-img-placeholder {
-      width: 110px; height: 110px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 2.2rem; color: #b0c4d8;
-    }
-
+    .meetup-img-placeholder { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: #b0c4d8; }
     .meetup-body { flex: 1; padding: 12px 14px; min-width: 0; }
     .meetup-company { font-size: 0.82rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .meetup-theme { font-size: 0.92rem; font-weight: 600; color: #222; line-height: 1.45; margin-bottom: 8px; }
@@ -273,136 +204,204 @@
     .meetup-time { color: #555; }
     .meetup-kind { background: #eaf6f0; color: #2e7d32; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
     .meetup-grad { background: #fff3e0; color: #e65100; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
-
-    .meetup-empty {
-      text-align: center; padding: 32px; color: #888; font-size: 0.9rem;
-      background: #fff; border: 1px solid #e0e7ef; border-radius: 12px;
-    }
-
-    .meetup-loading {
-      text-align: center; padding: 32px; color: #888;
-      display: flex; flex-direction: column; align-items: center; gap: 12px;
-    }
-    .spinner {
-      width: 32px; height: 32px;
-      border: 3px solid #dde6f0;
-      border-top-color: #1a3a5c;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
+    .meetup-empty { text-align: center; padding: 32px; color: #888; font-size: 0.9rem; background: #fff; border: 1px solid #e0e7ef; border-radius: 12px; }
+    .meetup-loading { text-align: center; padding: 32px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #dde6f0; border-top-color: #1a3a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    @media (max-width: 520px) {
-      header h1    { font-size: 1.05rem; }
+    /* ===== モバイル: 横タブ ===== */
+    @media (max-width: 600px) {
+      .app-layout { flex-direction: column; }
+      .tab-nav { width: 100%; flex-direction: row; border-right: none; border-bottom: 2px solid #e0e7ef; }
+      .tab-btn { flex: 1; flex-direction: row; padding: 10px 8px; gap: 6px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.75rem; }
+      .tab-btn.active { border-left-color: transparent; border-bottom-color: #1a3a5c; }
+      .tab-btn .tab-icon { font-size: 1.1rem; }
+      header h1 { font-size: 1.05rem; }
       .calendar-wrap { padding: 0 6px; }
       .weekdays, .calendar-grid { gap: 2px; }
-      .day-cell    { min-height: 74px; padding: 4px 2px; gap: 1px; }
-      .day-num     { font-size: 0.75rem; }
-      .hours       { font-size: 0.6rem; line-height: 1.3; }
+      .day-cell { min-height: 74px; padding: 4px 2px; }
+      .day-num  { font-size: 0.75rem; }
+      .hours    { font-size: 0.6rem; line-height: 1.3; }
       .closed-label { font-size: 0.58rem; }
-      .kashikiri-badge { font-size: 0.5rem; padding: 1px 2px; width: 100%; text-align: center; border-radius: 3px; margin-top: 1px; }
-      .month-label { font-size: 1.1rem; min-width: 120px; }
+      .kashikiri-badge { font-size: 0.5rem; padding: 1px 2px; width: 100%; text-align: center; }
       .day-open-btn { min-height: 62px; }
       .meetup-card { flex-direction: column; }
-      .meetup-img-wrap { width: 100%; height: 160px; }
-      .meetup-img { width: 100%; height: 160px; }
-      .meetup-img-placeholder { width: 100%; height: 160px; font-size: 3rem; }
+      .meetup-img-wrap { width: 100%; height: 140px; }
+      .meetup-img { width: 100%; height: 140px; }
+      .meetup-img-placeholder { width: 100%; height: 140px; font-size: 3rem; }
+      .person-icon svg { width: 32px; height: 32px; }
     }
   </style>
 </head>
 <body>
 
-<!-- スプラッシュ画面 -->
-<div id="splash">
-  <img src="/bizcafe-splash.png" alt="BizCAFE">
-</div>
-
+<div id="splash"><img src="/bizcafe-splash.png" alt="BizCAFE"></div>
 <div id="loadingToast"></div>
 
 <header>
   <h1>🏪 BizCAFE 千葉大学店</h1>
-  <p>営業カレンダー</p>
+  <p>営業カレンダー・混雑状況</p>
 </header>
 
-<div class="nav">
-  <button id="prevBtn">◀</button>
-  <div class="month-label" id="monthLabel"></div>
-  <button id="nextBtn">▶</button>
-</div>
+<div class="app-layout">
 
-<div class="calendar-wrap">
-  <div class="weekdays">
-    <div class="weekday sun">日</div>
-    <div class="weekday">月</div>
-    <div class="weekday">火</div>
-    <div class="weekday">水</div>
-    <div class="weekday">木</div>
-    <div class="weekday">金</div>
-    <div class="weekday sat">土</div>
-  </div>
-  <div class="calendar-grid" id="calendarGrid">
-    <div class="loading">読み込み中...</div>
-  </div>
-</div>
+  <!-- 縦タブ（PC）/ 横タブ（モバイル） -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" id="tabBtnCongestion" onclick="switchTab('congestion')">
+      <span class="tab-icon">👥</span>混雑状況
+    </button>
+    <button class="tab-btn" id="tabBtnCalendar" onclick="switchTab('calendar')">
+      <span class="tab-icon">📅</span>カレンダー
+    </button>
+  </nav>
 
-<div class="legend">
-  <div class="legend-item"><div class="legend-dot normal"></div>通常営業</div>
-  <div class="legend-item"><div class="legend-dot kashikiri"></div>貸切あり（時間変更）</div>
-  <div class="legend-item"><div class="legend-dot closed"></div>定休日</div>
-</div>
-<div class="notice">※ 営業日をタップするとその日のMeetup予定が表示されます。</div>
+  <!-- コンテンツ -->
+  <div class="tab-content">
 
-<!-- Meetupパネル -->
-<div class="meetup-panel" id="meetupPanel">
-  <div class="meetup-panel-header">
-    <div class="meetup-panel-title" id="meetupPanelTitle"></div>
-    <button class="meetup-close" id="meetupClose">✕</button>
-  </div>
-  <div class="grad-filter" id="gradFilter"></div>
-  <div class="meetup-list" id="meetupList"></div>
-</div>
+    <!-- 混雑状況パネル -->
+    <div class="tab-pane active" id="paneCongesion">
+      <div class="congestion-wrap">
+        <div class="congestion-title">現在の混雑状況</div>
+        <div class="congestion-updated" id="congestionUpdated">読み込み中...</div>
+        <div class="congestion-card">
+          <div class="person-icons" id="personIcons">
+            <!-- JS で生成 -->
+          </div>
+          <div class="congestion-label" id="congestionLabel">-</div>
+          <div class="congestion-sublabel" id="congestionSublabel">スタッフが更新します</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- カレンダーパネル -->
+    <div class="tab-pane" id="paneCalendar">
+      <div class="calendar-outer">
+        <div class="nav">
+          <button id="prevBtn">◀</button>
+          <div class="month-label" id="monthLabel"></div>
+          <button id="nextBtn">▶</button>
+        </div>
+        <div class="calendar-wrap">
+          <div class="weekdays">
+            <div class="weekday sun">日</div><div class="weekday">月</div><div class="weekday">火</div>
+            <div class="weekday">水</div><div class="weekday">木</div><div class="weekday">金</div>
+            <div class="weekday sat">土</div>
+          </div>
+          <div class="calendar-grid" id="calendarGrid"><div class="loading">読み込み中...</div></div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot normal"></div>通常営業</div>
+          <div class="legend-item"><div class="legend-dot kashikiri"></div>貸切あり（時間変更）</div>
+          <div class="legend-item"><div class="legend-dot closed"></div>定休日</div>
+        </div>
+        <div class="notice">※ 営業日をタップするとその日のMeetup予定が表示されます。</div>
+        <div class="meetup-panel" id="meetupPanel">
+          <div class="meetup-panel-header">
+            <div class="meetup-panel-title" id="meetupPanelTitle"></div>
+            <button class="meetup-close" id="meetupClose">✕</button>
+          </div>
+          <div class="grad-filter" id="gradFilter"></div>
+          <div class="meetup-list" id="meetupList"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.tab-content -->
+</div><!-- /.app-layout -->
 
 <script>
   var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxc5QSSH2bHqX6cuHqClVMWfkBrfqW8Zi4AY2E_wYPjO2NWUD4oJXMihgR1XtVgR0vP/exec';
 
+  // ===== スプラッシュ =====
+  var splashHideAt = Date.now() + 1500;
+  function hideSplash() {
+    var delay = Math.max(0, splashHideAt - Date.now());
+    setTimeout(function() {
+      var s = document.getElementById('splash');
+      if (s) s.classList.add('hidden');
+    }, delay);
+  }
+
+  // ===== タブ切り替え =====
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+    document.getElementById('tabBtn' + (name === 'congestion' ? 'Congestion' : 'Calendar')).classList.add('active');
+    document.getElementById('pane' + (name === 'congestion' ? 'Congesion' : 'Calendar')).classList.add('active');
+  }
+
+  // ===== 混雑状況 =====
+  var CONGESTION_LABELS = ['未確認', '空いています', 'やや空いています', '普通', 'やや混んでいます', '混んでいます'];
+  var CONGESTION_COLORS = ['#e0e0e0', '#4caf50', '#8bc34a', '#ffc107', '#ff7043', '#f44336'];
+  var PERSON_SVG = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">'
+    + '<circle cx="12" cy="7" r="4"/>'
+    + '<path d="M12 14c-7 0-9 2.5-9 4v1h18v-1c0-1.5-2-4-9-4z"/>'
+    + '</svg>';
+
+  function renderCongestion(level, updatedAt) {
+    var icons = document.getElementById('personIcons');
+    icons.innerHTML = '';
+    for (var i = 1; i <= 5; i++) {
+      var span = document.createElement('span');
+      span.className = 'person-icon';
+      span.innerHTML = PERSON_SVG;
+      span.querySelector('svg').style.fill = i <= level ? CONGESTION_COLORS[level] : '#e0e0e0';
+      icons.appendChild(span);
+    }
+    document.getElementById('congestionLabel').textContent = CONGESTION_LABELS[level] || '未確認';
+    document.getElementById('congestionLabel').style.color = CONGESTION_COLORS[level] || '#bbb';
+    document.getElementById('congestionSublabel').textContent = level === 0 ? '現在未設定です' : '（スタッフが更新）';
+    if (updatedAt) {
+      var d = new Date(updatedAt);
+      var hh = String(d.getHours()).padStart(2,'0');
+      var mm = String(d.getMinutes()).padStart(2,'0');
+      var mo = d.getMonth()+1; var dy = d.getDate();
+      document.getElementById('congestionUpdated').textContent = '最終更新: ' + mo + '/' + dy + ' ' + hh + ':' + mm;
+    } else {
+      document.getElementById('congestionUpdated').textContent = '';
+    }
+  }
+
+  function loadCongestion() {
+    fetch(GAS_API_URL + '?page=calendar&action=congestion')
+      .then(function(r) { return r.json(); })
+      .then(function(d) { renderCongestion(d.level || 0, d.updatedAt || ''); hideSplash(); })
+      .catch(function() { renderCongestion(0, ''); hideSplash(); });
+  }
+
+  // 30秒ごとに自動更新
+  loadCongestion();
+  setInterval(loadCongestion, 30000);
+
+  // ===== カレンダー =====
   var today = new Date();
   var currentYear  = today.getFullYear();
   var currentMonth = today.getMonth() + 1;
   var todayISO = today.getFullYear() + '-'
-    + String(today.getMonth() + 1).padStart(2, '0') + '-'
-    + String(today.getDate()).padStart(2, '0');
-
+    + String(today.getMonth() + 1).padStart(2,'0') + '-'
+    + String(today.getDate()).padStart(2,'0');
   var selectedDateISO = null;
   var allMeetups = [];
-  var activeGradFilter = 'all';
 
-  document.getElementById('prevBtn').addEventListener('click', function () {
-    currentMonth--;
-    if (currentMonth < 1) { currentMonth = 12; currentYear--; }
-    closeMeetupPanel();
-    loadCalendar();
+  document.getElementById('prevBtn').addEventListener('click', function() {
+    currentMonth--; if (currentMonth < 1) { currentMonth = 12; currentYear--; }
+    closeMeetupPanel(); loadCalendar();
   });
-  document.getElementById('nextBtn').addEventListener('click', function () {
-    currentMonth++;
-    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
-    closeMeetupPanel();
-    loadCalendar();
+  document.getElementById('nextBtn').addEventListener('click', function() {
+    currentMonth++; if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    closeMeetupPanel(); loadCalendar();
   });
   document.getElementById('meetupClose').addEventListener('click', function() { closeMeetupPanel(); });
 
-  // ---- キャッシュ ----
-  var CACHE_VERSION = 'v5';
+  var CACHE_VERSION = 'v6';
   var CACHE_TTL = 60 * 60 * 1000;
-
-  function getCacheKey() {
-    return 'bizcafe_cal_' + CACHE_VERSION + '_' + currentYear + '_' + currentMonth;
-  }
+  function getCacheKey() { return 'bizcafe_cal_' + CACHE_VERSION + '_' + currentYear + '_' + currentMonth; }
   function loadFromCache() {
     try {
       var raw = localStorage.getItem(getCacheKey());
       if (!raw) return null;
-      var entry = JSON.parse(raw);
-      if (Date.now() - entry.ts < CACHE_TTL) return entry.data;
+      var e = JSON.parse(raw);
+      if (Date.now() - e.ts < CACHE_TTL) return e.data;
     } catch(e) {}
     return null;
   }
@@ -410,7 +409,6 @@
     try { localStorage.setItem(getCacheKey(), JSON.stringify({ ts: Date.now(), data: data })); } catch(e) {}
   }
 
-  // ---- カレンダー読み込み ----
   function loadCalendar() {
     document.getElementById('monthLabel').textContent = currentYear + '年 ' + currentMonth + '月';
     var cached = loadFromCache();
@@ -420,172 +418,88 @@
       .then(function(r) { return r.json(); })
       .then(function(data) { saveToCache(data); renderCalendar(data); })
       .catch(function() {
-        hideSplash();
         document.getElementById('calendarGrid').innerHTML = '<div class="loading">データの取得に失敗しました。</div>';
       });
   }
 
-  var splashHideAt = Date.now() + 1500; // 最低1.5秒表示
-
-  function hideSplash() {
-    var delay = Math.max(0, splashHideAt - Date.now());
-    setTimeout(function() {
-      var splash = document.getElementById('splash');
-      if (splash) splash.classList.add('hidden');
-    }, delay);
-  }
-
   function renderCalendar(days) {
-    hideSplash();
     var grid = document.getElementById('calendarGrid');
     grid.innerHTML = '';
-    if (!days || days.length === 0) {
-      grid.innerHTML = '<div class="loading">データがありません</div>';
-      return;
-    }
-
+    if (!days || days.length === 0) { grid.innerHTML = '<div class="loading">データがありません</div>'; return; }
     var firstDow = new Date(days[0].date + 'T00:00:00').getDay();
     for (var i = 0; i < firstDow; i++) {
-      var empty = document.createElement('div');
-      empty.className = 'day-cell empty';
-      grid.appendChild(empty);
+      var empty = document.createElement('div'); empty.className = 'day-cell empty'; grid.appendChild(empty);
     }
-
     days.forEach(function(day) {
       var cell = document.createElement('div');
-      var d    = new Date(day.date + 'T00:00:00');
-      var dow  = d.getDay();
-
+      var d = new Date(day.date + 'T00:00:00'); var dow = d.getDay();
       var classes = ['day-cell'];
-      if (!day.isOpen)          classes.push('closed');
+      if (!day.isOpen) classes.push('closed');
       else if (day.isKashikiri) classes.push('kashikiri');
-      else                      classes.push('normal');
-      if (day.date === todayISO)        classes.push('today');
+      else classes.push('normal');
+      if (day.date === todayISO) classes.push('today');
       if (day.date === selectedDateISO) classes.push('selected');
       if (dow === 0) classes.push('day-sun');
       if (dow === 6) classes.push('day-sat');
       cell.className = classes.join(' ');
       cell.dataset.date = day.date;
-
       if (day.isOpen) {
         var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'day-open-btn';
-
-        var numEl = document.createElement('div');
-        numEl.className = 'day-num';
-        numEl.textContent = d.getDate();
-        btn.appendChild(numEl);
-
-        var hoursEl = document.createElement('div');
-        hoursEl.className = 'hours';
-        hoursEl.innerHTML = day.open + '&nbsp;〜<br>' + day.close;
-        btn.appendChild(hoursEl);
-
-        if (day.isKashikiri) {
-          var badge = document.createElement('div');
-          badge.className = 'kashikiri-badge';
-          badge.textContent = '貸切あり';
-          btn.appendChild(badge);
-        }
-
-        (function(dateISO) {
-          btn.addEventListener('click', function() { onDayClick(dateISO); });
-        })(day.date);
-
+        btn.type = 'button'; btn.className = 'day-open-btn';
+        var numEl = document.createElement('div'); numEl.className = 'day-num'; numEl.textContent = d.getDate(); btn.appendChild(numEl);
+        var hoursEl = document.createElement('div'); hoursEl.className = 'hours'; hoursEl.innerHTML = day.open + '&nbsp;〜<br>' + day.close; btn.appendChild(hoursEl);
+        if (day.isKashikiri) { var badge = document.createElement('div'); badge.className = 'kashikiri-badge'; badge.textContent = '貸切あり'; btn.appendChild(badge); }
+        (function(iso) { btn.addEventListener('click', function() { onDayClick(iso); }); })(day.date);
         cell.appendChild(btn);
       } else {
-        var lbl = day.note || '定休日';
-        var ec  = lbl === '終日貸切' ? ' full-kashikiri' : '';
-        cell.innerHTML = '<div class="day-num">' + d.getDate() + '</div>'
-          + '<div class="closed-label' + ec + '">' + lbl + '</div>';
+        var lbl = day.note || '定休日'; var ec = lbl === '終日貸切' ? ' full-kashikiri' : '';
+        cell.innerHTML = '<div class="day-num">' + d.getDate() + '</div><div class="closed-label' + ec + '">' + lbl + '</div>';
       }
-
       grid.appendChild(cell);
     });
   }
 
-  // ---- Meetupパネル ----
-  function onDayClick(dateISO) {
-    // 同じ日なら閉じる
+  window.onDayClick = function(dateISO) {
     if (selectedDateISO === dateISO) { closeMeetupPanel(); return; }
-
-    // 選択状態を更新
-    var prev = document.querySelector('.day-cell.selected');
-    if (prev) prev.classList.remove('selected');
-    var cell = document.querySelector('[data-date="' + dateISO + '"]');
-    if (cell) cell.classList.add('selected');
+    var prev = document.querySelector('.day-cell.selected'); if (prev) prev.classList.remove('selected');
+    var cell = document.querySelector('[data-date="' + dateISO + '"]'); if (cell) cell.classList.add('selected');
     selectedDateISO = dateISO;
-
-    var d   = new Date(dateISO + 'T00:00:00');
-    var DOW = ['日','月','火','水','木','金','土'];
+    var d = new Date(dateISO + 'T00:00:00'); var DOW = ['日','月','火','水','木','金','土'];
     var label = (d.getMonth()+1) + '月' + d.getDate() + '日（' + DOW[d.getDay()] + '）';
-
-    // トースト表示
     var toast = document.getElementById('loadingToast');
-    toast.textContent = '📅 ' + label + ' のMeetup情報を読み込み中...';
-    toast.style.display = 'block';
-
-    // パネルをローディング状態で開く
+    toast.textContent = '📅 ' + label + ' のMeetup情報を読み込み中...'; toast.style.display = 'block';
     document.getElementById('meetupPanelTitle').textContent = label + ' のMeetup';
     document.getElementById('gradFilter').innerHTML = '';
-    document.getElementById('meetupList').innerHTML =
-      '<div class="meetup-loading"><div class="spinner"></div>読み込み中...</div>';
+    document.getElementById('meetupList').innerHTML = '<div class="meetup-loading"><div class="spinner"></div>読み込み中...</div>';
     document.getElementById('meetupPanel').classList.add('visible');
     document.getElementById('meetupPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-    // GASからMeetupデータ取得
     fetch(GAS_API_URL + '?page=calendar&action=meetups&date=' + dateISO)
       .then(function(r) { return r.json(); })
-      .then(function(data) {
-        toast.style.display = 'none';
-        allMeetups = data;
-        activeGradFilter = 'all';
-        renderGradFilter(data);
-        renderMeetups(data, 'all');
-      })
-      .catch(function() {
-        toast.style.display = 'none';
-        document.getElementById('meetupList').innerHTML =
-          '<div class="meetup-empty">データの取得に失敗しました。</div>';
-      });
-  }
+      .then(function(data) { toast.style.display = 'none'; allMeetups = data; renderGradFilter(data); renderMeetups(data, 'all'); })
+      .catch(function() { toast.style.display = 'none'; document.getElementById('meetupList').innerHTML = '<div class="meetup-empty">データの取得に失敗しました。</div>'; });
+  };
 
   function closeMeetupPanel() {
     document.getElementById('meetupPanel').classList.remove('visible');
-    var prev = document.querySelector('.day-cell.selected');
-    if (prev) prev.classList.remove('selected');
+    var prev = document.querySelector('.day-cell.selected'); if (prev) prev.classList.remove('selected');
     selectedDateISO = null;
   }
 
   function renderGradFilter(meetups) {
     var gradSet = {};
-    meetups.forEach(function(m) {
-      if (!m.gradYear) return;
-      String(m.gradYear).split(/[\s,、]+/).forEach(function(g) { if (g) gradSet[g] = true; });
-    });
+    meetups.forEach(function(m) { if (!m.gradYear) return; String(m.gradYear).split(/[\s,、]+/).forEach(function(g) { if (g) gradSet[g] = true; }); });
     var grads = Object.keys(gradSet).sort();
-    var container = document.getElementById('gradFilter');
-    container.innerHTML = '';
+    var container = document.getElementById('gradFilter'); container.innerHTML = '';
     if (grads.length <= 1) return;
-
-    var allBtn = document.createElement('button');
-    allBtn.className = 'grad-btn active';
-    allBtn.textContent = 'すべて';
-    allBtn.addEventListener('click', function() { setGradFilter('all'); });
-    container.appendChild(allBtn);
-
+    var allBtn = document.createElement('button'); allBtn.className = 'grad-btn active'; allBtn.textContent = 'すべて';
+    allBtn.addEventListener('click', function() { setGradFilter('all'); }); container.appendChild(allBtn);
     grads.forEach(function(g) {
-      var btn = document.createElement('button');
-      btn.className = 'grad-btn';
-      btn.textContent = g;
-      btn.addEventListener('click', function() { setGradFilter(g); });
-      container.appendChild(btn);
+      var btn = document.createElement('button'); btn.className = 'grad-btn'; btn.textContent = g;
+      btn.addEventListener('click', function() { setGradFilter(g); }); container.appendChild(btn);
     });
   }
 
   function setGradFilter(grad) {
-    activeGradFilter = grad;
     document.querySelectorAll('.grad-btn').forEach(function(btn) {
       btn.classList.toggle('active', btn.textContent === grad || (grad === 'all' && btn.textContent === 'すべて'));
     });
@@ -593,59 +507,36 @@
   }
 
   function renderMeetups(meetups, gradFilter) {
-    var list = document.getElementById('meetupList');
-    list.innerHTML = '';
-
+    var list = document.getElementById('meetupList'); list.innerHTML = '';
     var filtered = meetups.filter(function(m) {
       if (gradFilter === 'all') return true;
       if (!m.gradYear) return false;
       return String(m.gradYear).split(/[\s,、]+/).indexOf(gradFilter) !== -1;
     });
-
-    if (filtered.length === 0) {
-      list.innerHTML = '<div class="meetup-empty">この日のMeetup予定はありません。</div>';
-      return;
-    }
-
+    if (filtered.length === 0) { list.innerHTML = '<div class="meetup-empty">この日のMeetup予定はありません。</div>'; return; }
     filtered.forEach(function(m) {
-      var card = document.createElement('div');
-      card.className = 'meetup-card';
-
-      var imgWrap = document.createElement('div');
-      imgWrap.className = 'meetup-img-wrap';
+      var card = document.createElement('div'); card.className = 'meetup-card';
+      var imgWrap = document.createElement('div'); imgWrap.className = 'meetup-img-wrap';
       if (m.imageUrl) {
-        var img = document.createElement('img');
-        img.className = 'meetup-img';
-        img.src = m.imageUrl;
-        img.alt = 'Meetupイメージ';
+        var img = document.createElement('img'); img.className = 'meetup-img'; img.src = m.imageUrl; img.alt = 'Meetup';
         img.onerror = function() { this.parentNode.innerHTML = '<div class="meetup-img-placeholder">🏢</div>'; };
         imgWrap.appendChild(img);
-      } else {
-        imgWrap.innerHTML = '<div class="meetup-img-placeholder">🏢</div>';
-      }
-
-      var body = document.createElement('div');
-      body.className = 'meetup-body';
-      body.innerHTML =
-        '<div class="meetup-company">' + escHtml(m.company) + '</div>'
-        + '<div class="meetup-theme' + (m.theme ? '' : ' no-theme') + '">' + escHtml(m.theme || 'テーマ未登録') + '</div>'
-        + '<div class="meetup-meta">'
-        +   '<span class="meetup-time">' + escHtml(m.time) + '</span>'
-        +   (m.kind ? '<span class="meetup-kind">' + escHtml(m.kind) + '</span>' : '')
-        +   (m.gradYear ? '<span class="meetup-grad">🎓 ' + escHtml(m.gradYear) + '</span>' : '')
-        + '</div>';
-
-      card.appendChild(imgWrap);
-      card.appendChild(body);
-      list.appendChild(card);
+      } else { imgWrap.innerHTML = '<div class="meetup-img-placeholder">🏢</div>'; }
+      var body = document.createElement('div'); body.className = 'meetup-body';
+      body.innerHTML = '<div class="meetup-company">' + esc(m.company) + '</div>'
+        + '<div class="meetup-theme' + (m.theme ? '' : ' no-theme') + '">' + esc(m.theme || 'テーマ未登録') + '</div>'
+        + '<div class="meetup-meta"><span class="meetup-time">' + esc(m.time) + '</span>'
+        + (m.kind ? '<span class="meetup-kind">' + esc(m.kind) + '</span>' : '')
+        + (m.gradYear ? '<span class="meetup-grad">🎓 ' + esc(m.gradYear) + '</span>' : '') + '</div>';
+      card.appendChild(imgWrap); card.appendChild(body); list.appendChild(card);
     });
   }
 
-  function escHtml(str) {
-    return String(str || '')
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  function esc(s) {
+    return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
+  // カレンダー初期読み込み（バックグラウンド）
   loadCalendar();
 </script>
 </body>
