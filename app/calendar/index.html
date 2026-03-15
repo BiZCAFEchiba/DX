@@ -360,24 +360,47 @@
 
         <div class="recruit-section">
           <div class="recruit-section-tag">Position</div>
-          <div class="recruit-section-title">仕事内容</div>
-          <div class="recruit-section-subtitle">― あなたが挑戦できること ―</div>
+          <div class="recruit-section-title">ポジション・仕事内容</div>
+          <div class="recruit-section-subtitle">― 知るカフェスタッフの多様なポジションと仕事内容 ―</div>
+          <div class="recruit-section-body">
+            インターンシップでは、接客や店舗運営業務に加え、多様なポジション・仕事内容があります。自分の経験や関心に応じて挑戦できるため、様々な場面で成長を実感できます。
+          </div>
           <div class="recruit-cards">
             <div class="recruit-card">
-              <div class="recruit-card-title">☕ 接客・カフェ業務</div>
-              <div class="recruit-card-body">ドリンク提供・レジ・店内環境の管理など、カフェ運営の基本を学べます。</div>
+              <div class="recruit-card-title">👑 店長</div>
+              <div class="recruit-card-body">店舗に所属するスタッフを団結させ、目標達成に導く</div>
             </div>
             <div class="recruit-card">
-              <div class="recruit-card-title">🤝 Meetupサポート</div>
-              <div class="recruit-card-body">企業と学生をつなぐ交流イベントの企画・運営・当日サポートを担当します。</div>
+              <div class="recruit-card-title">🤝 店長代理</div>
+              <div class="recruit-card-body">店長を全面的にサポートし、店舗運営の基盤を整える</div>
             </div>
             <div class="recruit-card">
-              <div class="recruit-card-title">📱 SNS・広報</div>
-              <div class="recruit-card-body">Instagram等のSNS運用や集客コンテンツの企画・制作に挑戦できます。</div>
+              <div class="recruit-card-title">📊 事業統括</div>
+              <div class="recruit-card-body">社員・経営に近い立場から、組織全体のあらゆる課題を解決</div>
             </div>
             <div class="recruit-card">
-              <div class="recruit-card-title">🗂 店舗運営・マネジメント</div>
-              <div class="recruit-card-body">シフト管理・スタッフ育成・採用活動など、経営に近い業務も経験できます。</div>
+              <div class="recruit-card-title">🔍 リクルート</div>
+              <div class="recruit-card-body">採用広報や説明会を通じて、仲間探しの観点から組織の成長を支える</div>
+            </div>
+            <div class="recruit-card">
+              <div class="recruit-card-title">💡 Meetup Consulting Team</div>
+              <div class="recruit-card-body">メインサービス「Meetup」の企画立案やバナー画像のデザインを担当</div>
+            </div>
+            <div class="recruit-card">
+              <div class="recruit-card-title">🔎 SV（スーパーバイザー）</div>
+              <div class="recruit-card-body">第三者視点で全店舗を監査し、安心・安全の店舗運営を守る</div>
+            </div>
+            <div class="recruit-card">
+              <div class="recruit-card-title">📱 SNS統括</div>
+              <div class="recruit-card-body">SNSアカウントの管理や投稿内容の監査を担当し、知るカフェの価値を発信する</div>
+            </div>
+            <div class="recruit-card">
+              <div class="recruit-card-title">💻 DX</div>
+              <div class="recruit-card-body">データとITをフル活用して、あらゆる業務の効率を徹底的に改善</div>
+            </div>
+            <div class="recruit-card">
+              <div class="recruit-card-title">📋 シフト監査</div>
+              <div class="recruit-card-body">シフトが適切に組まれているか監査し、店舗運営の基盤を固める</div>
             </div>
           </div>
         </div>
@@ -577,7 +600,7 @@
   });
   document.getElementById('meetupClose').addEventListener('click', function() { closeMeetupPanel(); });
 
-  var CACHE_VERSION = 'v6';
+  var CACHE_VERSION = 'v7';
   var CACHE_TTL = 60 * 60 * 1000;
   function getCacheKey() { return 'bizcafe_cal_' + CACHE_VERSION + '_' + currentYear + '_' + currentMonth; }
   function loadFromCache() {
