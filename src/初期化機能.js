@@ -396,6 +396,15 @@ function initStaffHoursSheet() {
 }
 
 /**
+ * 「営業時間」シートにLO列ヘッダーを追加する（手動実行用）
+ * GASエディタの関数リストから選んで実行してください
+ */
+function addLoHeaders() {
+  updateBusinessHoursSheetHeader_();
+  SpreadsheetApp.getUi().alert('完了', '「営業時間」シートのヘッダーを更新しました（H列: 授業期間_LO, I列: ターム休み_LO）', SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+/**
  * 「営業時間」シートのヘッダーをターム対応に更新する
  */
 function updateBusinessHoursSheetHeader_() {
@@ -411,8 +420,8 @@ function updateBusinessHoursSheetHeader_() {
     if (!header[4] || !header[7]) {
       sheet.getRange(1, 1, 1, 9).setValues([[
         '曜日',
-        '授業期間_開始', '授業期間_終了', '授業期間_営業', '授業期間_LO',
-        'ターム休み_開始', 'ターム休み_終了', 'ターム休み_営業', 'ターム休み_LO'
+        '授業期間_開始', '授業期間_終了', '授業期間_LO', '授業期間_営業',
+        'ターム休み_開始', 'ターム休み_終了', 'ターム休み_LO', 'ターム休み_営業'
       ]]);
       sheet.getRange(1, 1, 1, 9).setFontWeight('bold');
       sheet.getRange(1, 2, 1, 4).setBackground('#e8f5e9'); // 授業期間
