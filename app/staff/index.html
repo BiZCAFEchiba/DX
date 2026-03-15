@@ -20,20 +20,6 @@
 
     .container { width: 100%; max-width: 420px; padding: 24px 16px; }
 
-    /* PIN入力 */
-    #pinArea { text-align: center; }
-    .pin-label { font-size: 0.9rem; color: #555; margin-bottom: 12px; }
-    .pin-input {
-      width: 160px; padding: 10px 14px; font-size: 1.2rem;
-      border: 2px solid #b0c4d8; border-radius: 10px; text-align: center;
-      margin-bottom: 12px; display: block; margin: 0 auto 12px;
-      letter-spacing: 0.2em;
-    }
-    .pin-input:focus { outline: none; border-color: #1a3a5c; }
-    .pin-error { color: #e53935; font-size: 0.82rem; margin-top: 8px; min-height: 18px; }
-
-    /* 更新UI */
-    #mainArea { display: none; }
     .section-title { font-size: 0.85rem; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
     .current-card {
       background: white; border-radius: 14px; padding: 20px;
@@ -44,7 +30,6 @@
     .current-label { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
     .current-updated { font-size: 0.75rem; color: #999; }
 
-    /* レベルボタン */
     .level-grid { display: flex; flex-direction: column; gap: 10px; }
     .level-btn {
       display: flex; align-items: center; gap: 14px;
@@ -83,12 +68,6 @@
       display: none; white-space: nowrap; z-index: 999;
     }
     .toast.show { display: block; }
-
-    .enter-btn {
-      background: #1a3a5c; color: white; border: none;
-      border-radius: 10px; padding: 10px 28px; font-size: 1rem;
-      font-weight: 700; cursor: pointer; margin-top: 4px;
-    }
   </style>
 </head>
 <body>
@@ -98,33 +77,16 @@
 </header>
 
 <div class="container">
-
-  <!-- PIN入力 -->
-  <div id="pinArea">
-    <br>
-    <div class="current-card" style="margin-bottom:20px;">
-      <div class="pin-label">スタッフ用PINを入力してください</div>
-      <input type="password" class="pin-input" id="pinInput" placeholder="••••" inputmode="numeric">
-      <br>
-      <button class="enter-btn" onclick="checkPin()">確認</button>
-      <div class="pin-error" id="pinError"></div>
-    </div>
+  <div class="section-title">現在の混雑状況</div>
+  <div class="current-card">
+    <div class="person-icons" id="personIconsCurrent"></div>
+    <div class="current-label" id="currentLabel">-</div>
+    <div class="current-updated" id="currentUpdated"></div>
   </div>
 
-  <!-- メイン更新UI -->
-  <div id="mainArea">
-    <div class="section-title">現在の混雑状況</div>
-    <div class="current-card">
-      <div class="person-icons" id="personIconsCurrent"></div>
-      <div class="current-label" id="currentLabel">-</div>
-      <div class="current-updated" id="currentUpdated"></div>
-    </div>
-
-    <div class="section-title">混雑度を選択して更新</div>
-    <div class="level-grid" id="levelGrid"></div>
-    <button class="update-btn" id="updateBtn" onclick="submitLevel()" disabled>更新する</button>
-  </div>
-
+  <div class="section-title">混雑度を選択して更新</div>
+  <div class="level-grid" id="levelGrid"></div>
+  <button class="update-btn" id="updateBtn" onclick="submitLevel()" disabled>更新する</button>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -135,41 +97,9 @@
   var COLORS  = ['#e0e0e0','#4caf50','#8bc34a','#ffc107','#ff7043','#f44336'];
   var LABELS  = ['未確認','空いています','やや空いています','普通','やや混んでいます','混んでいます'];
   var selectedLevel = -1;
-  var currentPin = '';
 
-  // PIN を localStorage から復元
-  var savedPin = localStorage.getItem('biz_staff_pin') || '';
-  if (savedPin) { currentPin = savedPin; initMain(); }
-
-  document.getElementById('pinInput').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') checkPin();
-  });
-
-  function checkPin() {
-    var pin = document.getElementById('pinInput').value.trim();
-    // GAS APIで検証（level=0&pin=xxx でテスト）
-    fetch(GAS_API_URL + '?page=calendar&action=setCongestion&level=0&pin=' + encodeURIComponent(pin) + '&probe=1')
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        // level=0はOKとして返るが、ok:falseならPIN間違い
-        // probe=1の場合は実際には変更しない→GAS側で対応しているが、ここでは ok:true でOK判定
-        if (d.ok !== false) {
-          currentPin = pin;
-          localStorage.setItem('biz_staff_pin', pin);
-          document.getElementById('pinArea').style.display = 'none';
-          initMain();
-        } else {
-          document.getElementById('pinError').textContent = 'PINが正しくありません';
-        }
-      })
-      .catch(function() { document.getElementById('pinError').textContent = '通信エラーが発生しました'; });
-  }
-
-  function initMain() {
-    document.getElementById('mainArea').style.display = 'block';
-    buildLevelButtons();
-    loadCurrent();
-  }
+  buildLevelButtons();
+  loadCurrent();
 
   function buildLevelButtons() {
     var grid = document.getElementById('levelGrid');
@@ -189,7 +119,6 @@
       })(lv);
       grid.appendChild(btn);
     }
-    // 「未確認」リセットボタン
     var resetBtn = document.createElement('button');
     resetBtn.className = 'level-btn level-btn-0';
     resetBtn.dataset.level = 0;
@@ -238,18 +167,13 @@
     if (selectedLevel < 0) return;
     var btn = document.getElementById('updateBtn');
     btn.disabled = true; btn.textContent = '更新中...';
-    fetch(GAS_API_URL + '?page=calendar&action=setCongestion&level=' + selectedLevel + '&pin=' + encodeURIComponent(currentPin))
+    fetch(GAS_API_URL + '?page=calendar&action=setCongestion&level=' + selectedLevel)
       .then(function(r) { return r.json(); })
       .then(function(d) {
-        if (d.ok !== false) {
-          showToast('✅ ' + LABELS[selectedLevel] + ' に更新しました');
-          renderCurrent(selectedLevel, d.updatedAt || '');
-          selectedLevel = -1;
-          document.querySelectorAll('.level-btn').forEach(function(b) { b.classList.remove('selected'); });
-        } else {
-          showToast('❌ 更新に失敗しました（PINを確認してください）');
-          localStorage.removeItem('biz_staff_pin');
-        }
+        showToast('✅ ' + LABELS[selectedLevel] + ' に更新しました');
+        renderCurrent(selectedLevel, d.updatedAt || '');
+        selectedLevel = -1;
+        document.querySelectorAll('.level-btn').forEach(function(b) { b.classList.remove('selected'); });
         btn.textContent = '更新する';
       })
       .catch(function() {
