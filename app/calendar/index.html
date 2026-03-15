@@ -624,7 +624,7 @@
     var cached = loadFromCache();
     if (cached) { renderCalendar(cached); if (onReady) onReady(); return; }
     document.getElementById('calendarGrid').innerHTML = '<div class="loading">読み込み中...</div>';
-    fetch(GAS_API_URL + '?page=calendar&action=data&year=' + year + '&month=' + month + '&nocache=1')
+    fetch(GAS_API_URL + '?page=calendar&action=data&year=' + year + '&month=' + month)
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (reqId !== calReqId) return; // 古いリクエストは無視
@@ -643,7 +643,7 @@
       var raw = localStorage.getItem(key);
       if (raw) { var e = JSON.parse(raw); if (Date.now() - e.ts < CACHE_TTL) { onReady(); return; } }
     } catch(ex) {}
-    fetch(GAS_API_URL + '?page=calendar&action=data&year=' + year + '&month=' + month + '&nocache=1')
+    fetch(GAS_API_URL + '?page=calendar&action=data&year=' + year + '&month=' + month)
       .then(function(r) { return r.json(); })
       .then(function(data) { try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: data })); } catch(ex) {} onReady(); })
       .catch(function() { onReady(); });
