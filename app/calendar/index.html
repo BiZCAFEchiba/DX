@@ -247,7 +247,8 @@
     .qa-header { margin-bottom: 20px; }
     .qa-title { font-size: 1rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; }
     .qa-subtitle { font-size: 0.78rem; color: #999; }
-    .qa-list { display: flex; flex-direction: column; gap: 18px; margin-bottom: 28px; }
+    .qa-submit-box { margin-bottom: 24px; }
+    .qa-list { display: flex; flex-direction: column; gap: 18px; }
 
     .qa-item { display: flex; flex-direction: column; gap: 8px; }
 
@@ -430,7 +431,6 @@
           <div class="qa-title">💬 Q&amp;A</div>
           <div class="qa-subtitle">スタッフへの質問をこちらから送れます。回答済みの質問はタップで確認できます。</div>
         </div>
-        <div class="qa-list" id="qaList"><div class="loading">読み込み中...</div></div>
         <div class="qa-submit-box">
           <div class="qa-submit-label">📨 スタッフに質問する</div>
           <div class="qa-submit-row">
@@ -439,6 +439,7 @@
           </div>
           <div class="qa-sent-msg" id="qaSentMsg">✅ 質問を送信しました！スタッフが回答します。</div>
         </div>
+        <div class="qa-list" id="qaList"><div class="loading">読み込み中...</div></div>
       </div>
     </div>
 
