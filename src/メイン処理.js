@@ -20,11 +20,35 @@
  */
 function doPost(e) {
   try {
+    var body = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        body = JSON.parse(e.postData.contents);
+      } catch (jsonErr) {}
+    }
+
+    if (body.page === 'calendar') {
+      if (body.action === 'boardSave') {
+        var saveResult = saveBoardItem_(body);
+        return ContentService.createTextOutput(JSON.stringify(saveResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      if (body.action === 'boardUploadImage') {
+        var uploadResult = uploadBoardImage_(body);
+        return ContentService.createTextOutput(JSON.stringify(uploadResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_action' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // Webhookの到達を物理的に確認するための初期ログ
     writeLogToSheets_('POST受信', 0, 'raw', 'info', 'doPost triggered');
     handleWebhook(e);
   } catch (err) {
     writeLogToSheets_('doPost致命的エラー', 0, 'raw', 'error', err.message);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -129,6 +153,44 @@ function doGet(e) {
     if (param.action === 'qaDelete') {
       var result = deleteFAQItem_(param.id || '');
       return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 掲示板一覧取得
+    if (param.action === 'boardList') {
+      return ContentService.createTextOutput(JSON.stringify(getBoardList_({
+        includeUnpublished: param.staff === '1',
+        placement: param.placement || '',
+        limit: param.limit || ''
+      }))).setMimeType(ContentService.MimeType.JSON);
+    }
+    // 掲示板詳細取得
+    if (param.action === 'boardDetail') {
+      var boardItem = getBoardItem_(param.id || '', param.staff === '1');
+      return ContentService.createTextOutput(JSON.stringify(boardItem || { ok: false, error: 'not_found' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 掲示板保存
+    if (param.action === 'boardSave') {
+      var saveResult = saveBoardItem_({
+        id: param.id || '',
+        title: param.title || '',
+        category: param.category || '',
+        summary: param.summary || '',
+        body: param.body || '',
+        date: param.date || '',
+        imageUrl: param.imageUrl || '',
+        thumbnailUrl: param.thumbnailUrl || '',
+        showInUpdates: param.showInUpdates === 'true',
+        showInArticles: param.showInArticles === 'true',
+        published: param.published === 'true'
+      });
+      return ContentService.createTextOutput(JSON.stringify(saveResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 掲示板削除
+    if (param.action === 'boardDelete') {
+      var deleteResult = deleteBoardItem_(param.id || '');
+      return ContentService.createTextOutput(JSON.stringify(deleteResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // 混雑状況更新（スタッフ用）

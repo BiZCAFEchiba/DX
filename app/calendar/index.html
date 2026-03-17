@@ -897,67 +897,61 @@ window.onDayClick = function(dateISO) {
   prefetchCalendar(nextYear, nextMonth, checkSplashReady);
 
   // ===== 掲示板処理 =====
-  const BOARD_UPDATES = [
-    { title: "〇〇イベントの開始について", date: "2026/03/17", link: "articles/sample_article_1.html" },
-    { title: "新しい勤怠マニュアルを公開しました", date: "2026/03/10", link: "articles/sample_article_2.html" },
-    { title: "店舗のレイアウト変更のお知らせ", date: "2026/02/25", link: "#" },
-    { title: "年末年始のシフト提出期間について", date: "2025/11/15", link: "#" },
-    { title: "制服の新しいルールについて", date: "2025/10/01", link: "#" },
-    { title: "【テスト用】これはトップに表示されない古い更新です", date: "2025/09/20", link: "#" }
-  ];
-
-  const BOARD_ARTICLES = [
-    { title: "春の新メニューのご紹介！", date: "2026/03/15", type: "お知らせ", image: "/bizcafe-splash.png", link: "articles/sample_article_1.html" },
-    { title: "シフトリーダーからのメッセージ", date: "2026/03/01", type: "コラム", image: "", link: "articles/sample_article_2.html" },
-    { title: "新しいコーヒー豆が入荷しました", date: "2026/02/10", type: "お知らせ", image: "/bizcafe-splash.png", link: "articles/sample_article_1.html" },
-    { title: "【店長より】今月の目標達成おめでとう！", date: "2026/01/31", type: "お知らせ", image: "", link: "articles/sample_article_2.html" },
-    { title: "業務の効率化について共有", date: "2026/01/15", type: "コラム", image: "/bizcafe-splash.png", link: "articles/sample_article_1.html" },
-    { title: "大掃除のスケジュール", date: "2025/12/20", type: "お知らせ", image: "", link: "articles/sample_article_2.html" },
-    { title: "レジの新しい操作方法", date: "2025/11/05", type: "マニュアル", image: "/bizcafe-splash.png", link: "articles/sample_article_1.html" },
-    { title: "冬の期間限定ドリンク準備", date: "2025/10/25", type: "お知らせ", image: "", link: "articles/sample_article_2.html" },
-    { title: "【テスト用】これはトップに表示されない記事です", date: "2025/08/15", type: "コラム", image: "", link: "articles/sample_article_1.html" }
-  ];
-
   function renderBoardTop() {
-    var updateList = document.getElementById('updateList');
-    var articleGrid = document.getElementById('articleGrid');
-    
-    // まだ描画されていなければ描画
-    if (updateList && updateList.innerHTML === '') {
-      var updatesHtml = '';
-      var topUpdates = BOARD_UPDATES.slice(0, 5); // 最新5件
-      topUpdates.forEach(function(item) {
-        var tag = (item.link && item.link !== '#') ? 'a' : 'div';
-        var hrefAttr = (tag === 'a') ? ' href="' + item.link + '"' : '';
-        updatesHtml += '<' + tag + hrefAttr + ' class="update-item">' +
-          '<div class="update-meta"><span class="update-label">更新</span><span class="update-date">' + item.date + '</span></div>' +
-          '<div class="update-title">' + esc(item.title) + '</div>' +
-        '</' + tag + '>';
-      });
-      updateList.innerHTML = updatesHtml;
-    }
+    loadBoardSection('updates', 5, renderTopUpdates);
+    loadBoardSection('articles', 8, renderTopArticles);
+  }
 
-    if (articleGrid && articleGrid.innerHTML === '') {
-      var articlesHtml = '';
-      var topArticles = BOARD_ARTICLES.slice(0, 8); // 最新8件
-      topArticles.forEach(function(item) {
-        var imgHtml = item.image 
-          ? '<img class="article-img" src="' + item.image + '" alt="記事画像">'
-          : '<div class="article-img-placeholder">📄</div>';
-          
-        articlesHtml += '<a href="' + item.link + '" class="article-card">' +
-          '<div class="article-img-wrap">' + imgHtml + '</div>' +
-          '<div class="article-body">' +
-            '<div class="article-title">' + esc(item.title) + '</div>' +
-            '<div class="article-meta">' +
-              '<span class="article-type">' + esc(item.type) + '</span>' +
-              '<span class="article-date">' + item.date + '</span>' +
-            '</div>' +
-          '</div>' +
-        '</a>';
-      });
-      articleGrid.innerHTML = articlesHtml;
+  function loadBoardSection(placement, limit, onRender) {
+    fetch(GAS_API_URL + '?page=calendar&action=boardList&placement=' + encodeURIComponent(placement) + '&limit=' + encodeURIComponent(limit))
+      .then(function(r) { return r.json(); })
+      .then(function(items) { onRender(Array.isArray(items) ? items : []); })
+      .catch(function() { onRender([]); });
+  }
+
+  function renderTopUpdates(items) {
+    var updateList = document.getElementById('updateList');
+    if (!updateList) return;
+    if (!items || items.length === 0) {
+      updateList.innerHTML = '<div class="qa-empty">まだ更新はありません。</div>';
+      return;
     }
+    var html = '';
+    items.forEach(function(item) {
+      html += '<a href="' + getBoardDetailLink(item.id) + '" class="update-item">'
+        + '<div class="update-meta"><span class="update-label">更新</span><span class="update-date">' + esc(item.displayDate || '') + '</span></div>'
+        + '<div class="update-title">' + esc(item.title) + '</div>'
+        + '</a>';
+    });
+    updateList.innerHTML = html;
+  }
+
+  function renderTopArticles(items) {
+    var articleGrid = document.getElementById('articleGrid');
+    if (!articleGrid) return;
+    if (!items || items.length === 0) {
+      articleGrid.innerHTML = '<div class="qa-empty">まだ記事はありません。</div>';
+      return;
+    }
+    var html = '';
+    items.forEach(function(item) {
+      var thumb = item.thumbnailUrl || item.imageUrl || '';
+      var imgHtml = thumb
+        ? '<img class="article-img" src="' + thumb + '" alt="記事画像">'
+        : '<div class="article-img-placeholder">📄</div>';
+      html += '<a href="' + getBoardDetailLink(item.id) + '" class="article-card">'
+        + '<div class="article-img-wrap">' + imgHtml + '</div>'
+        + '<div class="article-body">'
+        + '<div class="article-title">' + esc(item.title) + '</div>'
+        + '<div class="article-meta"><span class="article-type">' + esc(item.category || 'お知らせ') + '</span><span class="article-date">' + esc(item.displayDate || '') + '</span></div>'
+        + '</div>'
+        + '</a>';
+    });
+    articleGrid.innerHTML = html;
+  }
+
+  function getBoardDetailLink(id) {
+    return 'articles/template.html?id=' + encodeURIComponent(id);
   }
 
   // 初期読み込み時のタブ切り替え処理

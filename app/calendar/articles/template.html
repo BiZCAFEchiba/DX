@@ -3,97 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- タイトルは記事ごとに変更 -->
-  <title>記事タイトル - BizCAFE 千葉大学店</title>
+  <title>記事詳細 - BizCAFE 千葉大学店</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
-      background: #f5f7fa; color: #333; min-height: 100vh;
-      display: flex; flex-direction: column;
+      background: #f5f7fa; color: #333; min-height: 100vh; display: flex; flex-direction: column;
     }
     header {
-      background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
-      color: white; padding: 16px 20px; text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2); flex-shrink: 0;
-      position: relative;
+      background: linear-gradient(135deg, #1a3a5c, #2a5f8f); color: white; padding: 16px 20px;
+      text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.2); flex-shrink: 0; position: relative;
     }
     header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.05em; margin: 0; }
     .back-btn {
       position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
       color: white; text-decoration: none; font-size: 1.5rem; line-height: 1; padding: 4px 8px;
     }
-    
     .article-container { max-width: 800px; margin: 0 auto; padding: 24px 16px 60px; width: 100%; }
     .article-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #dde6f0; }
-    
     .article-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 0.85rem; }
     .article-date { color: #666; }
     .article-type { color: #1a3a5c; font-weight: 600; background: #eaf2fb; padding: 4px 8px; border-radius: 4px; }
-    
     .article-title { font-size: 1.5rem; font-weight: 700; color: #1a3a5c; line-height: 1.4; margin-bottom: 20px; }
-    
-    .article-main-img { width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 32px; background: #eaf0f7; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; }
+    .article-main-img {
+      width: 100%; border-radius: 12px; overflow: hidden; margin-bottom: 32px; background: #eaf0f7;
+      aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center;
+    }
     .article-main-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    
-    .article-content { font-size: 1.05rem; line-height: 1.8; color: #333; }
-    .article-content h2 { font-size: 1.25rem; font-weight: 700; color: #1a3a5c; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #eaf0f7; }
-    .article-content p { margin-bottom: 1.2em; }
-    .article-content ul, .article-content ol { margin: 0 0 1.2em 1.5em; padding-left: 1em; }
-    .article-content li { margin-bottom: 0.5em; }
-
+    .article-content { font-size: 1.05rem; line-height: 1.8; color: #333; white-space: pre-wrap; }
+    .article-empty { text-align: center; color: #999; padding: 40px 20px; }
     .bottom-back { display: block; text-align: center; margin-top: 48px; }
-    .bottom-back a { display: inline-block; padding: 12px 32px; background: white; color: #1a3a5c; text-decoration: none; font-weight: 600; border-radius: 8px; border: 2px solid #1a3a5c; transition: all 0.2s; }
-    .bottom-back a:hover { background: #1a3a5c; color: white; }
-
-    @media (max-width: 600px) {
-      .article-container { padding: 16px 12px 40px; }
-      .article-title { font-size: 1.25rem; }
-      .article-content { font-size: 0.95rem; line-height: 1.7; }
-      .article-content h2 { font-size: 1.1rem; }
+    .bottom-back a {
+      display: inline-block; padding: 12px 32px; background: white; color: #1a3a5c; text-decoration: none;
+      font-weight: 600; border-radius: 8px; border: 2px solid #1a3a5c;
     }
   </style>
 </head>
 <body>
-
 <header>
-  <!-- 掲示板一覧へ戻る -->
   <a href="../index.html#board" class="back-btn" aria-label="戻る">‹</a>
-  <h1>🏪 BizCAFE 千葉大学店</h1>
+  <h1>BizCAFE 千葉大学店</h1>
 </header>
 
 <div class="article-container">
   <div class="article-header">
     <div class="article-meta">
-      <span class="article-type">お知らせ</span>
-      <span class="article-date">2026/03/15</span>
+      <span class="article-type" id="articleType">読み込み中</span>
+      <span class="article-date" id="articleDate"></span>
     </div>
-    <h1 class="article-title">記事のタイトルをここに入力します</h1>
+    <h1 class="article-title" id="articleTitle">読み込み中...</h1>
   </div>
-  
-  <div class="article-main-img">
-    <!-- 画像パスを指定 -->
-    <img src="/bizcafe-splash.png" alt="メイン画像">
+  <div class="article-main-img" id="articleImageWrap">
+    <img src="" alt="メイン画像" id="articleImage" style="display:none;">
+    <div id="articleImagePlaceholder">画像はありません</div>
   </div>
-  
-  <div class="article-content">
-    <p>ここに記事の本文を記述します。HTMLタグを使用して段落やリストを作成できます。</p>
-    
-    <h2>見出しのサンプル</h2>
-    <p>詳細な情報や、段落を分けた内容はここに記載します。以下はリストの例です。</p>
-    <ul>
-      <li>ポイント1のテキスト</li>
-      <li>ポイント2のテキスト</li>
-      <li>ポイント3のテキスト</li>
-    </ul>
-
-    <p>よろしくお願いします。</p>
-  </div>
-  
+  <div class="article-content" id="articleContent"></div>
   <div class="bottom-back">
-    <a href="../index.html#board">一覧へ戻る</a>
+    <a href="../index.html#board">一覧に戻る</a>
   </div>
 </div>
 
+<script>
+  var GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxc5QSSH2bHqX6cuHqClVMWfkBrfqW8Zi4AY2E_wYPjO2NWUD4oJXMihgR1XtVgR0vP/exec';
+
+  function getArticleId() {
+    return new URLSearchParams(window.location.search).get('id') || '';
+  }
+
+  function renderArticle(item) {
+    if (!item || item.ok === false) {
+      document.getElementById('articleTitle').textContent = '記事が見つかりません';
+      document.getElementById('articleType').textContent = '未取得';
+      document.getElementById('articleDate').textContent = '';
+      document.getElementById('articleContent').innerHTML = '<div class="article-empty">指定された記事は存在しないか、非公開です。</div>';
+      document.getElementById('articleImageWrap').style.display = 'none';
+      return;
+    }
+    document.title = item.title + ' - BizCAFE 千葉大学店';
+    document.getElementById('articleTitle').textContent = item.title || '';
+    document.getElementById('articleType').textContent = item.category || 'お知らせ';
+    document.getElementById('articleDate').textContent = item.displayDate || '';
+    document.getElementById('articleContent').textContent = item.body || '';
+
+    var imageUrl = item.imageUrl || item.thumbnailUrl || '';
+    var image = document.getElementById('articleImage');
+    var placeholder = document.getElementById('articleImagePlaceholder');
+    if (imageUrl) {
+      image.src = imageUrl;
+      image.style.display = 'block';
+      placeholder.style.display = 'none';
+    } else {
+      image.style.display = 'none';
+      placeholder.style.display = 'block';
+    }
+  }
+
+  var articleId = getArticleId();
+  if (!articleId) {
+    renderArticle({ ok: false });
+  } else {
+    fetch(GAS_API_URL + '?page=calendar&action=boardDetail&id=' + encodeURIComponent(articleId))
+      .then(function(r) { return r.json(); })
+      .then(function(item) { renderArticle(item); })
+      .catch(function() { renderArticle({ ok: false }); });
+  }
+</script>
 </body>
 </html>
