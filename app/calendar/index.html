@@ -213,7 +213,7 @@
     .meetup-card { background: #fff; border: 1px solid #dde6f0; border-radius: 12px; overflow: hidden; display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
     .meetup-card.has-remaining { border: 2px solid #43a047; box-shadow: 0 2px 10px rgba(67,160,71,0.2); }
     .meetup-card.soldout { opacity: 0.7; }
-    .meetup-img-wrap { flex-shrink: 0; width: 110px; background: #eaf0f7; display: flex; align-items: center; justify-content: center; position: relative; }
+    .meetup-img-wrap { flex-shrink: 0; width: 110px; background: #eaf0f7; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; }
     .meetup-img { width: 110px; height: 110px; object-fit: cover; display: block; }
     .meetup-img-placeholder { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: #b0c4d8; }
     .meetup-body { flex: 1; padding: 12px 14px; min-width: 0; }
@@ -226,8 +226,8 @@
     .meetup-grad { background: #fff3e0; color: #e65100; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
     .meetup-empty { text-align: center; padding: 32px; color: #888; font-size: 0.9rem; background: #fff; border: 1px solid #e0e7ef; border-radius: 12px; }
     .meetup-seats-banner {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      background: rgba(46,125,50,0.85); color: #fff;
+      width: 100%;
+      background: rgba(46,125,50,0.9); color: #fff;
       text-align: center; padding: 5px 4px;
       font-size: 0.75rem; font-weight: 700;
     }
@@ -259,7 +259,7 @@
       .kashikiri-badge { font-size: 0.5rem; padding: 1px 2px; width: 100%; text-align: center; }
       .day-open-btn { min-height: 62px; }
       .meetup-card { flex-direction: column; }
-      .meetup-img-wrap { width: 100%; height: 140px; flex-shrink: 0; }
+      .meetup-img-wrap { width: 100%; flex-shrink: 0; }
       .meetup-img { width: 100%; height: 140px; }
       .meetup-img-placeholder { width: 100%; height: 140px; font-size: 3rem; }
       .meetup-soldout-overlay { font-size: 0.9rem; }
