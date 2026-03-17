@@ -223,6 +223,9 @@
     .meetup-kind { background: #eaf6f0; color: #2e7d32; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
     .meetup-grad { background: #fff3e0; color: #e65100; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
     .meetup-empty { text-align: center; padding: 32px; color: #888; font-size: 0.9rem; background: #fff; border: 1px solid #e0e7ef; border-radius: 12px; }
+    .meetup-remaining { background: #e8f5e9; color: #2e7d32; border-radius: 4px; padding: 1px 7px; font-weight: 700; font-size: 0.78rem; }
+    .meetup-soldout   { background: #fce4ec; color: #c62828; border-radius: 4px; padding: 1px 7px; font-weight: 700; font-size: 0.78rem; }
+    .meetup-card.soldout { opacity: 0.72; }
     .meetup-loading { text-align: center; padding: 32px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 12px; }
     .spinner { width: 32px; height: 32px; border: 3px solid #dde6f0; border-top-color: #1a3a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -598,22 +601,39 @@
       return String(m.gradYear).split(/[\s,、]+/).indexOf(gradFilter) !== -1;
     });
     if (filtered.length === 0) { list.innerHTML = '<div class="meetup-empty">この日のMeetup予定はありません。</div>'; return; }
+    // 満席は末尾へ
+    filtered.sort(function(a, b) { return isMeetupSoldOut(a.remaining) - isMeetupSoldOut(b.remaining); });
     filtered.forEach(function(m) {
-      var card = document.createElement('div'); card.className = 'meetup-card';
+      var soldOut = isMeetupSoldOut(m.remaining);
+      var card = document.createElement('div'); card.className = 'meetup-card' + (soldOut ? ' soldout' : '');
       var imgWrap = document.createElement('div'); imgWrap.className = 'meetup-img-wrap';
       if (m.imageUrl) {
         var img = document.createElement('img'); img.className = 'meetup-img'; img.src = m.imageUrl; img.alt = 'Meetup';
         img.onerror = function() { this.parentNode.innerHTML = '<div class="meetup-img-placeholder">🏢</div>'; };
         imgWrap.appendChild(img);
       } else { imgWrap.innerHTML = '<div class="meetup-img-placeholder">🏢</div>'; }
+      var remainingHtml = '';
+      if (soldOut) {
+        remainingHtml = '<span class="meetup-soldout">🎉 大人気！満員御礼</span>';
+      } else if (m.remaining) {
+        var rm = m.remaining.match(/残席 (\d+)\/(\d+)/);
+        if (rm) remainingHtml = '<span class="meetup-remaining">残席 ' + rm[1] + '名</span>';
+      }
       var body = document.createElement('div'); body.className = 'meetup-body';
       body.innerHTML = '<div class="meetup-company">' + esc(m.company) + '</div>'
         + '<div class="meetup-theme' + (m.theme ? '' : ' no-theme') + '">' + esc(m.theme || 'テーマ未登録') + '</div>'
         + '<div class="meetup-meta"><span class="meetup-time">' + esc(m.time) + '</span>'
         + (m.kind ? '<span class="meetup-kind">' + esc(m.kind) + '</span>' : '')
-        + (m.gradYear ? '<span class="meetup-grad">🎓 ' + esc(m.gradYear) + '</span>' : '') + '</div>';
+        + (m.gradYear ? '<span class="meetup-grad">🎓 ' + esc(m.gradYear) + '</span>' : '')
+        + remainingHtml + '</div>';
       card.appendChild(imgWrap); card.appendChild(body); list.appendChild(card);
     });
+  }
+
+  function isMeetupSoldOut(remaining) {
+    if (!remaining) return false;
+    var m = remaining.match(/残席 (\d+)\//);
+    return m ? parseInt(m[1]) === 0 : false;
   }
 
   function esc(s) {

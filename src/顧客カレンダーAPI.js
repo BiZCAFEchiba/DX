@@ -197,22 +197,24 @@ function getMeetupsForCustomer_(dateISO) {
       if (isNaN(d.getTime())) continue;
       if (formatDateToISO_(d) !== dateISO) continue;
 
-      var company  = String(data[i][1] || '').trim();
-      var time     = String(data[i][2] || '').trim();
-      var kind     = String(data[i][3] || '').trim();
-      var gradYear = String(data[i][6] || '').trim(); // G列
-      var imageUrl = String(data[i][7] || '').trim(); // H列
+      var company   = String(data[i][1] || '').trim();
+      var time      = String(data[i][2] || '').trim();
+      var kind      = String(data[i][3] || '').trim();
+      var remaining = calcMeetupRemaining_(String(data[i][4] || '')); // E列: "X/Y"
+      var gradYear  = String(data[i][6] || '').trim(); // G列
+      var imageUrl  = String(data[i][7] || '').trim(); // H列
 
       var masterInfo = masterMap[company] || {};
 
       results.push({
-        company:  company,
-        time:     time,
-        kind:     kind,
-        gradYear: gradYear,
-        theme:    masterInfo.theme    || '',
-        imageUrl: imageUrl,
-        industry: masterInfo.industry || ''
+        company:   company,
+        time:      time,
+        kind:      kind,
+        remaining: remaining,
+        gradYear:  gradYear,
+        theme:     masterInfo.theme    || '',
+        imageUrl:  imageUrl,
+        industry:  masterInfo.industry || ''
       });
     }
 
