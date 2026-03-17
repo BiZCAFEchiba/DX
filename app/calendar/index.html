@@ -523,8 +523,11 @@
         var btn = document.createElement('button');
         btn.type = 'button'; btn.className = 'day-open-btn';
         var numEl = document.createElement('div'); numEl.className = 'day-num'; numEl.textContent = d.getDate(); btn.appendChild(numEl);
-        var hoursEl = document.createElement('div'); hoursEl.className = 'hours'; hoursEl.innerHTML = day.open + '&nbsp;〜<br>' + day.close; btn.appendChild(hoursEl);
-        if (day.isKashikiri) { var badge = document.createElement('div'); badge.className = 'kashikiri-badge'; badge.textContent = '貸切あり'; btn.appendChild(badge); }
+        var isPast = day.date < todayISO;
+        if (!isPast) {
+          var hoursEl = document.createElement('div'); hoursEl.className = 'hours'; hoursEl.innerHTML = day.open + '&nbsp;〜<br>' + day.close; btn.appendChild(hoursEl);
+          if (day.isKashikiri) { var badge = document.createElement('div'); badge.className = 'kashikiri-badge'; badge.textContent = '貸切あり'; btn.appendChild(badge); }
+        }
         (function(iso) { btn.addEventListener('click', function() { onDayClick(iso); }); })(day.date);
         cell.appendChild(btn);
       } else {
