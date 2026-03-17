@@ -226,11 +226,19 @@
           <div class="form-field">
             <label>メイン画像URL</label>
             <input type="url" id="boardImageUrl" placeholder="https://example.com/main.jpg">
+            <div class="form-btns" style="margin-top:8px;">
+              <input type="file" id="boardImageFile" accept="image/*" style="display:none;" onchange="uploadBoardImage('main')">
+              <button class="btn-secondary" type="button" onclick="document.getElementById('boardImageFile').click()">ローカル画像をアップロード</button>
+            </div>
             <div class="field-help">記事詳細の大きい画像です。画像付き記事一覧では、サムネイル未指定時にこの画像を使います。初期版ではURL入力のみ対応します。</div>
           </div>
           <div class="form-field">
             <label>サムネイルURL</label>
             <input type="url" id="boardThumbnailUrl" placeholder="未入力ならメイン画像を利用">
+            <div class="form-btns" style="margin-top:8px;">
+              <input type="file" id="boardThumbnailFile" accept="image/*" style="display:none;" onchange="uploadBoardImage('thumbnail')">
+              <button class="btn-secondary" type="button" onclick="document.getElementById('boardThumbnailFile').click()">ローカル画像をアップロード</button>
+            </div>
             <div class="field-help">一覧カードに表示する小さい画像です。未入力ならメイン画像URLを流用します。</div>
           </div>
         </div>
@@ -663,6 +671,45 @@
         showToast('掲示板記事を更新しました');
       })
       .catch(function() { showToast('掲示板記事の更新に失敗しました'); });
+  }
+
+  function uploadBoardImage(kind) {
+    var inputId = kind === 'thumbnail' ? 'boardThumbnailFile' : 'boardImageFile';
+    var targetId = kind === 'thumbnail' ? 'boardThumbnailUrl' : 'boardImageUrl';
+    var fileInput = document.getElementById(inputId);
+    var file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function() {
+      showToast('画像をアップロード中です...');
+      fetch(GAS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          page: 'calendar',
+          action: 'boardUploadImage',
+          fileName: file.name,
+          dataUrl: reader.result
+        })
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(result) {
+          if (!result || result.ok !== true || !result.url) throw new Error('upload_failed');
+          document.getElementById(targetId).value = result.url;
+          if (kind === 'main' && !document.getElementById('boardThumbnailUrl').value.trim()) {
+            document.getElementById('boardThumbnailUrl').value = result.url;
+          }
+          showToast('画像をアップロードしました');
+        })
+        .catch(function() { showToast('画像アップロードに失敗しました'); })
+        .finally(function() { fileInput.value = ''; });
+    };
+    reader.onerror = function() {
+      showToast('画像の読み込みに失敗しました');
+      fileInput.value = '';
+    };
+    reader.readAsDataURL(file);
   }
 
   function esc(s) {
