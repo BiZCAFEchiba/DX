@@ -239,7 +239,35 @@
     }
     .meetup-loading { text-align: center; padding: 32px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 12px; }
     .spinner { width: 32px; height: 32px; border: 3px solid #dde6f0; border-top-color: #1a3a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    /* ===== 掲示板 ===== */
+    .board-wrap { max-width: 840px; margin: 0 auto; padding: 20px 16px 40px; }
+    .board-section { margin-bottom: 32px; }
+    .board-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; border-bottom: 2px solid #1a3a5c; padding-bottom: 8px; }
+    .board-title { font-size: 1.2rem; font-weight: 700; color: #1a3a5c; }
+    .board-more-btn { font-size: 0.85rem; font-weight: 600; color: #1a3a5c; text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: background 0.2s; }
+    .board-more-btn:hover { background: #eaf2fb; }
+    
+    /* 更新一覧リスト */
+    .update-list { display: flex; flex-direction: column; gap: 8px; }
+    .update-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: white; border-radius: 8px; border: 1px solid #dde6f0; text-decoration: none; color: inherit; transition: box-shadow 0.2s, transform 0.2s; }
+    .update-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); transform: translateY(-1px); }
+    .update-meta { display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
+    .update-label { background: #eaf0f7; color: #1a3a5c; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; text-align: center;}
+    .update-date { font-size: 0.75rem; color: #666; white-space: nowrap; }
+    .update-title { font-size: 0.95rem; font-weight: 600; color: #333; line-height: 1.5; flex: 1; }
+    
+    /* 記事一覧グリッド */
+    .article-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+    .article-card { display: flex; flex-direction: column; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #dde6f0; text-decoration: none; color: inherit; transition: box-shadow 0.2s, transform 0.2s; }
+    .article-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-2px); }
+    .article-img-wrap { width: 100%; aspect-ratio: 16/9; background: #eaf0f7; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .article-img { width: 100%; height: 100%; object-fit: cover; }
+    .article-img-placeholder { font-size: 2.5rem; color: #b0c4d8; }
+    .article-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .article-title { font-size: 0.95rem; font-weight: 700; color: #333; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .article-meta { display: flex; align-items: center; gap: 8px; margin-top: auto; font-size: 0.75rem; }
+    .article-date { color: #666; }
+    .article-type { color: #1a3a5c; font-weight: 600; background: #eaf2fb; padding: 2px 6px; border-radius: 4px; }
 
 
     /* ===== Q&A チャット風 ===== */
@@ -320,10 +348,11 @@
     /* ===== モバイル: 横タブ ===== */
     @media (max-width: 600px) {
       .app-layout { flex-direction: column; }
-      .tab-nav { width: 100%; flex-direction: row; border-right: none; border-bottom: 2px solid #e0e7ef; }
-      .tab-btn { flex: 1; flex-direction: row; padding: 10px 8px; gap: 6px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.75rem; }
+      .tab-nav { width: 100%; flex-direction: row; border-right: none; border-bottom: 2px solid #e0e7ef; overflow-x: auto; }
+      .tab-nav::-webkit-scrollbar { display: none; } /* スクロールバー非表示 */
+      .tab-btn { flex: 1 0 20%; flex-direction: row; padding: 10px 4px; gap: 4px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.7rem; white-space: nowrap; }
       .tab-btn.active { border-left-color: transparent; border-bottom-color: #1a3a5c; }
-      .tab-btn .tab-icon { font-size: 1.1rem; }
+      .tab-btn .tab-icon { font-size: 1.05rem; }
       header h1 { font-size: 1.05rem; }
       .calendar-wrap { padding: 0 6px; }
       .weekdays, .calendar-grid { gap: 2px; }
@@ -339,6 +368,12 @@
       .meetup-img-placeholder { width: 100%; height: 140px; font-size: 3rem; }
       .meetup-soldout-overlay { font-size: 0.9rem; }
       .person-icon svg { width: 32px; height: 32px; }
+      .board-wrap { padding: 16px 12px 30px; }
+      .update-item { gap: 10px; padding: 10px 12px; }
+      .article-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      .article-body { padding: 10px 12px; }
+      .article-title { font-size: 0.85rem; }
+      .article-meta { flex-direction: column; align-items: flex-start; gap: 4px; }
     }
   </style>
 </head>
@@ -364,6 +399,9 @@
     </button>
     <button class="tab-btn" id="tabBtnQA" onclick="switchTab('qa')">
       <span class="tab-icon">💬</span>Q&amp;A
+    </button>
+    <button class="tab-btn" id="tabBtnBoard" onclick="switchTab('board')">
+      <span class="tab-icon">📋</span>掲示板
     </button>
     <button class="tab-btn" id="tabBtnRecruit" onclick="window.open('https://recruit.shirucafe.com/','_blank')">
       <span class="tab-icon">✨</span>採用
@@ -443,6 +481,29 @@
       </div>
     </div>
 
+    <!-- 掲示板パネル -->
+    <div class="tab-pane" id="paneBoard">
+      <div class="board-wrap">
+        <!-- 更新一覧セクション -->
+        <section class="board-section update-section">
+          <div class="board-header">
+            <h2 class="board-title">更新一覧</h2>
+            <a href="board_updates.html" class="board-more-btn">すべて見る</a>
+          </div>
+          <div class="update-list" id="updateList"></div>
+        </section>
+
+        <!-- 記事一覧セクション -->
+        <section class="board-section article-section">
+          <div class="board-header">
+            <h2 class="board-title">画像付き記事一覧</h2>
+            <a href="board_articles.html" class="board-more-btn">すべて見る</a>
+          </div>
+          <div class="article-grid" id="articleGrid"></div>
+        </section>
+      </div>
+    </div>
+
   </div><!-- /.tab-content -->
 </div><!-- /.app-layout -->
 
@@ -467,11 +528,20 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
-    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA' }[name];
-    var paneId = { congestion: 'Congesion',  calendar: 'Calendar',  qa: 'QA' }[name];
-    document.getElementById('tabBtn' + btnId).classList.add('active');
-    document.getElementById('pane' + paneId).classList.add('active');
+    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA', board: 'Board' }[name];
+    var paneId = { congestion: 'Congesion',  calendar: 'Calendar', qa: 'QA', board: 'Board' }[name];
+    
+    var targetBtn = document.getElementById('tabBtn' + btnId);
+    if(targetBtn) targetBtn.classList.add('active');
+    
+    var targetPane = document.getElementById('pane' + paneId);
+    if(targetPane) targetPane.classList.add('active');
+    
+    // Q&Aタブが開かれたら描画
     if (name === 'qa' && !qaLoaded) { qaLoaded = true; loadQA(); }
+    
+    // 掲示板タブが開かれたら描画
+    if (name === 'board') { renderBoardTop(); }
   }
 
   // ===== Q&A =====
@@ -709,17 +779,17 @@
         (function(iso) { btn.addEventListener('click', function() { onDayClick(iso); }); })(day.date);
         cell.appendChild(btn);
       } else {
-        var lbl = day.note || '定休日'; var ec = lbl === '終日貸切' ? ' full-kashikiri' : '';
-        cell.innerHTML = '<div class="day-num">' + d.getDate() + '</div><div class="closed-label' + ec + '">' + lbl + '</div>';
-      }
-      grid.appendChild(cell);
-    });
-  }
+      var lbl = day.note || '定休日'; var ec = lbl === '終日貸切' ? ' full-kashikiri' : '';
+      cell.innerHTML = '<div class="day-num">' + d.getDate() + '</div><div class="closed-label' + ec + '">' + lbl + '</div>';
+    }
+    grid.appendChild(cell);
+  });
+}
 
-  window.onDayClick = function(dateISO) {
-    if (selectedDateISO === dateISO) { closeMeetupPanel(); return; }
-    var prev = document.querySelector('.day-cell.selected'); if (prev) prev.classList.remove('selected');
-    var cell = document.querySelector('[data-date="' + dateISO + '"]'); if (cell) cell.classList.add('selected');
+window.onDayClick = function(dateISO) {
+  if (selectedDateISO === dateISO) { closeMeetupPanel(); return; }
+  var prev = document.querySelector('.day-cell.selected'); if (prev) prev.classList.remove('selected');
+  var cell = document.querySelector('[data-date="' + dateISO + '"]'); if (cell) cell.classList.add('selected');
     selectedDateISO = dateISO;
     var d = new Date(dateISO + 'T00:00:00'); var DOW = ['日','月','火','水','木','金','土'];
     var label = (d.getMonth()+1) + '月' + d.getDate() + '日（' + DOW[d.getDay()] + '）';
@@ -825,6 +895,69 @@
   var nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
   loadCalendar(checkSplashReady);
   prefetchCalendar(nextYear, nextMonth, checkSplashReady);
+
+  // ===== 掲示板処理 =====
+  const BOARD_UPDATES = [
+    { title: "〇〇イベントの開始について", date: "2026/03/17", link: "#" },
+    { title: "新しい勤怠マニュアルを公開しました", date: "2026/03/10", link: "#" },
+    { title: "店舗のレイアウト変更のお知らせ", date: "2026/02/25", link: "#" },
+    { title: "年末年始のシフト提出期間について", date: "2025/11/15", link: "#" },
+    { title: "制服の新しいルールについて", date: "2025/10/01", link: "#" },
+    { title: "【テスト用】これはトップに表示されない古い更新です", date: "2025/09/20", link: "#" }
+  ];
+
+  const BOARD_ARTICLES = [
+    { title: "春の新メニューのご紹介！", date: "2026/03/15", type: "お知らせ", image: "/bizcafe-splash.png", link: "articles/sample_article_1.html" },
+    { title: "シフトリーダーからのメッセージ", date: "2026/03/01", type: "コラム", image: "", link: "articles/sample_article_2.html" },
+    { title: "新しいコーヒー豆が入荷しました", date: "2026/02/10", type: "お知らせ", image: "/bizcafe-splash.png", link: "articles/sample_article_1.html" },
+    { title: "【店長より】今月の目標達成おめでとう！", date: "2026/01/31", type: "お知らせ", image: "", link: "articles/sample_article_2.html" },
+    { title: "業務の効率化について共有", date: "2026/01/15", type: "コラム", image: "/bizcafe-splash.png", link: "articles/sample_article_1.html" },
+    { title: "大掃除のスケジュール", date: "2025/12/20", type: "お知らせ", image: "", link: "articles/sample_article_2.html" },
+    { title: "レジの新しい操作方法", date: "2025/11/05", type: "マニュアル", image: "/bizcafe-splash.png", link: "articles/sample_article_1.html" },
+    { title: "冬の期間限定ドリンク準備", date: "2025/10/25", type: "お知らせ", image: "", link: "articles/sample_article_2.html" },
+    { title: "【テスト用】これはトップに表示されない記事です", date: "2025/08/15", type: "コラム", image: "", link: "articles/sample_article_1.html" }
+  ];
+
+  function renderBoardTop() {
+    var updateList = document.getElementById('updateList');
+    var articleGrid = document.getElementById('articleGrid');
+    
+    // まだ描画されていなければ描画
+    if (updateList && updateList.innerHTML === '') {
+      var updatesHtml = '';
+      var topUpdates = BOARD_UPDATES.slice(0, 5); // 最新5件
+      topUpdates.forEach(function(item) {
+        updatesHtml += '<a href="' + item.link + '" class="update-item">' +
+          '<div class="update-meta"><span class="update-label">更新</span><span class="update-date">' + item.date + '</span></div>' +
+          '<div class="update-title">' + esc(item.title) + '</div>' +
+        '</a>';
+      });
+      updateList.innerHTML = updatesHtml;
+    }
+
+    if (articleGrid && articleGrid.innerHTML === '') {
+      var articlesHtml = '';
+      var topArticles = BOARD_ARTICLES.slice(0, 8); // 最新8件
+      topArticles.forEach(function(item) {
+        var imgHtml = item.image 
+          ? '<img class="article-img" src="' + item.image + '" alt="記事画像">'
+          : '<div class="article-img-placeholder">📄</div>';
+          
+        articlesHtml += '<a href="' + item.link + '" class="article-card">' +
+          '<div class="article-img-wrap">' + imgHtml + '</div>' +
+          '<div class="article-body">' +
+            '<div class="article-title">' + esc(item.title) + '</div>' +
+            '<div class="article-meta">' +
+              '<span class="article-type">' + esc(item.type) + '</span>' +
+              '<span class="article-date">' + item.date + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</a>';
+      });
+      articleGrid.innerHTML = articlesHtml;
+    }
+  }
+
 </script>
 </body>
 </html>

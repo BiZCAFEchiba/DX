@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフトリーダーからのメッセージ - BizCAFE 千葉大学店</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background: #f5f7fa; color: #333; min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    header {
+      background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
+      color: white; padding: 16px 20px; text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2); flex-shrink: 0;
+      position: relative;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.05em; margin: 0; }
+    .back-btn {
+      position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+      color: white; text-decoration: none; font-size: 1.5rem; line-height: 1; padding: 4px 8px;
+    }
+    
+    .article-container { max-width: 800px; margin: 0 auto; padding: 24px 16px 60px; width: 100%; }
+    .article-header { margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #dde6f0; }
+    
+    .article-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 0.85rem; }
+    .article-date { color: #666; }
+    .article-type { color: #1a3a5c; font-weight: 600; background: #eaf2fb; padding: 4px 8px; border-radius: 4px; }
+    
+    .article-title { font-size: 1.5rem; font-weight: 700; color: #1a3a5c; line-height: 1.4; margin-bottom: 20px; }
+    
+    /* 画像がない場合はメイン画像エリアを表示しない設計（ここではタグ削除） */
+    
+    .article-content { font-size: 1.05rem; line-height: 1.8; color: #333; }
+    .article-content h2 { font-size: 1.25rem; font-weight: 700; color: #1a3a5c; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 2px solid #eaf0f7; }
+    .article-content p { margin-bottom: 1.2em; }
+    .article-content ul, .article-content ol { margin: 0 0 1.2em 1.5em; padding-left: 1em; }
+    .article-content li { margin-bottom: 0.5em; }
+
+    .bottom-back { display: block; text-align: center; margin-top: 48px; }
+    .bottom-back a { display: inline-block; padding: 12px 32px; background: white; color: #1a3a5c; text-decoration: none; font-weight: 600; border-radius: 8px; border: 2px solid #1a3a5c; transition: all 0.2s; }
+    .bottom-back a:hover { background: #1a3a5c; color: white; }
+
+    @media (max-width: 600px) {
+      .article-container { padding: 16px 12px 40px; }
+      .article-title { font-size: 1.25rem; }
+      .article-content { font-size: 0.95rem; line-height: 1.7; }
+      .article-content h2 { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="javascript:history.back()" class="back-btn" aria-label="戻る">‹</a>
+  <h1>🏪 BizCAFE 千葉大学店</h1>
+</header>
+
+<div class="article-container">
+  <div class="article-header">
+    <div class="article-meta">
+      <span class="article-type">コラム</span>
+      <span class="article-date">2026/03/01</span>
+    </div>
+    <h1 class="article-title">シフトリーダーからのメッセージ</h1>
+  </div>
+  
+  <div class="article-content">
+    <p>お疲れ様です。シフトリーダーの〇〇です。</p>
+    <p>2月は学生のテスト期間とも重なり、なかなかシフトを埋めるのが大変な時期もありましたが、皆さんの多大なご協力のおかげで無事に乗り切ることができました。柔軟な勤務調整にご対応いただき、本当にありがとうございました。</p>
+    
+    <h2>3月の重点目標</h2>
+    <p>さて、今月は新学期の準備期間に入り、新入生のお客様も少しずつ増えてくる時期です。今月の重点目標として以下を掲げたいと思います。</p>
+    <ul>
+      <li>初めて来店されるお客様にも分かりやすい丁寧なご案内</li>
+      <li>ピーク時における各ポジション間のこまめな声掛け</li>
+      <li>店内環境（特に窓際のテーブルと椅子）の清潔感の維持</li>
+    </ul>
+
+    <p>忙しくなりますが、焦らず一つ一つの業務を確実に行っていきましょう。何か困ったことや改善のアイデアがあれば、気兼ねなく私や店長までご連絡ください。</p>
+    <p>今月も皆で楽しく働けるよう、ご協力よろしくお願いいたします！</p>
+  </div>
+  
+  <div class="bottom-back">
+    <a href="javascript:history.back()">一覧へ戻る</a>
+  </div>
+</div>
+
+</body>
+</html>
