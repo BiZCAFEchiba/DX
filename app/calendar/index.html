@@ -242,6 +242,53 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
 
+    /* ===== Q&A チャット風 ===== */
+    .qa-wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 48px; }
+    .qa-header { margin-bottom: 20px; }
+    .qa-title { font-size: 1rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; }
+    .qa-subtitle { font-size: 0.78rem; color: #999; }
+    .qa-list { display: flex; flex-direction: column; gap: 18px; }
+
+    .qa-item { display: flex; flex-direction: column; gap: 8px; }
+
+    /* 質問行 */
+    .qa-q-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    .qa-q-icon {
+      flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+      background: #e0e7ef; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; color: #1a3a5c; font-weight: 700; margin-top: 2px;
+    }
+    .qa-q-bubble {
+      background: #f0f4f8; border-radius: 4px 16px 16px 16px;
+      padding: 10px 14px 10px 12px; font-size: 0.92rem; font-weight: 600;
+      color: #222; flex: 1; line-height: 1.55; position: relative;
+      border: 1.5px solid #dde6f0;
+    }
+    .qa-q-bubble::after {
+      content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      font-size: 0.6rem; color: #aaa; transition: transform 0.2s;
+    }
+    .qa-item.open .qa-q-bubble::after { transform: translateY(-50%) rotate(180deg); }
+
+    /* 回答行 */
+    .qa-a-row {
+      display: none; align-items: flex-start; gap: 10px;
+      padding-left: 44px;
+    }
+    .qa-item.open .qa-a-row { display: flex; animation: qaFadeIn 0.2s ease; }
+    @keyframes qaFadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+    .qa-a-bubble {
+      background: #1a3a5c; border-radius: 16px 4px 16px 16px;
+      padding: 10px 14px; font-size: 0.88rem; color: white;
+      flex: 1; line-height: 1.7; white-space: pre-wrap;
+    }
+    .qa-a-icon {
+      flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
+      background: #2a5f8f; display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; margin-top: 2px;
+    }
+    .qa-empty { text-align: center; padding: 40px; color: #aaa; font-size: 0.9rem; }
+
     /* ===== モバイル: 横タブ ===== */
     @media (max-width: 600px) {
       .app-layout { flex-direction: column; }
@@ -286,6 +333,9 @@
     </button>
     <button class="tab-btn" id="tabBtnCalendar" onclick="switchTab('calendar')">
       <span class="tab-icon">📅</span>カレンダー
+    </button>
+    <button class="tab-btn" id="tabBtnQA" onclick="switchTab('qa')">
+      <span class="tab-icon">💬</span>Q&amp;A
     </button>
     <button class="tab-btn" id="tabBtnRecruit" onclick="window.open('https://recruit.shirucafe.com/','_blank')">
       <span class="tab-icon">✨</span>採用
@@ -346,6 +396,17 @@
       </div>
     </div>
 
+    <!-- Q&Aパネル -->
+    <div class="tab-pane" id="paneQA">
+      <div class="qa-wrap">
+        <div class="qa-header">
+          <div class="qa-title">💬 よくある質問</div>
+          <div class="qa-subtitle">質問をタップすると回答が表示されます</div>
+        </div>
+        <div class="qa-list" id="qaList"><div class="loading">読み込み中...</div></div>
+      </div>
+    </div>
+
   </div><!-- /.tab-content -->
 </div><!-- /.app-layout -->
 
@@ -366,13 +427,54 @@
   }
 
   // ===== タブ切り替え =====
+  var qaLoaded = false;
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
-    var btnId = { recruit: 'Recruit', congestion: 'Congestion', calendar: 'Calendar' }[name];
-    var paneId = { recruit: 'Recruit', congestion: 'Congesion', calendar: 'Calendar' }[name];
+    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA' }[name];
+    var paneId = { congestion: 'Congesion',  calendar: 'Calendar',  qa: 'QA' }[name];
     document.getElementById('tabBtn' + btnId).classList.add('active');
     document.getElementById('pane' + paneId).classList.add('active');
+    if (name === 'qa' && !qaLoaded) { qaLoaded = true; loadQA(); }
+  }
+
+  // ===== Q&A =====
+  function loadQA() {
+    fetch(GAS_API_URL + '?page=calendar&action=qaList')
+      .then(function(r) { return r.json(); })
+      .then(function(items) { renderQA(items); })
+      .catch(function() {
+        document.getElementById('qaList').innerHTML = '<div class="qa-empty">読み込みに失敗しました。</div>';
+      });
+  }
+
+  function renderQA(items) {
+    var list = document.getElementById('qaList');
+    list.innerHTML = '';
+    if (!items || items.length === 0) {
+      list.innerHTML = '<div class="qa-empty">Q&amp;Aはまだありません。</div>'; return;
+    }
+    items.forEach(function(item) {
+      var wrap = document.createElement('div'); wrap.className = 'qa-item';
+
+      var qRow = document.createElement('div'); qRow.className = 'qa-q-row';
+      qRow.innerHTML = '<div class="qa-q-icon">Q</div>'
+        + '<div class="qa-q-bubble">' + escQA(item.question) + '</div>';
+
+      var aRow = document.createElement('div'); aRow.className = 'qa-a-row';
+      aRow.innerHTML = '<div class="qa-a-bubble">' + escQA(item.answer) + '</div>'
+        + '<div class="qa-a-icon">🏪</div>';
+
+      qRow.addEventListener('click', function() { wrap.classList.toggle('open'); });
+
+      wrap.appendChild(qRow);
+      wrap.appendChild(aRow);
+      list.appendChild(wrap);
+    });
+  }
+
+  function escQA(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
   // ===== 混雑状況 =====

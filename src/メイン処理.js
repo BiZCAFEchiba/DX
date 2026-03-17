@@ -102,6 +102,29 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({ level: level, updatedAt: updatedAt }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // Q&Aリスト取得
+    if (param.action === 'qaList') {
+      var includeHidden = param.staff === '1';
+      return ContentService.createTextOutput(JSON.stringify(getFAQList_(includeHidden)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // Q&A保存（スタッフ用）
+    if (param.action === 'qaSave') {
+      var result = saveFAQItem_(
+        param.id || '',
+        param.question || '',
+        param.answer || '',
+        param.visible !== 'false'
+      );
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // Q&A削除（スタッフ用）
+    if (param.action === 'qaDelete') {
+      var result = deleteFAQItem_(param.id || '');
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // 混雑状況更新（スタッフ用）
     if (param.action === 'setCongestion') {
       var newLevel = parseInt(param.level || '0');
