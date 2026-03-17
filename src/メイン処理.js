@@ -34,9 +34,10 @@ function doPost(e) {
           .setMimeType(ContentService.MimeType.JSON);
       }
       if (body.action === 'boardUploadImage') {
-        var uploadResult = uploadBoardImage_(body);
-        return ContentService.createTextOutput(JSON.stringify(uploadResult))
-          .setMimeType(ContentService.MimeType.JSON);
+        return ContentService.createTextOutput(JSON.stringify({
+          ok: false,
+          error: 'board_image_upload_disabled'
+        })).setMimeType(ContentService.MimeType.JSON);
       }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_action' }))
         .setMimeType(ContentService.MimeType.JSON);
@@ -58,6 +59,13 @@ function doPost(e) {
  */
 function doGet(e) {
   var param = (e && e.parameter) ? e.parameter : {};
+  writeLogToSheets_(
+    'doGet',
+    0,
+    'raw',
+    'info',
+    JSON.stringify({ page: param.page || '', action: param.action || '', id: param.id || '' })
+  );
 
   // --- 誘致フォーム ---
   if (param.page === 'yuchi') {
@@ -207,6 +215,13 @@ function doGet(e) {
       }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid level' }))
         .setMimeType(ContentService.MimeType.JSON);
+    }
+    if (param.action) {
+      return ContentService.createTextOutput(JSON.stringify({
+        ok: false,
+        error: 'unknown_calendar_action',
+        action: param.action
+      })).setMimeType(ContentService.MimeType.JSON);
     }
     // HTMLページモード
     var calTemplate = HtmlService.createTemplateFromFile('顧客カレンダー');
