@@ -226,20 +226,12 @@
           <div class="form-field">
             <label>メイン画像URL</label>
             <input type="url" id="boardImageUrl" placeholder="https://example.com/main.jpg">
-            <div class="field-help">記事詳細の大きい画像です。画像付き記事一覧では、サムネイル未指定時にこの画像を使います。</div>
-            <div class="form-btns" style="margin-top:8px;">
-              <input type="file" id="boardImageFile" accept="image/*" style="display:none;" onchange="uploadBoardImage('main')">
-              <button class="btn-secondary" type="button" onclick="document.getElementById('boardImageFile').click()">ローカル画像をアップロード</button>
-            </div>
+            <div class="field-help">記事詳細の大きい画像です。画像付き記事一覧では、サムネイル未指定時にこの画像を使います。初期版ではURL入力のみ対応します。</div>
           </div>
           <div class="form-field">
             <label>サムネイルURL</label>
             <input type="url" id="boardThumbnailUrl" placeholder="未入力ならメイン画像を利用">
             <div class="field-help">一覧カードに表示する小さい画像です。未入力ならメイン画像URLを流用します。</div>
-            <div class="form-btns" style="margin-top:8px;">
-              <input type="file" id="boardThumbnailFile" accept="image/*" style="display:none;" onchange="uploadBoardImage('thumbnail')">
-              <button class="btn-secondary" type="button" onclick="document.getElementById('boardThumbnailFile').click()">ローカル画像をアップロード</button>
-            </div>
           </div>
         </div>
         <div class="form-field">
@@ -604,25 +596,19 @@
     var btn = document.getElementById('boardSubmitBtn');
     btn.disabled = true;
     btn.textContent = '保存中...';
-    fetch(GAS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        page: 'calendar',
-        action: 'boardSave',
-        id: payload.id,
-        title: payload.title,
-        category: payload.category,
-        summary: payload.summary,
-        body: payload.body,
-        date: payload.date,
-        imageUrl: payload.imageUrl,
-        thumbnailUrl: payload.thumbnailUrl,
-        showInUpdates: payload.showInUpdates,
-        showInArticles: payload.showInArticles,
-        published: payload.published
-      })
-    })
+    var url = GAS_API_URL + '?page=calendar&action=boardSave'
+      + '&id=' + encodeURIComponent(payload.id)
+      + '&title=' + encodeURIComponent(payload.title)
+      + '&category=' + encodeURIComponent(payload.category)
+      + '&summary=' + encodeURIComponent(payload.summary)
+      + '&body=' + encodeURIComponent(payload.body)
+      + '&date=' + encodeURIComponent(payload.date)
+      + '&imageUrl=' + encodeURIComponent(payload.imageUrl)
+      + '&thumbnailUrl=' + encodeURIComponent(payload.thumbnailUrl)
+      + '&showInUpdates=' + encodeURIComponent(payload.showInUpdates)
+      + '&showInArticles=' + encodeURIComponent(payload.showInArticles)
+      + '&published=' + encodeURIComponent(payload.published);
+    fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(result) {
         if (!result || result.ok !== true) throw new Error('save_failed');
@@ -657,25 +643,19 @@
 
   function saveBoardState(item, overrides) {
     var next = Object.assign({}, item, overrides || {});
-    fetch(GAS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        page: 'calendar',
-        action: 'boardSave',
-        id: next.id || '',
-        title: next.title || '',
-        category: next.category || '',
-        summary: next.summary || '',
-        body: next.body || '',
-        date: next.date || '',
-        imageUrl: next.imageUrl || '',
-        thumbnailUrl: next.thumbnailUrl || '',
-        showInUpdates: next.showInUpdates === true,
-        showInArticles: next.showInArticles === true,
-        published: next.published === true
-      })
-    })
+    var url = GAS_API_URL + '?page=calendar&action=boardSave'
+      + '&id=' + encodeURIComponent(next.id || '')
+      + '&title=' + encodeURIComponent(next.title || '')
+      + '&category=' + encodeURIComponent(next.category || '')
+      + '&summary=' + encodeURIComponent(next.summary || '')
+      + '&body=' + encodeURIComponent(next.body || '')
+      + '&date=' + encodeURIComponent(next.date || '')
+      + '&imageUrl=' + encodeURIComponent(next.imageUrl || '')
+      + '&thumbnailUrl=' + encodeURIComponent(next.thumbnailUrl || '')
+      + '&showInUpdates=' + encodeURIComponent(next.showInUpdates === true)
+      + '&showInArticles=' + encodeURIComponent(next.showInArticles === true)
+      + '&published=' + encodeURIComponent(next.published === true);
+    fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(result) {
         if (!result || result.ok !== true) throw new Error('save_failed');
@@ -683,45 +663,6 @@
         showToast('掲示板記事を更新しました');
       })
       .catch(function() { showToast('掲示板記事の更新に失敗しました'); });
-  }
-
-  function uploadBoardImage(kind) {
-    var inputId = kind === 'thumbnail' ? 'boardThumbnailFile' : 'boardImageFile';
-    var targetId = kind === 'thumbnail' ? 'boardThumbnailUrl' : 'boardImageUrl';
-    var fileInput = document.getElementById(inputId);
-    var file = fileInput.files && fileInput.files[0];
-    if (!file) return;
-
-    var reader = new FileReader();
-    reader.onload = function() {
-      showToast('画像をアップロード中です...');
-      fetch(GAS_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          page: 'calendar',
-          action: 'boardUploadImage',
-          fileName: file.name,
-          dataUrl: reader.result
-        })
-      })
-        .then(function(r) { return r.json(); })
-        .then(function(result) {
-          if (!result || result.ok !== true || !result.url) throw new Error('upload_failed');
-          document.getElementById(targetId).value = result.url;
-          if (kind === 'main' && !document.getElementById('boardThumbnailUrl').value.trim()) {
-            document.getElementById('boardThumbnailUrl').value = result.url;
-          }
-          showToast('画像をアップロードしました');
-        })
-        .catch(function() { showToast('画像アップロードに失敗しました'); })
-        .finally(function() { fileInput.value = ''; });
-    };
-    reader.onerror = function() {
-      showToast('画像の読み込みに失敗しました');
-      fileInput.value = '';
-    };
-    reader.readAsDataURL(file);
   }
 
   function esc(s) {

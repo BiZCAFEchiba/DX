@@ -35,6 +35,10 @@ async function proxyToGas(request, url) {
   if (isRedirectResponse(response.status)) {
     const location = response.headers.get('location');
     if (location) {
+      const redirectUrl = new URL(location, targetUrl);
+      if (!redirectUrl.search && url.search) {
+        redirectUrl.search = url.search;
+      }
       const redirectInit = {
         method: request.method,
         headers: buildProxyHeaders(request),
@@ -43,7 +47,7 @@ async function proxyToGas(request, url) {
       if (requestBody) {
         redirectInit.body = requestBody.slice(0);
       }
-      response = await fetch(new URL(location, targetUrl).toString(), redirectInit);
+      response = await fetch(redirectUrl.toString(), redirectInit);
     }
   }
 
