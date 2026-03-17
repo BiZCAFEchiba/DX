@@ -23,7 +23,7 @@ async function proxyToGas(request, url) {
 
   const init = {
     method: request.method,
-    headers: filterHeaders(request.headers),
+    headers: buildProxyHeaders(request),
     redirect: 'manual',
   };
 
@@ -37,7 +37,7 @@ async function proxyToGas(request, url) {
     if (location) {
       const redirectInit = {
         method: request.method,
-        headers: filterHeaders(request.headers),
+        headers: buildProxyHeaders(request),
         redirect: 'manual',
       };
       if (requestBody) {
@@ -61,12 +61,16 @@ function isRedirectResponse(status) {
   return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
 }
 
-function filterHeaders(headers) {
-  const next = new Headers();
-  headers.forEach((value, key) => {
-    const lower = key.toLowerCase();
-    if (lower === 'host' || lower === 'content-length') return;
-    next.set(key, value);
-  });
-  return next;
+function buildProxyHeaders(request) {
+  const headers = new Headers();
+  headers.set('Accept', 'application/json, text/plain, */*');
+
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    const contentType = request.headers.get('content-type');
+    if (contentType) {
+      headers.set('Content-Type', contentType);
+    }
+  }
+
+  return headers;
 }
