@@ -243,26 +243,26 @@
 
 
     /* ===== Q&A チャット風 ===== */
-    .qa-wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 48px; }
+    .qa-wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 32px; display: flex; flex-direction: column; gap: 0; }
     .qa-header { margin-bottom: 20px; }
     .qa-title { font-size: 1rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; }
     .qa-subtitle { font-size: 0.78rem; color: #999; }
-    .qa-list { display: flex; flex-direction: column; gap: 18px; }
+    .qa-list { display: flex; flex-direction: column; gap: 18px; margin-bottom: 28px; }
 
     .qa-item { display: flex; flex-direction: column; gap: 8px; }
 
-    /* 質問行 */
-    .qa-q-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
+    /* 質問行（右寄せ・顧客） */
+    .qa-q-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; flex-direction: row-reverse; }
     .qa-q-icon {
       flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%;
       background: #e0e7ef; display: flex; align-items: center; justify-content: center;
-      font-size: 1rem; color: #1a3a5c; font-weight: 700; margin-top: 2px;
+      font-size: 1rem; margin-top: 2px;
     }
     .qa-q-bubble {
-      background: #f0f4f8; border-radius: 4px 16px 16px 16px;
-      padding: 10px 14px 10px 12px; font-size: 0.92rem; font-weight: 600;
+      background: #e8f0fe; border-radius: 16px 4px 16px 16px;
+      padding: 10px 36px 10px 14px; font-size: 0.92rem; font-weight: 600;
       color: #222; flex: 1; line-height: 1.55; position: relative;
-      border: 1.5px solid #dde6f0;
+      border: 1.5px solid #c5d5f5;
     }
     .qa-q-bubble::after {
       content: '▼'; position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
@@ -270,15 +270,15 @@
     }
     .qa-item.open .qa-q-bubble::after { transform: translateY(-50%) rotate(180deg); }
 
-    /* 回答行 */
+    /* 回答行（左寄せ・スタッフ） */
     .qa-a-row {
       display: none; align-items: flex-start; gap: 10px;
-      padding-left: 44px;
+      padding-right: 44px;
     }
     .qa-item.open .qa-a-row { display: flex; animation: qaFadeIn 0.2s ease; }
     @keyframes qaFadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .qa-a-bubble {
-      background: #1a3a5c; border-radius: 16px 4px 16px 16px;
+      background: #1a3a5c; border-radius: 4px 16px 16px 16px;
       padding: 10px 14px; font-size: 0.88rem; color: white;
       flex: 1; line-height: 1.7; white-space: pre-wrap;
     }
@@ -287,7 +287,28 @@
       background: #2a5f8f; display: flex; align-items: center; justify-content: center;
       font-size: 1rem; margin-top: 2px;
     }
-    .qa-empty { text-align: center; padding: 40px; color: #aaa; font-size: 0.9rem; }
+    .qa-empty { text-align: center; padding: 40px 20px; color: #aaa; font-size: 0.9rem; }
+
+    /* 質問投稿フォーム */
+    .qa-submit-box {
+      background: white; border-radius: 16px; padding: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: 1.5px solid #dde6f0;
+    }
+    .qa-submit-label { font-size: 0.82rem; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
+    .qa-submit-row { display: flex; gap: 8px; align-items: flex-end; }
+    .qa-submit-input {
+      flex: 1; border: 1.5px solid #d0d9e4; border-radius: 10px;
+      padding: 10px 12px; font-size: 0.9rem; font-family: inherit;
+      background: #f8fafc; resize: none; min-height: 44px; max-height: 120px;
+    }
+    .qa-submit-input:focus { outline: none; border-color: #1a3a5c; background: white; }
+    .qa-submit-btn {
+      flex-shrink: 0; background: #1a3a5c; color: white; border: none;
+      border-radius: 10px; padding: 10px 16px; font-size: 0.88rem; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+    }
+    .qa-submit-btn:disabled { background: #b0bec5; cursor: default; }
+    .qa-sent-msg { display: none; text-align: center; padding: 10px; font-size: 0.85rem; color: #2e7d32; font-weight: 600; }
 
     /* ===== モバイル: 横タブ ===== */
     @media (max-width: 600px) {
@@ -400,10 +421,18 @@
     <div class="tab-pane" id="paneQA">
       <div class="qa-wrap">
         <div class="qa-header">
-          <div class="qa-title">💬 よくある質問</div>
-          <div class="qa-subtitle">質問をタップすると回答が表示されます</div>
+          <div class="qa-title">💬 Q&amp;A</div>
+          <div class="qa-subtitle">スタッフへの質問をこちらから送れます。回答済みの質問はタップで確認できます。</div>
         </div>
         <div class="qa-list" id="qaList"><div class="loading">読み込み中...</div></div>
+        <div class="qa-submit-box">
+          <div class="qa-submit-label">📨 スタッフに質問する</div>
+          <div class="qa-submit-row">
+            <textarea class="qa-submit-input" id="qaInput" placeholder="質問を入力してください…" rows="2"></textarea>
+            <button class="qa-submit-btn" id="qaSubmitBtn" onclick="submitQuestion()">送信</button>
+          </div>
+          <div class="qa-sent-msg" id="qaSentMsg">✅ 質問を送信しました！スタッフが回答します。</div>
+        </div>
       </div>
     </div>
 
@@ -452,18 +481,18 @@
     var list = document.getElementById('qaList');
     list.innerHTML = '';
     if (!items || items.length === 0) {
-      list.innerHTML = '<div class="qa-empty">Q&amp;Aはまだありません。</div>'; return;
+      list.innerHTML = '<div class="qa-empty">まだ回答済みの質問はありません。<br>下のフォームから質問してみましょう！</div>'; return;
     }
     items.forEach(function(item) {
       var wrap = document.createElement('div'); wrap.className = 'qa-item';
 
       var qRow = document.createElement('div'); qRow.className = 'qa-q-row';
-      qRow.innerHTML = '<div class="qa-q-icon">Q</div>'
+      qRow.innerHTML = '<div class="qa-q-icon">👤</div>'
         + '<div class="qa-q-bubble">' + escQA(item.question) + '</div>';
 
       var aRow = document.createElement('div'); aRow.className = 'qa-a-row';
-      aRow.innerHTML = '<div class="qa-a-bubble">' + escQA(item.answer) + '</div>'
-        + '<div class="qa-a-icon">🏪</div>';
+      aRow.innerHTML = '<div class="qa-a-icon">🏪</div>'
+        + '<div class="qa-a-bubble">' + escQA(item.answer) + '</div>';
 
       qRow.addEventListener('click', function() { wrap.classList.toggle('open'); });
 
@@ -471,6 +500,26 @@
       wrap.appendChild(aRow);
       list.appendChild(wrap);
     });
+  }
+
+  function submitQuestion() {
+    var input = document.getElementById('qaInput');
+    var q = input.value.trim();
+    if (!q) return;
+    var btn = document.getElementById('qaSubmitBtn');
+    btn.disabled = true; btn.textContent = '送信中...';
+    fetch(GAS_API_URL + '?page=calendar&action=qaSubmit&question=' + encodeURIComponent(q))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          input.value = '';
+          var msg = document.getElementById('qaSentMsg');
+          msg.style.display = 'block';
+          setTimeout(function() { msg.style.display = 'none'; }, 4000);
+        }
+      })
+      .catch(function() {})
+      .finally(function() { btn.disabled = false; btn.textContent = '送信'; });
   }
 
   function escQA(s) {

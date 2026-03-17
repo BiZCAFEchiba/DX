@@ -108,6 +108,12 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(getFAQList_(includeHidden)))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // Q&A質問投稿（顧客用）
+    if (param.action === 'qaSubmit') {
+      var result = submitQuestion_(param.question || '');
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // Q&A保存（スタッフ用）
     if (param.action === 'qaSave') {
       var result = saveFAQItem_(
