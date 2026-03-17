@@ -211,7 +211,9 @@
     .grad-btn.active { background: #1a3a5c; border-color: #1a3a5c; color: #fff; }
     .meetup-list { display: flex; flex-direction: column; gap: 12px; }
     .meetup-card { background: #fff; border: 1px solid #dde6f0; border-radius: 12px; overflow: hidden; display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-    .meetup-img-wrap { flex-shrink: 0; width: 110px; background: #eaf0f7; display: flex; align-items: center; justify-content: center; }
+    .meetup-card.has-remaining { border: 2px solid #43a047; box-shadow: 0 2px 10px rgba(67,160,71,0.2); }
+    .meetup-card.soldout { opacity: 0.7; }
+    .meetup-img-wrap { flex-shrink: 0; width: 110px; background: #eaf0f7; display: flex; align-items: center; justify-content: center; position: relative; }
     .meetup-img { width: 110px; height: 110px; object-fit: cover; display: block; }
     .meetup-img-placeholder { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: #b0c4d8; }
     .meetup-body { flex: 1; padding: 12px 14px; min-width: 0; }
@@ -223,9 +225,18 @@
     .meetup-kind { background: #eaf6f0; color: #2e7d32; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
     .meetup-grad { background: #fff3e0; color: #e65100; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
     .meetup-empty { text-align: center; padding: 32px; color: #888; font-size: 0.9rem; background: #fff; border: 1px solid #e0e7ef; border-radius: 12px; }
-    .meetup-remaining { background: #e8f5e9; color: #2e7d32; border-radius: 4px; padding: 1px 7px; font-weight: 700; font-size: 0.78rem; }
-    .meetup-soldout   { background: #fce4ec; color: #c62828; border-radius: 4px; padding: 1px 7px; font-weight: 700; font-size: 0.78rem; }
-    .meetup-card.soldout { opacity: 0.72; }
+    .meetup-seats-banner {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(46,125,50,0.85); color: #fff;
+      text-align: center; padding: 5px 4px;
+      font-size: 0.75rem; font-weight: 700;
+    }
+    .meetup-soldout-overlay {
+      position: absolute; inset: 0;
+      background: rgba(20,20,20,0.52);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; color: #fff; font-weight: 700; font-size: 0.78rem; text-align: center; line-height: 1.4;
+    }
     .meetup-loading { text-align: center; padding: 32px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 12px; }
     .spinner { width: 32px; height: 32px; border: 3px solid #dde6f0; border-top-color: #1a3a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -248,9 +259,10 @@
       .kashikiri-badge { font-size: 0.5rem; padding: 1px 2px; width: 100%; text-align: center; }
       .day-open-btn { min-height: 62px; }
       .meetup-card { flex-direction: column; }
-      .meetup-img-wrap { width: 100%; height: 140px; }
+      .meetup-img-wrap { width: 100%; height: 140px; flex-shrink: 0; }
       .meetup-img { width: 100%; height: 140px; }
       .meetup-img-placeholder { width: 100%; height: 140px; font-size: 3rem; }
+      .meetup-soldout-overlay { font-size: 0.9rem; }
       .person-icon svg { width: 32px; height: 32px; }
     }
   </style>
@@ -605,27 +617,37 @@
     filtered.sort(function(a, b) { return isMeetupSoldOut(a.remaining) - isMeetupSoldOut(b.remaining); });
     filtered.forEach(function(m) {
       var soldOut = isMeetupSoldOut(m.remaining);
-      var card = document.createElement('div'); card.className = 'meetup-card' + (soldOut ? ' soldout' : '');
+      var rm = !soldOut && m.remaining ? m.remaining.match(/残席 (\d+)\/(\d+)/) : null;
+      var hasRemaining = !!rm;
+      var card = document.createElement('div');
+      card.className = 'meetup-card' + (soldOut ? ' soldout' : hasRemaining ? ' has-remaining' : '');
+
+      // 画像エリア（オーバーレイ付き）
       var imgWrap = document.createElement('div'); imgWrap.className = 'meetup-img-wrap';
       if (m.imageUrl) {
         var img = document.createElement('img'); img.className = 'meetup-img'; img.src = m.imageUrl; img.alt = 'Meetup';
         img.onerror = function() { this.parentNode.innerHTML = '<div class="meetup-img-placeholder">🏢</div>'; };
         imgWrap.appendChild(img);
-      } else { imgWrap.innerHTML = '<div class="meetup-img-placeholder">🏢</div>'; }
-      var remainingHtml = '';
-      if (soldOut) {
-        remainingHtml = '<span class="meetup-soldout">🎉 大人気！満員御礼</span>';
-      } else if (m.remaining) {
-        var rm = m.remaining.match(/残席 (\d+)\/(\d+)/);
-        if (rm) remainingHtml = '<span class="meetup-remaining">残席 ' + rm[1] + '名</span>';
+      } else {
+        var ph = document.createElement('div'); ph.className = 'meetup-img-placeholder'; ph.textContent = '🏢';
+        imgWrap.appendChild(ph);
       }
+      if (soldOut) {
+        var ov = document.createElement('div'); ov.className = 'meetup-soldout-overlay';
+        ov.innerHTML = '<div>🎉 大人気！</div><div>満員御礼</div>';
+        imgWrap.appendChild(ov);
+      } else if (hasRemaining) {
+        var banner = document.createElement('div'); banner.className = 'meetup-seats-banner';
+        banner.textContent = '残席 ' + rm[1] + '名';
+        imgWrap.appendChild(banner);
+      }
+
       var body = document.createElement('div'); body.className = 'meetup-body';
       body.innerHTML = '<div class="meetup-company">' + esc(m.company) + '</div>'
         + '<div class="meetup-theme' + (m.theme ? '' : ' no-theme') + '">' + esc(m.theme || 'テーマ未登録') + '</div>'
         + '<div class="meetup-meta"><span class="meetup-time">' + esc(m.time) + '</span>'
         + (m.kind ? '<span class="meetup-kind">' + esc(m.kind) + '</span>' : '')
-        + (m.gradYear ? '<span class="meetup-grad">🎓 ' + esc(m.gradYear) + '</span>' : '')
-        + remainingHtml + '</div>';
+        + (m.gradYear ? '<span class="meetup-grad">🎓 ' + esc(m.gradYear) + '</span>' : '') + '</div>';
       card.appendChild(imgWrap); card.appendChild(body); list.appendChild(card);
     });
   }
