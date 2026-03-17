@@ -166,6 +166,9 @@
     }
     .loading { text-align: center; padding: 48px; color: #888; grid-column: 1 / -1; }
 
+    /* 過去日は全体を薄く */
+    .day-cell.past { opacity: 0.38; }
+
     /* 営業日ボタン */
     .day-open-btn {
       display: flex; flex-direction: column; gap: 2px;
@@ -510,6 +513,7 @@
       else if (day.isKashikiri) classes.push('kashikiri');
       else classes.push('normal');
       if (day.date === todayISO) classes.push('today');
+      if (day.date < todayISO) classes.push('past');
       if (day.date === selectedDateISO) classes.push('selected');
       if (dow === 0) classes.push('day-sun');
       if (dow === 6) classes.push('day-sat');
