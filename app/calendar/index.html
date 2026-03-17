@@ -898,8 +898,8 @@ window.onDayClick = function(dateISO) {
 
   // ===== 掲示板処理 =====
   const BOARD_UPDATES = [
-    { title: "〇〇イベントの開始について", date: "2026/03/17", link: "#" },
-    { title: "新しい勤怠マニュアルを公開しました", date: "2026/03/10", link: "#" },
+    { title: "〇〇イベントの開始について", date: "2026/03/17", link: "articles/sample_article_1.html" },
+    { title: "新しい勤怠マニュアルを公開しました", date: "2026/03/10", link: "articles/sample_article_2.html" },
     { title: "店舗のレイアウト変更のお知らせ", date: "2026/02/25", link: "#" },
     { title: "年末年始のシフト提出期間について", date: "2025/11/15", link: "#" },
     { title: "制服の新しいルールについて", date: "2025/10/01", link: "#" },
@@ -927,10 +927,12 @@ window.onDayClick = function(dateISO) {
       var updatesHtml = '';
       var topUpdates = BOARD_UPDATES.slice(0, 5); // 最新5件
       topUpdates.forEach(function(item) {
-        updatesHtml += '<a href="' + item.link + '" class="update-item">' +
+        var tag = (item.link && item.link !== '#') ? 'a' : 'div';
+        var hrefAttr = (tag === 'a') ? ' href="' + item.link + '"' : '';
+        updatesHtml += '<' + tag + hrefAttr + ' class="update-item">' +
           '<div class="update-meta"><span class="update-label">更新</span><span class="update-date">' + item.date + '</span></div>' +
           '<div class="update-title">' + esc(item.title) + '</div>' +
-        '</a>';
+        '</' + tag + '>';
       });
       updateList.innerHTML = updatesHtml;
     }
@@ -958,6 +960,10 @@ window.onDayClick = function(dateISO) {
     }
   }
 
+  // 初期読み込み時のタブ切り替え処理
+  if (window.location.hash === '#board') {
+    switchTab('board');
+  }
 </script>
 </body>
 </html>

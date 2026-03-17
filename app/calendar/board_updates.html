@@ -55,8 +55,8 @@
 <script>
   // 掲示板更新データ（index.htmlと共有する形式で定義）
   const BOARD_UPDATES = [
-    { title: "〇〇イベントの開始について", date: "2026/03/17", link: "#" },
-    { title: "新しい勤怠マニュアルを公開しました", date: "2026/03/10", link: "#" },
+    { title: "〇〇イベントの開始について", date: "2026/03/17", link: "articles/sample_article_1.html" },
+    { title: "新しい勤怠マニュアルを公開しました", date: "2026/03/10", link: "articles/sample_article_2.html" },
     { title: "店舗のレイアウト変更のお知らせ", date: "2026/02/25", link: "#" },
     { title: "年末年始のシフト提出期間について", date: "2025/11/15", link: "#" },
     { title: "制服の新しいルールについて", date: "2025/10/01", link: "#" },
@@ -71,10 +71,12 @@
     var updateList = document.getElementById('updateList');
     var updatesHtml = '';
     BOARD_UPDATES.forEach(function(item) {
-      updatesHtml += '<a href="' + item.link + '" class="update-item">' +
+      var tag = (item.link && item.link !== '#') ? 'a' : 'div';
+      var hrefAttr = (tag === 'a') ? ' href="' + item.link + '"' : '';
+      updatesHtml += '<' + tag + hrefAttr + ' class="update-item">' +
         '<div class="update-meta"><span class="update-label">更新</span><span class="update-date">' + item.date + '</span></div>' +
         '<div class="update-title">' + esc(item.title) + '</div>' +
-      '</a>';
+      '</' + tag + '>';
     });
     updateList.innerHTML = updatesHtml;
   }
