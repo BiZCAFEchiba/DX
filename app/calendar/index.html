@@ -345,12 +345,534 @@
     .qa-submit-btn:disabled { background: #b0bec5; cursor: default; }
     .qa-sent-msg { display: none; text-align: center; padding: 10px; font-size: 0.85rem; color: #2e7d32; font-weight: 600; }
 
+    /* ===== コーナー ===== */
+    .corner-wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+    }
+    .corner-board {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.97), rgba(250,252,255,0.95)),
+        repeating-linear-gradient(180deg, rgba(26,58,92,0.03) 0 1px, transparent 1px 44px);
+      border: 1px solid #d9e3ee;
+      border-radius: 28px;
+      box-shadow: 0 10px 28px rgba(20, 46, 70, 0.08);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .corner-board::before,
+    .corner-board::after {
+      content: '';
+      position: absolute;
+      border-radius: 999px;
+      background: rgba(255, 224, 130, 0.25);
+      filter: blur(4px);
+      pointer-events: none;
+    }
+    .corner-board::before {
+      width: 140px;
+      height: 140px;
+      top: -48px;
+      right: -30px;
+    }
+    .corner-board::after {
+      width: 110px;
+      height: 110px;
+      bottom: -34px;
+      left: -26px;
+      background: rgba(255, 183, 197, 0.2);
+    }
+    .corner-hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .corner-kicker {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #fff7d6;
+      color: #7c6200;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      border: 1px solid #f0dfa1;
+    }
+    .corner-title {
+      font-size: 2rem;
+      line-height: 1.05;
+      color: #d16b6b;
+      font-family: "Comic Sans MS", "Trebuchet MS", "Hiragino Maru Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      letter-spacing: 0.03em;
+    }
+    .corner-subtitle {
+      margin-top: 8px;
+      font-size: 0.95rem;
+      line-height: 1.8;
+      color: #516275;
+      max-width: 560px;
+    }
+    .corner-mini-note {
+      align-self: flex-start;
+      background: #fffef4;
+      border: 1px solid #eadfae;
+      border-radius: 18px 18px 18px 6px;
+      padding: 12px 14px;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: #6f6548;
+      max-width: 240px;
+      box-shadow: 0 4px 14px rgba(122, 103, 43, 0.08);
+      transform: rotate(-2deg);
+    }
+    .corner-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .corner-column {
+      display: grid;
+      gap: 18px;
+    }
+    .corner-card {
+      background: rgba(255, 255, 255, 0.94);
+      border: 1.8px solid #d7e1eb;
+      border-radius: 26px;
+      padding: 18px;
+      box-shadow: 0 6px 18px rgba(21, 43, 66, 0.07);
+      position: relative;
+    }
+    .corner-card.sketch {
+      border-radius: 30px 24px 28px 26px;
+    }
+    .corner-card.sketch::after {
+      content: '';
+      position: absolute;
+      inset: 7px;
+      border: 1px dashed rgba(26,58,92,0.12);
+      border-radius: 24px;
+      pointer-events: none;
+    }
+    .corner-card-header { margin-bottom: 14px; }
+    .corner-card-title {
+      font-size: 1.2rem;
+      color: #1a3a5c;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      margin-bottom: 6px;
+    }
+    .corner-card-note {
+      font-size: 0.83rem;
+      color: #667789;
+      line-height: 1.7;
+    }
+    .corner-worry-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .corner-worry-box {
+      background: #ffffff;
+      border: 2px solid #dce5ef;
+      border-radius: 24px;
+      padding: 14px;
+      min-height: 210px;
+    }
+    .corner-worry-box.wide {
+      grid-column: 1 / -1;
+      min-height: auto;
+    }
+    .corner-worry-head {
+      font-size: 1rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+    }
+    .corner-worry-head.career { color: #295d8d; }
+    .corner-worry-head.study { color: #6d4c8f; }
+    .corner-worry-head.other { color: #86502f; }
+    .corner-q-item + .corner-q-item {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px dashed #d8e1ea;
+    }
+    .corner-q-label,
+    .corner-a-label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      margin-right: 6px;
+    }
+    .corner-q-label {
+      background: #edf4fb;
+      color: #1a3a5c;
+    }
+    .corner-a-label {
+      background: #fff2bf;
+      color: #7f5d00;
+    }
+    .corner-q-text,
+    .corner-a-text {
+      display: inline;
+      font-size: 0.88rem;
+      line-height: 1.75;
+      color: #314354;
+    }
+    .corner-q-line,
+    .corner-a-line { display: block; }
+    .corner-a-line { margin-top: 8px; }
+    .corner-region-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .corner-region-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-size: 0.86rem;
+      font-weight: 700;
+      border: 1px solid rgba(0,0,0,0.06);
+      color: #314354;
+      background: #f8fbff;
+    }
+    .corner-region-tag.blue { background: #e8f0fe; }
+    .corner-region-tag.teal { background: #e6f7f4; }
+    .corner-region-tag.yellow { background: #fff7db; }
+    .corner-region-tag.pink { background: #ffeff4; }
+    .corner-region-tag.green { background: #eaf7ea; }
+    .corner-region-tag.orange { background: #fff1e4; }
+    .corner-region-tag.purple { background: #f2ecff; }
+    .corner-region-count {
+      font-size: 0.76rem;
+      color: #667789;
+      font-weight: 700;
+    }
+    .corner-sticky {
+      margin-top: 14px;
+      display: inline-block;
+      padding: 14px 16px;
+      background: #f6e5a9;
+      color: #604d08;
+      font-size: 0.84rem;
+      line-height: 1.6;
+      border-radius: 4px 18px 4px 18px;
+      box-shadow: 0 8px 16px rgba(96, 77, 8, 0.14);
+      transform: rotate(-3deg);
+    }
+    .corner-tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .corner-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #eef4fb;
+      color: #34526f;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: 1px solid #d8e3ef;
+      cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+    .corner-chip.active {
+      background: #1a3a5c;
+      color: #fff;
+      border-color: #1a3a5c;
+      transform: translateY(-1px);
+    }
+    .corner-chip.static {
+      cursor: default;
+    }
+    .corner-industry-list,
+    .corner-staff-list,
+    .corner-column-list {
+      display: grid;
+      gap: 12px;
+    }
+    .corner-industry-item,
+    .corner-staff-item,
+    .corner-column-item {
+      background: #fff;
+      border: 1px solid #dde6ef;
+      border-radius: 22px;
+      padding: 14px;
+    }
+    .corner-industry-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .corner-industry-name,
+    .corner-staff-name,
+    .corner-column-title {
+      font-size: 0.96rem;
+      font-weight: 800;
+      color: #1a3a5c;
+    }
+    .corner-industry-comment {
+      font-size: 0.8rem;
+      color: #8f5d1b;
+      background: #fff5d8;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-weight: 700;
+    }
+    .corner-staff-role {
+      font-size: 0.8rem;
+      color: #7a5d1d;
+      font-weight: 700;
+      margin: 4px 0 8px;
+    }
+    .corner-industry-answer,
+    .corner-staff-profile,
+    .corner-column-body {
+      font-size: 0.86rem;
+      line-height: 1.75;
+      color: #425464;
+    }
+    .corner-industry-empty {
+      background: #f8fbff;
+      border: 1px dashed #ced9e6;
+      border-radius: 18px;
+      padding: 15px;
+      color: #6a7887;
+      font-size: 0.86rem;
+      line-height: 1.65;
+    }
+    .corner-column-item {
+      background: linear-gradient(180deg, #fffefa, #fff);
+    }
+    .corner-live-section {
+      margin-bottom: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .corner-live-card {
+      background: rgba(255,255,255,0.96);
+      border: 1.8px solid #d7e1eb;
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 6px 18px rgba(21, 43, 66, 0.07);
+    }
+    .corner-live-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #1a3a5c;
+      margin-bottom: 6px;
+    }
+    .corner-live-subtitle {
+      font-size: 0.84rem;
+      color: #667789;
+      line-height: 1.7;
+      margin-bottom: 14px;
+    }
+    .corner-form-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .corner-form-label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #516275;
+      margin-bottom: 5px;
+    }
+    .corner-form-input,
+    .corner-form-select,
+    .corner-form-textarea {
+      width: 100%;
+      border: 1.5px solid #d5dfea;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      background: #f8fbff;
+    }
+    .corner-form-textarea {
+      min-height: 110px;
+      resize: vertical;
+      line-height: 1.6;
+    }
+    .corner-form-input:focus,
+    .corner-form-select:focus,
+    .corner-form-textarea:focus {
+      outline: none;
+      border-color: #1a3a5c;
+      background: #fff;
+    }
+    .corner-form-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .corner-submit-btn {
+      background: #1a3a5c;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .corner-submit-btn:disabled {
+      background: #aab8c7;
+      cursor: default;
+    }
+    .corner-submit-note {
+      font-size: 0.77rem;
+      color: #7b8794;
+      line-height: 1.6;
+    }
+    .corner-submit-msg {
+      display: none;
+      margin-top: 10px;
+      font-size: 0.84rem;
+      color: #2f7d4a;
+      font-weight: 700;
+    }
+    .corner-question-list {
+      display: grid;
+      gap: 12px;
+    }
+    .corner-question-item {
+      border: 1px solid #dde6ef;
+      border-radius: 20px;
+      background: #fff;
+      overflow: hidden;
+      transition: box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .corner-question-item:hover {
+      box-shadow: 0 6px 14px rgba(20,46,70,0.08);
+      transform: translateY(-1px);
+    }
+    .corner-question-trigger {
+      width: 100%;
+      border: none;
+      background: none;
+      padding: 14px 16px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .corner-question-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .corner-question-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 0.76rem;
+      color: #6a7885;
+    }
+    .corner-question-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-weight: 700;
+      background: #eef4fb;
+      color: #34526f;
+    }
+    .corner-question-badge.answered {
+      background: #e8f7ed;
+      color: #2f7d4a;
+    }
+    .corner-question-badge.pending {
+      background: #fff1df;
+      color: #9a5a14;
+    }
+    .corner-question-item-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #1a3a5c;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .corner-question-preview {
+      font-size: 0.85rem;
+      color: #4f5f6e;
+      line-height: 1.7;
+    }
+    .corner-question-detail {
+      display: none;
+      border-top: 1px dashed #d8e1ea;
+      padding: 16px;
+      background: #fbfdff;
+    }
+    .corner-question-item.open .corner-question-detail {
+      display: block;
+    }
+    .corner-detail-section + .corner-detail-section {
+      margin-top: 14px;
+    }
+    .corner-detail-label {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #516275;
+      margin-bottom: 6px;
+    }
+    .corner-detail-body {
+      font-size: 0.88rem;
+      line-height: 1.8;
+      color: #344556;
+      white-space: pre-wrap;
+    }
+    .corner-answer-box {
+      background: #f3f8fd;
+      border: 1px solid #d6e2ee;
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .corner-answer-meta {
+      margin-top: 8px;
+      font-size: 0.76rem;
+      color: #6a7885;
+    }
+    .corner-question-empty {
+      text-align: center;
+      padding: 22px 16px;
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid #dde6ef;
+      color: #7d8b99;
+      font-size: 0.88rem;
+    }
+
     /* ===== モバイル: 横タブ ===== */
     @media (max-width: 600px) {
       .app-layout { flex-direction: column; }
       .tab-nav { width: 100%; flex-direction: row; border-right: none; border-bottom: 2px solid #e0e7ef; overflow-x: auto; }
       .tab-nav::-webkit-scrollbar { display: none; } /* スクロールバー非表示 */
-      .tab-btn { flex: 1 0 20%; flex-direction: row; padding: 10px 4px; gap: 4px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.7rem; white-space: nowrap; }
+      .tab-btn { flex: 1 0 16.66%; flex-direction: row; padding: 10px 4px; gap: 4px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.7rem; white-space: nowrap; }
       .tab-btn.active { border-left-color: transparent; border-bottom-color: #1a3a5c; }
       .tab-btn .tab-icon { font-size: 1.05rem; }
       header h1 { font-size: 1.05rem; }
@@ -374,6 +896,13 @@
       .article-body { padding: 10px 12px; }
       .article-title { font-size: 0.85rem; }
       .article-meta { flex-direction: column; align-items: flex-start; gap: 4px; }
+      .corner-wrap { padding: 16px 12px 30px; }
+      .corner-board { padding: 16px; border-radius: 22px; }
+      .corner-title { font-size: 1.55rem; }
+      .corner-grid,
+      .corner-worry-grid { grid-template-columns: 1fr; }
+      .corner-mini-note { max-width: none; transform: rotate(0deg); }
+      .corner-live-section { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -402,6 +931,9 @@
     </button>
     <button class="tab-btn" id="tabBtnBoard" onclick="switchTab('board')">
       <span class="tab-icon">📋</span>掲示板
+    </button>
+    <button class="tab-btn" id="tabBtnCorner" onclick="switchTab('corner')">
+      <span class="tab-icon">🧷</span>コーナー
     </button>
     <button class="tab-btn" id="tabBtnRecruit" onclick="window.open('https://recruit.shirucafe.com/','_blank')">
       <span class="tab-icon">✨</span>採用
@@ -504,9 +1036,71 @@
       </div>
     </div>
 
+    <!-- コーナーパネル -->
+    <div class="tab-pane" id="paneCorner">
+      <div class="corner-wrap">
+        <div class="corner-board">
+          <div class="corner-hero">
+            <div>
+              <div class="corner-kicker">参加型・ゆるやか掲示スペース</div>
+              <h2 class="corner-title">BiZ News Corner</h2>
+              <p class="corner-subtitle">就活や大学生活、スタッフにちょっと聞いてみたいことなど、だれでも気軽に聞くことができるコーナーです。</p>
+            </div>
+            <div class="corner-mini-note">気になったテーマを眺めたり、スタッフの雰囲気を感じてください!</div>
+          </div>
+          <section class="corner-live-section">
+            <div class="corner-live-card">
+              <div class="corner-live-title">質問を投稿する</div>
+              <div class="corner-live-subtitle">就活、授業、業界研究など、気になることを匿名またはニックネームで送れます。投稿内容は staff 確認後に公開されます。</div>
+              <div class="corner-form-grid">
+                <div>
+                  <label class="corner-form-label" for="cornerNickname">ニックネーム</label>
+                  <input class="corner-form-input" id="cornerNickname" type="text" placeholder="匿名でもOK">
+                </div>
+                <div>
+                  <label class="corner-form-label" for="cornerCategory">カテゴリ</label>
+                  <select class="corner-form-select" id="cornerCategory">
+                    <option value="job-hunt">就活関連</option>
+                    <option value="class">単位・授業関連</option>
+                    <option value="industry">業界・企業関連</option>
+                    <option value="other">その他</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="corner-form-label" for="cornerQuestionTitle">タイトル</label>
+                  <input class="corner-form-input" id="cornerQuestionTitle" type="text" placeholder="何について相談したいかを短く入力">
+                </div>
+                <div>
+                  <label class="corner-form-label" for="cornerQuestionBody">本文</label>
+                  <textarea class="corner-form-textarea" id="cornerQuestionBody" placeholder="相談したい内容を自由に入力してください。"></textarea>
+                </div>
+              </div>
+              <div class="corner-form-actions">
+                <button class="corner-submit-btn" id="cornerSubmitBtn" type="button" onclick="submitCornerQuestion()">質問を送る</button>
+                <div class="corner-submit-note">公開前に内容を確認するため、送信後すぐには一覧に出ません。</div>
+              </div>
+              <div class="corner-submit-msg" id="cornerSubmitMsg">質問を受け付けました。公開まで少しお待ちください。</div>
+            </div>
+            <div class="corner-live-card">
+              <div class="corner-live-title">公開中の質問一覧</div>
+              <div class="corner-live-subtitle">カテゴリ、投稿日、回答状況が分かる一覧です。気になる質問を開くと本文と回答を見られます。</div>
+              <div class="corner-question-list" id="cornerQuestionList">
+                <div class="corner-question-empty">読み込み中...</div>
+              </div>
+            </div>
+          </section>
+          <div class="corner-grid">
+            <div class="corner-column" id="cornerPrimaryColumn"></div>
+            <div class="corner-column" id="cornerSecondaryColumn"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /.tab-content -->
 </div><!-- /.app-layout -->
 
+<script src="corner_data.js"></script>
 <script>
   var GAS_API_URL = '/api/gas';
 
@@ -525,11 +1119,15 @@
 
   // ===== タブ切り替え =====
   var qaLoaded = false;
+  var cornerRendered = false;
+  var cornerContentLoaded = false;
+  var cornerContentData = null;
+  var cornerIndustryFilter = 'all';
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
-    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA', board: 'Board' }[name];
-    var paneId = { congestion: 'Congesion',  calendar: 'Calendar', qa: 'QA', board: 'Board' }[name];
+    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner' }[name];
+    var paneId = { congestion: 'Congesion',  calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner' }[name];
     
     var targetBtn = document.getElementById('tabBtn' + btnId);
     if(targetBtn) targetBtn.classList.add('active');
@@ -542,6 +1140,18 @@
     
     // 掲示板タブが開かれたら描画
     if (name === 'board') { renderBoardTop(); }
+
+    if (name === 'corner') {
+      if (!cornerRendered) {
+        cornerRendered = true;
+        renderCorner();
+      }
+      if (!cornerContentLoaded) {
+        cornerContentLoaded = true;
+        loadCornerContent();
+      }
+      loadCornerQuestions();
+    }
   }
 
   // ===== Q&A =====
@@ -954,9 +1564,274 @@ window.onDayClick = function(dateISO) {
     return 'articles/template.html?id=' + encodeURIComponent(id);
   }
 
+  function loadCornerQuestions() {
+    var wrap = document.getElementById('cornerQuestionList');
+    if (!wrap) return;
+    wrap.innerHTML = '<div class="corner-question-empty">読み込み中...</div>';
+    fetch(GAS_API_URL + '?page=calendar&action=cornerQuestionList')
+      .then(function(r) { return r.json(); })
+      .then(function(items) {
+        renderCornerQuestions(Array.isArray(items) ? items : []);
+      })
+      .catch(function() {
+        wrap.innerHTML = '<div class="corner-question-empty">質問一覧の読み込みに失敗しました。</div>';
+      });
+  }
+
+  function renderCornerQuestions(items) {
+    var wrap = document.getElementById('cornerQuestionList');
+    if (!wrap) return;
+    if (!items || items.length === 0) {
+      wrap.innerHTML = '<div class="corner-question-empty">まだ公開中の質問はありません。最初の1件を投稿してみてください。</div>';
+      return;
+    }
+
+    var html = '';
+    items.forEach(function(item) {
+      var categoryLabel = getCornerCategoryLabel(item.category);
+      var answered = !!item.answerBody;
+      html += '<article class="corner-question-item" id="cornerQuestionItem-' + esc(item.id) + '">'
+        + '<button type="button" class="corner-question-trigger" onclick="toggleCornerQuestionDetail(\'' + esc(item.id) + '\')">'
+        + '<div class="corner-question-topline">'
+        + '<div class="corner-question-meta">'
+        + '<span class="corner-question-badge">' + esc(categoryLabel) + '</span>'
+        + '<span>' + esc(item.displayDate || '') + '</span>'
+        + '</div>'
+        + '<span class="corner-question-badge ' + (answered ? 'answered' : 'pending') + '">' + (answered ? '回答済み' : '未回答') + '</span>'
+        + '</div>'
+        + '<div class="corner-question-item-title">' + esc(item.title || '') + '</div>'
+        + '<div class="corner-question-preview">' + esc(item.previewText || '') + '</div>'
+        + '</button>'
+        + '<div class="corner-question-detail">'
+        + '<div class="corner-detail-section"><div class="corner-detail-label">質問本文</div><div class="corner-detail-body">' + esc(item.body || '') + '</div></div>'
+        + '<div class="corner-detail-section">'
+        + '<div class="corner-detail-label">スタッフからの回答</div>'
+        + (answered
+          ? '<div class="corner-answer-box"><div class="corner-detail-body">' + esc(item.answerBody || '') + '</div><div class="corner-answer-meta">' + esc(item.answeredBy || 'スタッフ') + (item.answeredDisplayDate ? ' / ' + esc(item.answeredDisplayDate) : '') + '</div></div>'
+          : '<div class="corner-detail-body">まだ回答準備中です。公開後に順次更新します。</div>')
+        + '</div>'
+        + '</div>'
+        + '</article>';
+    });
+    wrap.innerHTML = html;
+  }
+
+  function toggleCornerQuestionDetail(id) {
+    var el = document.getElementById('cornerQuestionItem-' + id);
+    if (!el) return;
+    el.classList.toggle('open');
+  }
+
+  function submitCornerQuestion() {
+    var nicknameEl = document.getElementById('cornerNickname');
+    var categoryEl = document.getElementById('cornerCategory');
+    var titleEl = document.getElementById('cornerQuestionTitle');
+    var bodyEl = document.getElementById('cornerQuestionBody');
+    var msgEl = document.getElementById('cornerSubmitMsg');
+    var btn = document.getElementById('cornerSubmitBtn');
+    var payload = {
+      nickname: nicknameEl ? nicknameEl.value.trim() : '',
+      category: categoryEl ? categoryEl.value : '',
+      title: titleEl ? titleEl.value.trim() : '',
+      body: bodyEl ? bodyEl.value.trim() : ''
+    };
+    if (!payload.title || !payload.body) {
+      if (msgEl) {
+        msgEl.textContent = 'タイトルと本文を入力してください。';
+        msgEl.style.display = 'block';
+        msgEl.style.color = '#b44a3a';
+      }
+      return;
+    }
+    btn.disabled = true;
+    btn.textContent = '送信中...';
+    fetch(
+      GAS_API_URL
+        + '?page=calendar&action=cornerQuestionSubmit'
+        + '&nickname=' + encodeURIComponent(payload.nickname)
+        + '&category=' + encodeURIComponent(payload.category)
+        + '&title=' + encodeURIComponent(payload.title)
+        + '&body=' + encodeURIComponent(payload.body)
+    )
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        if (!result || result.ok !== true) throw new Error('submit_failed');
+        if (nicknameEl) nicknameEl.value = '';
+        if (categoryEl) categoryEl.value = 'job-hunt';
+        if (titleEl) titleEl.value = '';
+        if (bodyEl) bodyEl.value = '';
+        if (msgEl) {
+          msgEl.textContent = '質問を受け付けました。公開まで少しお待ちください。';
+          msgEl.style.display = 'block';
+          msgEl.style.color = '#2f7d4a';
+        }
+      })
+      .catch(function() {
+        if (msgEl) {
+          msgEl.textContent = '質問の送信に失敗しました。時間をおいて再度お試しください。';
+          msgEl.style.display = 'block';
+          msgEl.style.color = '#b44a3a';
+        }
+      })
+      .finally(function() {
+        btn.disabled = false;
+        btn.textContent = '質問を送る';
+      });
+  }
+
+  function getCornerCategoryLabel(category) {
+    return {
+      'job-hunt': '就活関連',
+      'class': '単位・授業関連',
+      'industry': '業界・企業関連',
+      'other': 'その他'
+    }[category] || 'その他';
+  }
+
+  function loadCornerContent() {
+    fetch(GAS_API_URL + '?page=calendar&action=cornerContentGet')
+      .then(function(r) { return r.json(); })
+      .then(function(content) {
+        cornerContentData = content && typeof content === 'object' ? content : null;
+        renderCorner();
+      })
+      .catch(function() {
+        cornerContentData = null;
+        renderCorner();
+      });
+  }
+
+  function renderCorner() {
+    var content = cornerContentData || window.CORNER_CONTENT;
+    if (!content) return;
+    var primary = document.getElementById('cornerPrimaryColumn');
+    var secondary = document.getElementById('cornerSecondaryColumn');
+    if (!primary || !secondary) return;
+
+    primary.innerHTML = [
+      renderWorriesSection(content.worries),
+      renderParticipationSection(content.participation)
+    ].join('');
+
+    secondary.innerHTML = [
+      renderIndustrySection(content.industryQa),
+      renderStaffSection(content.staffColumns)
+    ].join('');
+  }
+
+  function renderWorriesSection(section) {
+    if (!section) return '';
+    var categories = (section.categories || []).map(function(category) {
+      var entries = (category.entries || []).map(function(entry) {
+        return '<div class="corner-q-item">'
+          + '<span class="corner-q-line"><span class="corner-q-label">Q</span><span class="corner-q-text">' + esc(entry.question) + '</span></span>'
+          + '<span class="corner-a-line"><span class="corner-a-label">A</span><span class="corner-a-text">' + esc(entry.answer) + '</span></span>'
+          + '</div>';
+      }).join('');
+      return '<div class="corner-worry-box' + (category.key === 'other' ? ' wide' : '') + '">'
+        + '<div class="corner-worry-head ' + esc(category.accent || '') + '">' + esc(category.title) + '</div>'
+        + entries
+        + '</div>';
+    }).join('');
+
+    return '<section class="corner-card sketch">'
+      + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.note || '') + '</p></div>'
+      + '<div class="corner-worry-grid">' + categories + '</div>'
+      + '</section>';
+  }
+
+  function renderParticipationSection(section) {
+    if (!section) return '';
+    var tags = (section.tags || []).map(function(tag) {
+      return '<span class="corner-region-tag ' + esc(tag.tone || '') + '">'
+        + '<span>' + esc(tag.label) + '</span>'
+        + '<span class="corner-region-count">' + esc(tag.count || '') + '</span>'
+        + '</span>';
+    }).join('');
+
+    return '<section class="corner-card sketch">'
+      + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.prompt || '') + ' ' + esc(section.note || '') + '</p></div>'
+      + '<div class="corner-region-tags">' + tags + '</div>'
+      + '<div class="corner-sticky">' + esc(section.stickyNote || '') + '</div>'
+      + '</section>';
+  }
+
+  function renderIndustrySection(section) {
+    if (!section) return '';
+    var tags = (section.tags || []).slice().sort(function(a, b) {
+      return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+    });
+    var items = (section.items || []).slice().sort(function(a, b) {
+      return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+    });
+    var activeTag = cornerIndustryFilter;
+    var visibleTags = tags.filter(function(tag) { return tag && tag.id && tag.published !== false; });
+    var tagHtml = ['<button type="button" class="corner-chip' + (activeTag === 'all' ? ' active' : '') + '" onclick="setCornerIndustryTag(\'all\')">すべて</button>'];
+    visibleTags.forEach(function(tag) {
+      tagHtml.push(
+        '<button type="button" class="corner-chip' + (activeTag === tag.id ? ' active' : '') + '" onclick="setCornerIndustryTag(\'' + esc(tag.id) + '\')">' + esc(tag.label || '') + '</button>'
+      );
+    });
+    var entries = items.filter(function(entry) {
+      return entry.published !== false && (activeTag === 'all' || entry.tagId === activeTag);
+    }).map(function(entry) {
+      var tag = visibleTags.find(function(item) { return item.id === entry.tagId; });
+      return '<div class="corner-industry-item">'
+        + '<div class="corner-industry-head"><span class="corner-industry-name">' + esc(entry.title || '') + '</span>'
+        + (entry.comment ? '<span class="corner-industry-comment">' + esc(entry.comment) + '</span>' : '')
+        + (tag ? '<span class="corner-chip static">' + esc(tag.label || '') + '</span>' : '')
+        + '</div>'
+        + '<div class="corner-industry-answer">' + esc(entry.body || '') + '</div>'
+        + '</div>';
+    }).join('');
+    if (!entries) {
+      entries = '<div class="corner-industry-empty">このタグではまだ公開中のQ&Aがありません。</div>';
+    }
+
+    return '<section class="corner-card sketch">'
+      + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.note || '') + '</p></div>'
+      + '<div class="corner-tag-row">' + tagHtml.join('') + '</div>'
+      + '<div class="corner-industry-list">' + entries + '</div>'
+      + '</section>';
+  }
+
+  function renderStaffSection(section) {
+    if (!section) return '';
+    var staff = (section.staff || []).map(function(entry) {
+      var tags = (entry.tags || []).map(function(tag) {
+        return '<span class="corner-chip static">' + esc(tag) + '</span>';
+      }).join('');
+      return '<div class="corner-staff-item">'
+        + '<div class="corner-staff-name">' + esc(entry.name) + '</div>'
+        + '<div class="corner-staff-role">' + esc(entry.role) + '</div>'
+        + '<div class="corner-staff-profile">' + esc(entry.profile) + '</div>'
+        + '<div class="corner-tag-row" style="margin-top:10px; margin-bottom:0;">' + tags + '</div>'
+        + '</div>';
+    }).join('');
+    var columns = (section.columns || []).map(function(entry) {
+      return '<div class="corner-column-item">'
+        + '<div class="corner-column-title">' + esc(entry.title) + '</div>'
+        + '<div class="corner-column-body">' + esc(entry.body) + '</div>'
+        + '</div>';
+    }).join('');
+
+    return '<section class="corner-card sketch">'
+      + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3></div>'
+      + '<div class="corner-staff-list">' + staff + '</div>'
+      + '<div class="corner-column-list" style="margin-top:12px;">' + columns + '</div>'
+      + '</section>';
+  }
+
+  function setCornerIndustryTag(tagId) {
+    cornerIndustryFilter = tagId || 'all';
+    renderCorner();
+  }
+
   // 初期読み込み時のタブ切り替え処理
   if (window.location.hash === '#board') {
     switchTab('board');
+  } else if (window.location.hash === '#corner') {
+    switchTab('corner');
   }
 </script>
 </body>

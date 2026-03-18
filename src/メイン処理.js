@@ -201,6 +201,55 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(deleteResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // コーナー質問一覧
+    if (param.action === 'cornerQuestionList') {
+      return ContentService.createTextOutput(JSON.stringify(getCornerQuestionList_(param.staff === '1')))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // コーナー質問詳細
+    if (param.action === 'cornerQuestionDetail') {
+      var cornerQuestion = getCornerQuestionDetail_(param.id || '', param.staff === '1');
+      return ContentService.createTextOutput(JSON.stringify(cornerQuestion || { ok: false, error: 'not_found' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // customer 側コーナー質問投稿
+    if (param.action === 'cornerQuestionSubmit') {
+      var questionSubmitResult = submitCornerQuestion_({
+        nickname: param.nickname || '',
+        category: param.category || '',
+        title: param.title || '',
+        body: param.body || ''
+      });
+      return ContentService.createTextOutput(JSON.stringify(questionSubmitResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // staff 側コーナー質問更新
+    if (param.action === 'cornerQuestionSave') {
+      var questionSaveResult = saveCornerQuestion_({
+        id: param.id || '',
+        nickname: param.nickname,
+        category: param.category,
+        title: param.title,
+        body: param.body,
+        status: param.status,
+        published: param.published === 'true',
+        answerBody: param.answerBody,
+        answeredBy: param.answeredBy
+      });
+      return ContentService.createTextOutput(JSON.stringify(questionSaveResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // コーナー表示コンテンツ取得
+    if (param.action === 'cornerContentGet') {
+      return ContentService.createTextOutput(JSON.stringify(getCornerContent_(param.staff === '1')))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // staff 用コーナーセクション保存
+    if (param.action === 'cornerContentSave') {
+      var cornerContentResult = saveCornerSection_(param.section || '', param.data || '');
+      return ContentService.createTextOutput(JSON.stringify(cornerContentResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // 混雑状況更新（スタッフ用）
     if (param.action === 'setCongestion') {
       var newLevel = parseInt(param.level || '0');
