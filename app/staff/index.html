@@ -45,6 +45,10 @@
     .corner-item-card {
       background: white; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.07);
     }
+    .corner-admin-form.active-edit {
+      border: 2px solid #1a3a5c;
+      box-shadow: 0 8px 18px rgba(26,58,92,0.12);
+    }
     .current-card { padding: 20px; text-align: center; margin-bottom: 24px; }
     .person-icons { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
     .current-label { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
@@ -144,6 +148,41 @@
       display: grid;
       gap: 18px;
       margin-bottom: 28px;
+    }
+    .corner-manage-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .corner-manage-group {
+      background: #fff;
+      border: 1px solid #dde6f0;
+      border-radius: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      overflow: hidden;
+    }
+    .corner-manage-group > summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 14px 16px;
+      font-size: 0.92rem;
+      font-weight: 800;
+      color: #1a3a5c;
+      background: #f8fbff;
+      border-bottom: 1px solid #e4ebf3;
+    }
+    .corner-manage-group > summary::-webkit-details-marker { display: none; }
+    .corner-manage-group > summary::after {
+      content: '＋';
+      float: right;
+      color: #7a8795;
+    }
+    .corner-manage-group[open] > summary::after {
+      content: '－';
+    }
+    .corner-manage-body {
+      padding: 16px;
+      background: #f5f7fa;
     }
     .corner-content-card {
       border: 1px solid #dde6f0;
@@ -440,142 +479,133 @@
 
   <div class="tab-pane" id="paneCorner">
     <div class="container">
-      <div class="corner-section-title">コーナー内容管理</div>
-      <div class="corner-content-grid">
-        <section class="corner-admin-form corner-content-card">
-          <div class="form-title">お悩み相談コーナー</div>
-          <div class="form-grid two-col">
-            <div class="form-field">
-              <label>セクションタイトル</label>
-              <input type="text" id="cornerWorriesTitle" placeholder="スタッフがお悩み答えます!">
-            </div>
-            <div class="form-field">
-              <label>補足文</label>
-              <input type="text" id="cornerWorriesNote" placeholder="カテゴリごとの案内文">
-            </div>
+      <div class="corner-manage-stack">
+        <details class="corner-manage-group" open>
+          <summary>お悩み相談</summary>
+          <div class="corner-manage-body">
+            <section class="corner-admin-form corner-content-card">
+              <div class="form-grid two-col">
+                <div class="form-field">
+                  <label>セクションタイトル</label>
+                  <input type="text" id="cornerWorriesTitle" placeholder="スタッフがお悩み答えます!">
+                </div>
+                <div class="form-field">
+                  <label>補足文</label>
+                  <input type="text" id="cornerWorriesNote" placeholder="カテゴリごとの案内文">
+                </div>
+              </div>
+              <div class="corner-repeater-list" id="cornerWorriesCategories"></div>
+              <div class="form-btns">
+                <button class="btn-secondary" type="button" onclick="addCornerWorryCategory()">カテゴリを追加</button>
+                <button class="btn-primary" type="button" onclick="saveCornerSection('worries')">保存する</button>
+              </div>
+            </section>
           </div>
-          <div class="corner-repeater-list" id="cornerWorriesCategories"></div>
-          <div class="form-btns">
-            <button class="btn-secondary" type="button" onclick="addCornerWorryCategory()">カテゴリを追加</button>
-            <button class="btn-primary" type="button" onclick="saveCornerSection('worries')">保存する</button>
-          </div>
-        </section>
+        </details>
 
-        <section class="corner-admin-form corner-content-card">
-          <div class="form-title">参加型コーナー</div>
-          <div class="form-grid two-col">
-            <div class="form-field">
-              <label>タイトル</label>
-              <input type="text" id="cornerParticipationTitle" placeholder="参加型コーナー">
-            </div>
-            <div class="form-field">
-              <label>見出し</label>
-              <input type="text" id="cornerParticipationPrompt" placeholder="みんなの出身地は？">
-            </div>
+        <details class="corner-manage-group">
+          <summary>参加型</summary>
+          <div class="corner-manage-body">
+            <section class="corner-admin-form corner-content-card">
+              <div class="form-grid two-col">
+                <div class="form-field">
+                  <label>タイトル</label>
+                  <input type="text" id="cornerParticipationTitle" placeholder="参加型コーナー">
+                </div>
+                <div class="form-field">
+                  <label>見出し</label>
+                  <input type="text" id="cornerParticipationPrompt" placeholder="みんなの出身地は？">
+                </div>
+              </div>
+              <div class="form-field">
+                <label>説明文</label>
+                <input type="text" id="cornerParticipationNote" placeholder="地域タグの説明文">
+              </div>
+              <div class="form-field">
+                <label>付箋メッセージ</label>
+                <input type="text" id="cornerParticipationSticky" placeholder="気になる地域があれば...">
+              </div>
+              <div class="corner-repeater-list" id="cornerParticipationTags"></div>
+              <div class="form-btns">
+                <button class="btn-secondary" type="button" onclick="addCornerParticipationTag()">地域タグを追加</button>
+                <button class="btn-primary" type="button" onclick="saveCornerSection('participation')">保存する</button>
+              </div>
+            </section>
           </div>
-          <div class="form-field">
-            <label>説明文</label>
-            <input type="text" id="cornerParticipationNote" placeholder="地域タグの説明文">
-          </div>
-          <div class="form-field">
-            <label>付箋メッセージ</label>
-            <input type="text" id="cornerParticipationSticky" placeholder="気になる地域があれば...">
-          </div>
-          <div class="corner-repeater-list" id="cornerParticipationTags"></div>
-          <div class="form-btns">
-            <button class="btn-secondary" type="button" onclick="addCornerParticipationTag()">地域タグを追加</button>
-            <button class="btn-primary" type="button" onclick="saveCornerSection('participation')">保存する</button>
-          </div>
-        </section>
+        </details>
 
-        <section class="corner-admin-form corner-content-card">
-          <div class="form-title">業界・企業Q&Aコーナー</div>
-          <div class="form-grid two-col">
-            <div class="form-field">
-              <label>タイトル</label>
-              <input type="text" id="cornerIndustryTitle" placeholder="業界・企業Q&Aコーナー">
+        <details class="corner-manage-group" open>
+          <summary>質問管理</summary>
+          <div class="corner-manage-body">
+            <div class="corner-admin-form" id="cornerAdminForm" style="display:none;">
+              <div class="form-title" id="cornerFormTitle">コーナー質問を管理</div>
+              <input type="hidden" id="cornerEditId">
+              <div class="form-grid two-col">
+                <div class="form-field">
+                  <label>ニックネーム</label>
+                  <div class="readonly-box" id="cornerViewNickname">-</div>
+                </div>
+                <div class="form-field">
+                  <label>カテゴリ</label>
+                  <div class="readonly-box" id="cornerViewCategory">-</div>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>タイトル</label>
+                <div class="readonly-box" id="cornerViewTitle">-</div>
+              </div>
+              <div class="form-field">
+                <label>本文</label>
+                <div class="readonly-box" id="cornerViewBody">-</div>
+              </div>
+              <div class="form-grid two-col">
+                <div class="form-field">
+                  <label>回答者名</label>
+                  <input type="text" id="cornerAnsweredBy" placeholder="スタッフ名">
+                </div>
+                <div class="form-field">
+                  <label>公開設定</label>
+                  <label class="form-check-card"><input type="checkbox" id="cornerPublished"><span>customer 側に公開する</span></label>
+                </div>
+              </div>
+              <div class="form-field">
+                <label>回答</label>
+                <textarea id="cornerAnswerBody" placeholder="customer 側に表示する回答を入力"></textarea>
+              </div>
+              <div class="form-btns">
+                <button class="btn-primary" id="cornerSubmitBtn" onclick="submitCornerAnswer()">保存する</button>
+                <button class="btn-secondary" onclick="cancelCornerEdit()">キャンセル</button>
+              </div>
             </div>
-            <div class="form-field">
-              <label>説明文</label>
-              <input type="text" id="cornerIndustryNote" placeholder="タグの説明文">
-            </div>
-          </div>
-          <div class="corner-subsection-title">タグ一覧</div>
-          <div class="corner-repeater-list" id="cornerIndustryTags"></div>
-          <div class="form-btns">
-            <button class="btn-secondary" type="button" onclick="addCornerIndustryTag()">タグを追加</button>
-          </div>
-          <div class="corner-subsection-title">Q&A一覧</div>
-          <div class="corner-repeater-list" id="cornerIndustryItems"></div>
-          <div class="form-btns">
-            <button class="btn-secondary" type="button" onclick="addCornerIndustryItem()">Q&Aを追加</button>
-            <button class="btn-primary" type="button" onclick="saveCornerSection('industryQa')">保存する</button>
-          </div>
-        </section>
 
-        <section class="corner-admin-form corner-content-card">
-          <div class="form-title">スタッフ紹介・コラムコーナー</div>
-          <div class="form-field">
-            <label>タイトル</label>
-            <input type="text" id="cornerStaffTitle" placeholder="スタッフ紹介・コラム">
+            <div class="corner-section-title">投稿された質問一覧</div>
+            <div class="corner-items" id="cornerItems"><div class="empty-state">読み込み中...</div></div>
           </div>
-          <div class="corner-subsection-title">スタッフ紹介</div>
-          <div class="corner-repeater-list" id="cornerStaffEntries"></div>
-          <div class="form-btns">
-            <button class="btn-secondary" type="button" onclick="addCornerStaffEntry()">スタッフを追加</button>
+        </details>
+
+        <details class="corner-manage-group">
+          <summary>スタッフ紹介・コラム</summary>
+          <div class="corner-manage-body">
+            <section class="corner-admin-form corner-content-card">
+              <div class="form-field">
+                <label>タイトル</label>
+                <input type="text" id="cornerStaffTitle" placeholder="スタッフ紹介・コラム">
+              </div>
+              <div class="corner-subsection-title">スタッフ紹介</div>
+              <div class="corner-repeater-list" id="cornerStaffEntries"></div>
+              <div class="form-btns">
+                <button class="btn-secondary" type="button" onclick="addCornerStaffEntry()">スタッフを追加</button>
+              </div>
+              <div class="corner-subsection-title">コラム</div>
+              <div class="corner-repeater-list" id="cornerColumnEntries"></div>
+              <div class="form-btns">
+                <button class="btn-secondary" type="button" onclick="addCornerColumnEntry()">コラムを追加</button>
+                <button class="btn-primary" type="button" onclick="saveCornerSection('staffColumns')">保存する</button>
+              </div>
+            </section>
           </div>
-          <div class="corner-subsection-title">コラム</div>
-          <div class="corner-repeater-list" id="cornerColumnEntries"></div>
-          <div class="form-btns">
-            <button class="btn-secondary" type="button" onclick="addCornerColumnEntry()">コラムを追加</button>
-            <button class="btn-primary" type="button" onclick="saveCornerSection('staffColumns')">保存する</button>
-          </div>
-        </section>
+        </details>
       </div>
-
-      <div class="corner-admin-form" id="cornerAdminForm" style="display:none;">
-        <div class="form-title" id="cornerFormTitle">コーナー質問に回答する</div>
-        <input type="hidden" id="cornerEditId">
-        <div class="form-grid two-col">
-          <div class="form-field">
-            <label>ニックネーム</label>
-            <div class="readonly-box" id="cornerViewNickname">-</div>
-          </div>
-          <div class="form-field">
-            <label>カテゴリ</label>
-            <div class="readonly-box" id="cornerViewCategory">-</div>
-          </div>
-        </div>
-        <div class="form-field">
-          <label>タイトル</label>
-          <div class="readonly-box" id="cornerViewTitle">-</div>
-        </div>
-        <div class="form-field">
-          <label>本文</label>
-          <div class="readonly-box" id="cornerViewBody">-</div>
-        </div>
-        <div class="form-grid two-col">
-          <div class="form-field">
-            <label>回答者名</label>
-            <input type="text" id="cornerAnsweredBy" placeholder="スタッフ名">
-          </div>
-          <div class="form-field">
-            <label>公開設定</label>
-            <label class="form-check-card"><input type="checkbox" id="cornerPublished"><span>customer 側に公開する</span></label>
-          </div>
-        </div>
-        <div class="form-field">
-          <label>回答</label>
-          <textarea id="cornerAnswerBody" placeholder="customer 側に表示する回答を入力"></textarea>
-        </div>
-        <div class="form-btns">
-          <button class="btn-primary" id="cornerSubmitBtn" onclick="submitCornerAnswer()">保存する</button>
-          <button class="btn-secondary" onclick="cancelCornerEdit()">キャンセル</button>
-        </div>
-      </div>
-
-      <div class="corner-section-title">投稿された質問一覧</div>
-      <div class="corner-items" id="cornerItems"><div class="empty-state">読み込み中...</div></div>
     </div>
   </div>
 </div>
@@ -850,7 +880,6 @@
     cornerContentData = normalizeCornerContentForAdmin(cornerContentData || {});
     renderCornerWorriesEditor();
     renderCornerParticipationEditor();
-    renderCornerIndustryEditor();
     renderCornerStaffEditor();
   }
 
@@ -1456,6 +1485,7 @@
     document.getElementById('cornerPublished').checked = item.published === true;
     document.getElementById('cornerAnswerBody').value = item.answerBody || '';
     document.getElementById('cornerAdminForm').style.display = 'block';
+    document.getElementById('cornerAdminForm').classList.add('active-edit');
   }
 
   function cancelCornerEdit() {
@@ -1468,6 +1498,7 @@
     document.getElementById('cornerPublished').checked = false;
     document.getElementById('cornerAnswerBody').value = '';
     document.getElementById('cornerAdminForm').style.display = 'none';
+    document.getElementById('cornerAdminForm').classList.remove('active-edit');
   }
 
   function submitCornerAnswer() {

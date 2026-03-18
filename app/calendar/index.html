@@ -362,6 +362,10 @@
       position: relative;
       overflow: hidden;
     }
+    .corner-board.detail-mode {
+      max-width: 860px;
+      margin: 0 auto;
+    }
     .corner-board::before,
     .corner-board::after {
       content: '';
@@ -499,6 +503,11 @@
       grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
       gap: 18px;
       align-items: start;
+    }
+    .corner-board.detail-mode .corner-grid {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: 760px;
+      margin: 0 auto;
     }
     .corner-column {
       display: grid;
@@ -731,6 +740,12 @@
       grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
       gap: 18px;
       align-items: start;
+    }
+    .corner-board.detail-mode .corner-live-section {
+      grid-template-columns: minmax(0, 1fr);
+      max-width: 760px;
+      margin-left: auto;
+      margin-right: auto;
     }
     .corner-live-card {
       background: rgba(255,255,255,0.96);
@@ -1295,6 +1310,7 @@
         renderCorner();
       }
       syncCornerViewFromHash();
+      renderCorner();
       if (!cornerContentLoaded) {
         cornerContentLoaded = true;
         loadCornerContent();
@@ -1876,14 +1892,16 @@ window.onDayClick = function(dateISO) {
   }
 
   function applyCornerViewMode() {
+    var board = document.querySelector('.corner-board');
     var shell = document.getElementById('cornerSectionShell');
     var titleEl = document.getElementById('cornerSectionShellTitle');
     var noteEl = document.getElementById('cornerSectionShellNote');
     var questions = document.querySelector('.corner-live-section');
     var grid = document.querySelector('.corner-grid');
-    if (!shell || !titleEl || !noteEl || !questions || !grid) return;
+    if (!board || !shell || !titleEl || !noteEl || !questions || !grid) return;
 
     if (cornerViewMode === 'top') {
+      board.classList.remove('detail-mode');
       shell.classList.remove('visible');
       questions.style.display = '';
       grid.style.display = '';
@@ -1897,6 +1915,7 @@ window.onDayClick = function(dateISO) {
       staff: { title: 'スタッフ紹介・コラムコーナー', note: 'スタッフ紹介とコラムだけをまとめて見られます。' }
     }[cornerViewMode];
 
+    board.classList.add('detail-mode');
     shell.classList.add('visible');
     titleEl.textContent = meta ? meta.title : '';
     noteEl.textContent = meta ? meta.note : '';
@@ -2042,22 +2061,17 @@ window.onDayClick = function(dateISO) {
       }).join('');
       return '<section class="corner-question-group"><h4 class="corner-question-group-title">' + esc(group.label) + '</h4><div class="corner-inline-list">' + items + '</div></section>';
     }).join('');
-    return '<section class="corner-card sketch"><div class="corner-card-header"><h3 class="corner-card-title">質問一覧 / Q&A コーナー</h3><p class="corner-card-note">カテゴリごとに質問と回答を整理しています。業界・企業Q&Aもこの一覧に含めています。</p></div><div class="corner-question-groups">' + groupHtml + '</div></section>';
+    return '<section class="corner-card sketch"><div class="corner-card-header"><h3 class="corner-card-title">質問一覧 / Q&A コーナー</h3><p class="corner-card-note">カテゴリごとに公開中の質問と回答を整理しています。業界・企業関連も同じ質問の流れで見られます。</p></div><div class="corner-question-groups">' + groupHtml + '</div></section>';
   }
 
   function getCornerQuestionGroups() {
-    var content = cornerContentData || window.CORNER_CONTENT || {};
     var questions = collectVisibleCornerQuestions();
-    var industryItems = collectIndustryQuestionItems(content.industryQa || {});
     var categories = ['job-hunt', 'class', 'other', 'industry'];
     return categories.map(function(category) {
       var merged = [];
       questions.forEach(function(item) {
         if ((item.category || 'other') === category) merged.push(item);
       });
-      if (category === 'industry') {
-        merged = merged.concat(industryItems);
-      }
       return {
         key: category,
         label: getCornerCategoryLabel(category),
@@ -2071,28 +2085,6 @@ window.onDayClick = function(dateISO) {
     var items = [];
     if (!wrap) return items;
     return window.__cornerQuestionItems || [];
-  }
-
-  function collectIndustryQuestionItems(section) {
-    var tags = {};
-    (section.tags || []).forEach(function(tag) {
-      if (tag && tag.id && tag.published !== false) tags[tag.id] = tag.label || '';
-    });
-    return (section.items || []).filter(function(item) {
-      return item && item.published !== false;
-    }).map(function(item) {
-      return {
-        id: 'industry-managed-' + item.id,
-        category: 'industry',
-        title: item.title || '',
-        body: item.comment || '',
-        answerBody: item.body || '',
-        answeredBy: tags[item.tagId] || 'スタッフ',
-        displayDate: '',
-        answeredDisplayDate: '',
-        previewText: item.comment || item.body || ''
-      };
-    });
   }
 
   function renderStaffSection(section) {
