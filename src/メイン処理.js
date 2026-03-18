@@ -273,6 +273,11 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(getCornerPageViews_()))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    if (param.action === 'pageViewReset') {
+      var pageViewResetResult = resetCornerPageViews_();
+      return ContentService.createTextOutput(JSON.stringify(pageViewResetResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // 混雑状況更新（スタッフ用）
     if (param.action === 'setCongestion') {
       var newLevel = parseInt(param.level || '0');

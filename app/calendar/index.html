@@ -2609,6 +2609,101 @@ window.onDayClick = function(dateISO) {
     cornerContentLoaded = true;
     loadCornerContent();
   }
+
+  function getVisibleParticipationThemes(section) {
+    return (section && section.themes || []).filter(isParticipationThemeVisible).slice().sort(function(a, b) {
+      return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+    });
+  }
+
+  function resolveActiveParticipationTheme(section) {
+    var themes = getVisibleParticipationThemes(section);
+    if (!themes.length) return null;
+    for (var i = 0; i < themes.length; i++) {
+      if (themes[i].id === cornerSelectedParticipationThemeId) return themes[i];
+    }
+    cornerSelectedParticipationThemeId = themes[0].id;
+    return themes[0];
+  }
+
+  function renderParticipationSection(section) {
+    if (!section) return '';
+    var themes = getVisibleParticipationThemes(section);
+    if (!themes.length) {
+      return '<section class="corner-card sketch">'
+        + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.prompt || '') + ' ' + esc(section.note || '') + '</p></div>'
+        + '<div class="corner-question-empty">現在公開中のアンケートはありません。</div>'
+        + '</section>';
+    }
+
+    var activeTheme = resolveActiveParticipationTheme(section);
+    var themeStatus = getParticipationThemeDisplayStatus(activeTheme);
+    var voted = hasCornerParticipationVoted(activeTheme.id);
+    var canVote = themeStatus === 'active' || themeStatus === 'always';
+    var totalVotes = (activeTheme.options || []).reduce(function(sum, option) {
+      return sum + Number(option.votes || 0);
+    }, 0);
+    var themeTabs = themes.length > 1
+      ? '<div class="corner-tag-row">' + themes.map(function(theme) {
+          return '<button type="button" class="corner-chip' + (theme.id === activeTheme.id ? ' active' : '') + '" onclick="selectCornerParticipationTheme(\'' + esc(theme.id) + '\')">' + esc(theme.title || '') + '</button>';
+        }).join('') + '</div>'
+      : '';
+    var optionHtml = (activeTheme.options || []).map(function(option) {
+      var votes = Number(option.votes || 0);
+      var percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+      if (voted || !canVote) {
+        return '<div class="corner-industry-item">'
+          + '<div class="corner-industry-head"><span class="corner-industry-name">' + esc(option.label || '') + '</span><span class="corner-industry-comment">' + percent + '% / ' + votes + '票</span></div>'
+          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#1a3a5c,#2a5f8f);"></div></div></div>'
+          + '</div>';
+      }
+      return '<button type="button" class="corner-section-link" style="text-align:left;" onclick="voteCornerParticipation(\'' + esc(activeTheme.id) + '\',\'' + esc(option.id) + '\')">'
+        + '<div class="corner-section-link-title">' + esc(option.label || '') + '</div>'
+        + '<div class="corner-section-link-note">この選択肢に投票する</div>'
+        + '</button>';
+    }).join('');
+
+    return '<section class="corner-card sketch">'
+      + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.prompt || '') + ' ' + esc(section.note || '') + '</p></div>'
+      + themeTabs
+      + '<div class="corner-worry-head other" style="margin-bottom:12px;">' + esc(activeTheme.title || '') + '</div>'
+      + '<div class="corner-card-note" style="margin-bottom:8px;">' + esc(activeTheme.description || '') + '</div>'
+      + '<div class="corner-card-note" style="margin-bottom:14px;font-weight:600;color:#1a3a5c;">' + esc(getParticipationPeriodLabel(activeTheme)) + '</div>'
+      + '<div class="corner-industry-list">' + optionHtml + '</div>'
+      + '<div class="corner-sticky">' + esc(section.stickyNote || '') + (voted ? ' 投票ありがとうございました。' : (canVote ? '' : ' 開始までは結果のみ表示しています。')) + '</div>'
+      + '</section>';
+  }
+
+  function selectCornerParticipationTheme(themeId) {
+    cornerSelectedParticipationThemeId = themeId || '';
+    renderCorner();
+    renderCongestionParticipation();
+  }
+
+  function renderCongestionParticipation() {
+    var wrap = document.getElementById('congestionPollContent');
+    if (!wrap) return;
+    var content = cornerContentData || window.CORNER_CONTENT;
+    if (!content || !content.participation) {
+      wrap.className = 'corner-question-empty';
+      wrap.textContent = 'アンケートは準備中です。';
+      return;
+    }
+    var participation = JSON.parse(JSON.stringify(content.participation || {}));
+    participation.themes = getVisibleParticipationThemes(participation);
+    if (!participation.themes.length) {
+      wrap.className = 'corner-question-empty';
+      wrap.textContent = '現在公開中のアンケートはありません。';
+      return;
+    }
+    if (!resolveActiveParticipationTheme(participation)) {
+      wrap.className = 'corner-question-empty';
+      wrap.textContent = '現在公開中のアンケートはありません。';
+      return;
+    }
+    wrap.className = '';
+    wrap.innerHTML = renderParticipationSection(participation);
+  }
 </script>
 </body>
 </html>

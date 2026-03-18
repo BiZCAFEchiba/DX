@@ -173,6 +173,76 @@ function voteCornerParticipation_(themeId, optionId) {
   };
 }
 
+function getDefaultCornerPageViewCounts_() {
+  return {
+    congestion: 0,
+    calendar: 0,
+    qa: 0,
+    notices: 0,
+    free_board: 0,
+    recruit: 0
+  };
+}
+
+function loadCornerPageViewState_() {
+  var defaults = {
+    counts: getDefaultCornerPageViewCounts_(),
+    lastResetAt: ''
+  };
+  var raw = PropertiesService.getScriptProperties().getProperty(CORNER_PAGE_VIEWS_PROP_KEY);
+  if (!raw) return defaults;
+  try {
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return defaults;
+    if (parsed.counts && typeof parsed.counts === 'object') {
+      Object.keys(parsed.counts).forEach(function(key) {
+        defaults.counts[key] = Number(parsed.counts[key] || 0);
+      });
+      defaults.lastResetAt = sanitizeCornerText_(parsed.lastResetAt || '');
+      return defaults;
+    }
+    Object.keys(parsed).forEach(function(key) {
+      if (key !== 'lastResetAt') defaults.counts[key] = Number(parsed[key] || 0);
+    });
+    defaults.lastResetAt = sanitizeCornerText_(parsed.lastResetAt || '');
+    return defaults;
+  } catch (err) {
+    return defaults;
+  }
+}
+
+function saveCornerPageViewState_(state) {
+  PropertiesService.getScriptProperties().setProperty(
+    CORNER_PAGE_VIEWS_PROP_KEY,
+    JSON.stringify({
+      counts: state && state.counts ? state.counts : getDefaultCornerPageViewCounts_(),
+      lastResetAt: state && state.lastResetAt ? state.lastResetAt : ''
+    })
+  );
+}
+
+function trackCornerPageView_(pageKey) {
+  var key = sanitizeCornerText_(pageKey);
+  if (!key) return { ok: false, error: 'page_key_required' };
+  var state = loadCornerPageViewState_();
+  state.counts[key] = Number(state.counts[key] || 0) + 1;
+  saveCornerPageViewState_(state);
+  return { ok: true, pageKey: key, count: state.counts[key], lastResetAt: state.lastResetAt || '' };
+}
+
+function getCornerPageViews_() {
+  return loadCornerPageViewState_();
+}
+
+function resetCornerPageViews_() {
+  var state = {
+    counts: getDefaultCornerPageViewCounts_(),
+    lastResetAt: getCornerNowIso_()
+  };
+  saveCornerPageViewState_(state);
+  return { ok: true, lastResetAt: state.lastResetAt, counts: state.counts };
+}
+
 function loadCornerQuestions_() {
   var raw = PropertiesService.getScriptProperties().getProperty(CORNER_QUESTIONS_PROP_KEY) || '[]';
   try {

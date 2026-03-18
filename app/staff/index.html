@@ -699,6 +699,8 @@
       + '<div class="section-title">タブ訪問回数</div>'
       + '<div class="corner-admin-form corner-content-card">'
       + '<div class="corner-inline-help">customer 側で各タブが開かれた回数の簡易集計です。</div>'
+      + '<div id="counterMeta" class="corner-inline-help">最終リセット: 未実行</div>'
+      + '<div class="form-btns" style="margin-top:8px;margin-bottom:8px;"><button class="btn-secondary" type="button" onclick="resetPageViewStats()">リセット</button></div>'
       + '<div id="counterStats" class="readonly-box">読み込み中...</div>'
       + '</div>'
       + '</div>';
@@ -2591,6 +2593,169 @@
   if (!cornerContentLoaded) {
     cornerContentLoaded = true;
     loadCornerContentAdmin();
+  }
+
+  var congestionParticipationOpenIds = {};
+
+  function snapshotCongestionParticipationOpenState() {
+    Array.prototype.forEach.call(document.querySelectorAll('.congestion-participation-theme-card'), function(card) {
+      var themeId = card.getAttribute('data-theme-id');
+      if (themeId) congestionParticipationOpenIds[themeId] = !!card.open;
+    });
+  }
+
+  function restoreCongestionParticipationOpenState(card, theme) {
+    if (!card || !theme || !theme.id) return;
+    if (congestionParticipationOpenIds[theme.id]) card.open = true;
+    card.addEventListener('toggle', function() {
+      congestionParticipationOpenIds[theme.id] = !!card.open;
+    });
+  }
+
+  function loadPageViewStats() {
+    var wrap = document.getElementById('counterStats');
+    var meta = document.getElementById('counterMeta');
+    if (!wrap) return;
+    wrap.textContent = '読み込み中...';
+    if (meta) meta.textContent = '最終リセット: 読み込み中...';
+    fetch(GAS_API_URL + '?page=calendar&action=pageViewGet')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderPageViewStats(data || {}); })
+      .catch(function() {
+        wrap.textContent = '読み込みに失敗しました';
+        if (meta) meta.textContent = '最終リセット: 取得できませんでした';
+      });
+  }
+
+  function renderPageViewStats(data) {
+    var wrap = document.getElementById('counterStats');
+    var meta = document.getElementById('counterMeta');
+    if (!wrap) return;
+    var counts = data && data.counts ? data.counts : data;
+    var labels = {
+      congestion: '混雑状況',
+      calendar: 'カレンダー',
+      qa: 'Q&A',
+      notices: 'お知らせ',
+      free_board: 'なんでも掲示板',
+      recruit: '採用'
+    };
+    wrap.innerHTML = Object.keys(labels).map(function(key) {
+      return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eef2f6;">'
+        + '<span>' + esc(labels[key]) + '</span>'
+        + '<strong>' + esc(String(Number(counts[key] || 0))) + '回</strong>'
+        + '</div>';
+    }).join('');
+    if (meta) {
+      meta.textContent = '最終リセット: ' + (data && data.lastResetAt ? formatCounterResetAt(data.lastResetAt) : '未実行');
+    }
+  }
+
+  function formatCounterResetAt(value) {
+    if (!value) return '未実行';
+    var date = new Date(value);
+    if (isNaN(date.getTime())) return '未実行';
+    return date.getFullYear() + '/' + pad2(date.getMonth() + 1) + '/' + pad2(date.getDate()) + ' ' + pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+  }
+
+  function resetPageViewStats() {
+    if (!confirm('カウンタをリセットします。よろしいですか？')) return;
+    fetch(GAS_API_URL + '?page=calendar&action=pageViewReset')
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        if (!result || result.ok !== true) throw new Error('reset_failed');
+        renderPageViewStats(result);
+        showToast('カウンタをリセットしました');
+      })
+      .catch(function() { showToast('カウンタのリセットに失敗しました'); });
+  }
+
+  function renderCongestionParticipationAdmin() {
+    if (!cornerContentData || !cornerContentData.participation) return;
+    snapshotCongestionParticipationOpenState();
+    var section = cornerContentData.participation;
+    var title = document.getElementById('congestionParticipationTitle');
+    var prompt = document.getElementById('congestionParticipationPrompt');
+    var note = document.getElementById('congestionParticipationNote');
+    var sticky = document.getElementById('congestionParticipationSticky');
+    var wrap = document.getElementById('congestionParticipationThemes');
+    if (!title || !prompt || !note || !sticky || !wrap) return;
+    title.value = section.title || '';
+    prompt.value = section.prompt || '';
+    note.value = section.note || '';
+    sticky.value = section.stickyNote || '';
+    wrap.innerHTML = '';
+    (section.themes || []).forEach(function(theme, index) {
+      var card = document.createElement('details');
+      card.className = 'corner-repeat-card congestion-participation-theme-card';
+      card.dataset.index = index;
+      card.setAttribute('data-theme-id', theme.id || '');
+      card.innerHTML = '<summary class="corner-repeat-card-header" style="cursor:pointer;list-style:none;"><div class="corner-repeat-card-title">' + esc(theme.title || ('テーマ ' + (index + 1))) + ' <span class="corner-item-status">' + esc(parseCornerThemeStatus(theme)) + '</span><div style="font-size:12px;color:#6b7b88;margin-top:4px;">' + esc(getCornerThemePeriodSummary(theme)) + '</div></div></summary>'
+        + '<div class="corner-inline-actions" style="justify-content:flex-end;margin:10px 0 6px;"><button class="btn-sm btn-delete" type="button" onclick="removeCongestionParticipationTheme(' + index + ')">削除</button></div>'
+        + '<div class="form-grid two-col">'
+        + '<div class="form-field"><label>タイトル</label><input type="text" data-field="title" value="' + esc(theme.title || '') + '"></div>'
+        + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(theme.sortOrder || 0) + '"></div>'
+        + '<div class="form-field"><label>表示開始日時</label><input type="datetime-local" data-field="startAt" value="' + esc(formatCornerDateTimeLocal(theme.startAt || '')) + '"></div>'
+        + '<div class="form-field"><label>表示終了日時</label><input type="datetime-local" data-field="endAt" value="' + esc(formatCornerDateTimeLocal(theme.endAt || '')) + '"></div>'
+        + '</div>'
+        + '<div class="form-field"><label>説明文</label><textarea data-field="description">' + esc(theme.description || '') + '</textarea></div>'
+        + '<label class="corner-inline-checkbox"><input type="checkbox" data-field="published"' + (theme.published ? ' checked' : '') + '> 公開する</label>'
+        + '<div class="corner-subsection-title">選択肢</div>'
+        + '<div class="corner-repeater-list" id="congestionParticipationOptions-' + index + '"></div>'
+        + '<div class="corner-inline-actions"><button class="btn-sm btn-edit" type="button" onclick="addCongestionParticipationOption(' + index + ')">選択肢を追加</button></div>';
+      wrap.appendChild(card);
+      restoreCongestionParticipationOpenState(card, theme);
+      renderCongestionParticipationOptions(index);
+    });
+  }
+
+  function addCongestionParticipationTheme() {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    cornerContentData.participation.themes.push({
+      id: makeCornerLocalId('participation-theme'),
+      title: '',
+      description: '',
+      published: true,
+      sortOrder: (cornerContentData.participation.themes.length + 1) * 10,
+      startAt: '',
+      endAt: '',
+      options: []
+    });
+    var last = cornerContentData.participation.themes[cornerContentData.participation.themes.length - 1];
+    if (last && last.id) congestionParticipationOpenIds[last.id] = true;
+    renderCongestionParticipationAdmin();
+  }
+
+  function removeCongestionParticipationTheme(index) {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    var theme = cornerContentData.participation.themes[index];
+    if (theme && theme.id) delete congestionParticipationOpenIds[theme.id];
+    cornerContentData.participation.themes.splice(index, 1);
+    renderCongestionParticipationAdmin();
+  }
+
+  function addCongestionParticipationOption(themeIndex) {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    var theme = cornerContentData.participation.themes[themeIndex];
+    if (!theme) return;
+    if (theme.id) congestionParticipationOpenIds[theme.id] = true;
+    theme.options.push({
+      id: makeCornerLocalId('participation-option'),
+      label: '',
+      votes: 0,
+      published: true,
+      sortOrder: (theme.options.length + 1) * 10
+    });
+    renderCongestionParticipationAdmin();
+  }
+
+  function removeCongestionParticipationOption(themeIndex, optionIndex) {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    var theme = cornerContentData.participation.themes[themeIndex];
+    if (!theme) return;
+    if (theme.id) congestionParticipationOpenIds[theme.id] = true;
+    theme.options.splice(optionIndex, 1);
+    renderCongestionParticipationAdmin();
   }
 </script>
 </body>
