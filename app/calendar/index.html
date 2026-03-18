@@ -1287,8 +1287,13 @@
   function applyCustomerTabLabels() {
     var boardTab = document.getElementById('tabBtnBoard');
     var cornerTab = document.getElementById('tabBtnCorner');
+    var recruitTab = document.getElementById('tabBtnRecruit');
     if (boardTab) boardTab.innerHTML = '<span class="tab-icon">📣</span>お知らせ';
-    if (cornerTab) cornerTab.innerHTML = '<span class="tab-icon">💬</span>なんでも掲示板';
+    if (cornerTab) cornerTab.innerHTML = '<span class="tab-icon">📋</span>なんでも掲示板';
+    if (recruitTab) recruitTab.onclick = function() {
+      trackPageView('recruit');
+      window.open('https://recruit.shirucafe.com/', '_blank');
+    };
 
     var heroKicker = document.querySelector('.corner-kicker');
     var heroTitle = document.querySelector('.corner-title');
@@ -1302,17 +1307,14 @@
   }
 
   function getCurrentPageViewKey(name) {
-    if (name === 'board') return 'notices';
-    if (name === 'corner') {
-      return {
-        top: 'free_board',
-        worries: 'corner_worries',
-        participation: 'corner_participation',
-        questions: 'corner_questions',
-        staff: 'corner_staff'
-      }[cornerViewMode || 'top'] || 'free_board';
-    }
-    return 'calendar_home';
+    return {
+      congestion: 'congestion',
+      calendar: 'calendar',
+      qa: 'qa',
+      board: 'notices',
+      corner: 'free_board',
+      recruit: 'recruit'
+    }[name] || 'calendar';
   }
 
   function trackPageView(pageKey) {
@@ -2398,7 +2400,7 @@ window.onDayClick = function(dateISO) {
   }
   applyCustomerTabLabels();
   if (window.location.hash !== '#board' && (window.location.hash || '').indexOf('#corner') !== 0) {
-    trackPageView('calendar_home');
+    trackPageView('congestion');
   }
 </script>
 </body>

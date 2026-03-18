@@ -838,13 +838,12 @@ function getCornerPageViews_() {
 
 function loadCornerPageViews_() {
   var defaults = {
-    calendar_home: 0,
+    congestion: 0,
+    calendar: 0,
+    qa: 0,
     notices: 0,
     free_board: 0,
-    corner_worries: 0,
-    corner_participation: 0,
-    corner_questions: 0,
-    corner_staff: 0
+    recruit: 0
   };
   var raw = PropertiesService.getScriptProperties().getProperty(CORNER_PAGE_VIEWS_PROP_KEY);
   if (!raw) return defaults;
