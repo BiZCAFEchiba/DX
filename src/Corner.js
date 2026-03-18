@@ -865,3 +865,136 @@ function saveCornerPageViews_(counts) {
     JSON.stringify(counts || {})
   );
 }
+
+function parseCornerDateTimeValue_(value) {
+  var text = sanitizeCornerText_(value);
+  if (!text) return '';
+  var date = new Date(text);
+  if (isNaN(date.getTime())) return '';
+  return Utilities.formatDate(date, TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
+}
+
+function getCornerNowDate_() {
+  return new Date(getCornerNowIso_());
+}
+
+function getCornerThemeLifecycleStatus_(theme, nowDate) {
+  var now = nowDate || getCornerNowDate_();
+  if (!theme || theme.published === false) return 'hidden';
+  var start = theme.startAt ? new Date(theme.startAt) : null;
+  var end = theme.endAt ? new Date(theme.endAt) : null;
+  if (start && !isNaN(start.getTime()) && now < start) return 'upcoming';
+  if (end && !isNaN(end.getTime()) && now > end) return 'ended';
+  return 'active';
+}
+
+function normalizeCornerParticipationSection_(section) {
+  var next = {
+    title: sanitizeCornerText_(section.title || '参加型コーナー'),
+    prompt: sanitizeCornerText_(section.prompt || ''),
+    note: sanitizeCornerText_(section.note || ''),
+    stickyNote: sanitizeCornerText_(section.stickyNote || ''),
+    themes: []
+  };
+  var themes = Array.isArray(section.themes) ? section.themes : [];
+  for (var i = 0; i < themes.length; i++) {
+    var theme = themes[i] || {};
+    var normalizedTheme = {
+      id: sanitizeCornerText_(theme.id || ('theme-' + (i + 1))),
+      title: sanitizeCornerText_(theme.title || 'テーマ'),
+      description: sanitizeCornerText_(theme.description || ''),
+      published: theme.published !== false,
+      sortOrder: parseCornerSortOrder_(theme.sortOrder, (i + 1) * 10),
+      startAt: parseCornerDateTimeValue_(theme.startAt || ''),
+      endAt: parseCornerDateTimeValue_(theme.endAt || ''),
+      options: []
+    };
+    var options = Array.isArray(theme.options) ? theme.options : [];
+    for (var j = 0; j < options.length; j++) {
+      var option = options[j] || {};
+      normalizedTheme.options.push({
+        id: sanitizeCornerText_(option.id || (normalizedTheme.id + '-option-' + (j + 1))),
+        label: sanitizeCornerText_(option.label || ''),
+        votes: parseCornerVoteCount_(option.votes),
+        published: option.published !== false,
+        sortOrder: parseCornerSortOrder_(option.sortOrder, (j + 1) * 10)
+      });
+    }
+    normalizedTheme.options = normalizedTheme.options
+      .filter(function(option) { return option.label; })
+      .sort(sortCornerByOrder_);
+    if (normalizedTheme.title && normalizedTheme.options.length) {
+      next.themes.push(normalizedTheme);
+    }
+  }
+  next.themes.sort(sortCornerByOrder_);
+  return next;
+}
+
+function filterPublishedCornerContent_(content) {
+  var normalized = normalizeCornerContent_(content);
+  var now = getCornerNowDate_();
+  normalized.questionCategories = normalized.questionCategories.filter(function(item) {
+    return item.published !== false;
+  });
+  normalized.worries.categories = normalized.worries.categories
+    .filter(function(category) { return category.published; })
+    .map(function(category) {
+      var next = copyCornerObject_(category);
+      next.entries = next.entries.filter(function(entry) { return entry.published; });
+      return next;
+    })
+    .filter(function(category) { return category.entries.length > 0; });
+  normalized.participation.themes = normalized.participation.themes
+    .filter(function(theme) { return getCornerThemeLifecycleStatus_(theme, now) === 'active'; })
+    .map(function(theme) {
+      var nextTheme = copyCornerObject_(theme);
+      nextTheme.options = (nextTheme.options || []).filter(function(option) {
+        return option.published !== false;
+      });
+      return nextTheme;
+    })
+    .filter(function(theme) { return theme.options.length > 0; });
+  normalized.staffColumns.staff = normalized.staffColumns.staff.filter(function(item) { return item.published; });
+  normalized.staffColumns.columns = normalized.staffColumns.columns.filter(function(item) { return item.published; });
+  return normalized;
+}
+
+function voteCornerParticipation_(themeId, optionId) {
+  var targetThemeId = sanitizeCornerText_(themeId);
+  var targetOptionId = sanitizeCornerText_(optionId);
+  if (!targetThemeId) return { ok: false, error: 'theme_required' };
+  if (!targetOptionId) return { ok: false, error: 'option_required' };
+
+  var content = loadCornerContent_();
+  var themes = content.participation && Array.isArray(content.participation.themes) ? content.participation.themes : [];
+  var theme = null;
+  for (var i = 0; i < themes.length; i++) {
+    if (themes[i].id === targetThemeId) {
+      theme = themes[i];
+      break;
+    }
+  }
+  if (!theme) return { ok: false, error: 'theme_not_found' };
+  if (getCornerThemeLifecycleStatus_(theme, getCornerNowDate_()) !== 'active') {
+    return { ok: false, error: 'theme_inactive' };
+  }
+
+  var option = null;
+  for (var j = 0; j < theme.options.length; j++) {
+    if (theme.options[j].id === targetOptionId) {
+      option = theme.options[j];
+      break;
+    }
+  }
+  if (!option || option.published === false) return { ok: false, error: 'option_not_found' };
+
+  option.votes = parseCornerVoteCount_(option.votes) + 1;
+  saveCornerContent_(content);
+  return {
+    ok: true,
+    themeId: targetThemeId,
+    optionId: targetOptionId,
+    theme: copyCornerObject_(theme)
+  };
+}

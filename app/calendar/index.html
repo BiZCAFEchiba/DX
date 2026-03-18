@@ -1094,6 +1094,11 @@
           <div class="congestion-sublabel" id="congestionSublabel">スタッフが更新します</div>
           <div class="business-hours-label" id="businessHoursLabel"></div>
         </div>
+        <section class="congestion-poll-section" id="congestionPollSection">
+          <div class="corner-card sketch" id="congestionPollCard">
+            <div id="congestionPollContent" class="corner-question-empty">読み込み中...</div>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -1168,6 +1173,25 @@
             <a href="board_articles.html" class="board-more-btn">すべて見る</a>
           </div>
           <div class="article-grid" id="articleGrid"></div>
+        </section>
+        <section class="board-section sns-section">
+          <div class="board-header">
+            <h2 class="board-title">SNSでも情報発信しています</h2>
+          </div>
+          <div class="sns-link-grid">
+            <a class="sns-link-card instagram" href="https://www.instagram.com/bizcafe_chiba?igsh=MTR0aGYxaWJvMmN3bw==" target="_blank" rel="noopener noreferrer">
+              <span class="sns-link-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3H7zm10.5 1.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2zM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" fill="currentColor"/></svg>
+              </span>
+              <span class="sns-link-body"><span class="sns-link-name">Instagram</span><span class="sns-link-note">イベントや店内の様子を更新中</span></span>
+            </a>
+            <a class="sns-link-card x" href="https://x.com/bizcafe_chiba?s=21&t=p2IDmUbITB8gE7T0y1dQxQ" target="_blank" rel="noopener noreferrer">
+              <span class="sns-link-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M18.9 2H22l-6.77 7.74L23 22h-6.1l-4.78-6.25L6.65 22H3.53l7.24-8.27L1 2h6.26l4.32 5.7L18.9 2zm-1.07 18h1.69L6.35 3.9H4.54L17.83 20z" fill="currentColor"/></svg>
+              </span>
+              <span class="sns-link-body"><span class="sns-link-name">X</span><span class="sns-link-note">最新のお知らせを気軽にチェック</span></span>
+            </a>
+          </div>
         </section>
       </div>
     </div>
@@ -2401,6 +2425,104 @@ window.onDayClick = function(dateISO) {
   applyCustomerTabLabels();
   if (window.location.hash !== '#board' && (window.location.hash || '').indexOf('#corner') !== 0) {
     trackPageView('congestion');
+  }
+
+  function injectCornerSupplementStyles() {
+    if (document.getElementById('cornerSupplementStyles')) return;
+    var style = document.createElement('style');
+    style.id = 'cornerSupplementStyles';
+    style.textContent = ''
+      + '.congestion-poll-section{margin-top:18px;}'
+      + '.congestion-poll-section .corner-card{margin:0;}'
+      + '.sns-link-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}'
+      + '.sns-link-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid #d7e0ea;border-radius:14px;background:#fff;color:#1a3a5c;text-decoration:none;box-shadow:0 1px 4px rgba(0,0,0,.05);}'
+      + '.sns-link-card:hover{background:#f7fafc;}'
+      + '.sns-link-icon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}'
+      + '.sns-link-icon svg{width:22px;height:22px;}'
+      + '.sns-link-body{display:flex;flex-direction:column;gap:2px;}'
+      + '.sns-link-name{font-weight:700;}'
+      + '.sns-link-note{font-size:.82rem;color:#5f7285;}';
+    document.head.appendChild(style);
+  }
+
+  function isParticipationThemeVisible(theme) {
+    if (!theme || theme.published === false) return false;
+    var now = new Date();
+    if (theme.startAt) {
+      var start = new Date(theme.startAt);
+      if (!isNaN(start.getTime()) && now < start) return false;
+    }
+    if (theme.endAt) {
+      var end = new Date(theme.endAt);
+      if (!isNaN(end.getTime()) && now > end) return false;
+    }
+    return true;
+  }
+
+  function renderCongestionParticipation() {
+    var wrap = document.getElementById('congestionPollContent');
+    if (!wrap) return;
+    var content = cornerContentData || window.CORNER_CONTENT;
+    if (!content || !content.participation) {
+      wrap.className = 'corner-question-empty';
+      wrap.textContent = 'アンケートは準備中です。';
+      return;
+    }
+    var participation = JSON.parse(JSON.stringify(content.participation || {}));
+    participation.themes = (participation.themes || []).filter(isParticipationThemeVisible);
+    if (!participation.themes.length) {
+      wrap.className = 'corner-question-empty';
+      wrap.textContent = '現在公開中のアンケートはありません。';
+      return;
+    }
+    wrap.className = '';
+    wrap.innerHTML = renderParticipationSection(participation);
+  }
+
+  var originalLoadCornerContent = loadCornerContent;
+  loadCornerContent = function() {
+    return fetch(GAS_API_URL + '?page=calendar&action=cornerContentGet')
+      .then(function(r) { return r.json(); })
+      .then(function(content) {
+        cornerContentData = content && typeof content === 'object' ? content : null;
+        initCornerCategoryOptions();
+        renderCorner();
+        renderCongestionParticipation();
+      })
+      .catch(function() {
+        cornerContentData = null;
+        initCornerCategoryOptions();
+        renderCorner();
+        renderCongestionParticipation();
+      });
+  };
+
+  var originalSwitchTab = switchTab;
+  switchTab = function(name) {
+    originalSwitchTab(name);
+    if (name === 'congestion') {
+      if (!cornerContentLoaded) {
+        cornerContentLoaded = true;
+        loadCornerContent();
+      } else {
+        renderCongestionParticipation();
+      }
+    }
+  };
+
+  var originalVoteCornerParticipation = voteCornerParticipation;
+  voteCornerParticipation = function(themeId, optionId) {
+    originalVoteCornerParticipation(themeId, optionId);
+    setTimeout(function() {
+      renderCongestionParticipation();
+    }, 150);
+  };
+
+  injectCornerSupplementStyles();
+  renderCongestionParticipation();
+  if (!cornerContentLoaded && window.location.hash !== '#board' && (window.location.hash || '').indexOf('#corner') !== 0) {
+    cornerContentLoaded = true;
+    loadCornerContent();
   }
 </script>
 </body>

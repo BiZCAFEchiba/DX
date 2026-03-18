@@ -368,6 +368,34 @@
       <div class="section-title">混雑度を選択して更新</div>
       <div class="level-grid" id="levelGrid"></div>
       <button class="update-btn" id="updateBtn" onclick="submitLevel()" disabled>更新する</button>
+      <div class="corner-admin-form corner-content-card" id="congestionPollAdmin">
+        <div class="form-title">アンケートを管理</div>
+        <div class="corner-inline-help">customer 側の混雑状況タブとなんでも掲示板の参加型コーナーで共通表示されます。</div>
+        <div class="form-grid two-col">
+          <div class="form-field">
+            <label>セクションタイトル</label>
+            <input type="text" id="congestionParticipationTitle" placeholder="参加型コーナー">
+          </div>
+          <div class="form-field">
+            <label>案内文</label>
+            <input type="text" id="congestionParticipationPrompt" placeholder="みんなのことを教えてください">
+          </div>
+        </div>
+        <div class="form-field">
+          <label>補足文</label>
+          <input type="text" id="congestionParticipationNote" placeholder="公開中のテーマだけ customer 側に表示されます">
+        </div>
+        <div class="form-field">
+          <label>メモ</label>
+          <input type="text" id="congestionParticipationSticky" placeholder="気軽に投票してください">
+        </div>
+        <div class="corner-inline-help">表示開始日時と表示終了日時の間だけ customer 側で表示・投票できます。</div>
+        <div class="corner-repeater-list" id="congestionParticipationThemes"></div>
+        <div class="form-btns">
+          <button class="btn-secondary" type="button" onclick="addCongestionParticipationTheme()">テーマを追加</button>
+          <button class="btn-primary" type="button" onclick="saveCongestionParticipation()">保存する</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2270,6 +2298,288 @@
 
   function pad2(num) {
     return String(num).padStart(2, '0');
+  }
+
+  function formatCornerDateTimeLocal(value) {
+    if (!value) return '';
+    var date = new Date(value);
+    if (isNaN(date.getTime())) return '';
+    return date.getFullYear()
+      + '-' + pad2(date.getMonth() + 1)
+      + '-' + pad2(date.getDate())
+      + 'T' + pad2(date.getHours())
+      + ':' + pad2(date.getMinutes());
+  }
+
+  function parseCornerThemeStatus(theme) {
+    if (!theme || theme.published === false) return '非公開';
+    var now = new Date();
+    var start = theme.startAt ? new Date(theme.startAt) : null;
+    var end = theme.endAt ? new Date(theme.endAt) : null;
+    if (start && !isNaN(start.getTime()) && now < start) return '開始前';
+    if (end && !isNaN(end.getTime()) && now > end) return '終了済み';
+    return '公開中';
+  }
+
+  function renderCornerParticipationEditor() {
+    var section = cornerContentData.participation;
+    document.getElementById('cornerParticipationTitle').value = section.title || '';
+    document.getElementById('cornerParticipationPrompt').value = section.prompt || '';
+    document.getElementById('cornerParticipationNote').value = section.note || '';
+    document.getElementById('cornerParticipationSticky').value = section.stickyNote || '';
+    var wrap = document.getElementById('cornerParticipationThemes');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    section.themes.forEach(function(theme, index) {
+      var card = document.createElement('div');
+      card.className = 'corner-repeat-card corner-participation-theme-card';
+      card.dataset.index = index;
+      card.innerHTML = '<div class="corner-repeat-card-header"><div class="corner-repeat-card-title">テーマ ' + (index + 1) + ' <span class="corner-item-status">' + esc(parseCornerThemeStatus(theme)) + '</span></div><button class="btn-sm btn-delete" type="button" onclick="removeCornerParticipationTheme(' + index + ')">削除</button></div>'
+        + '<div class="form-grid two-col">'
+        + '<div class="form-field"><label>タイトル</label><input type="text" data-field="title" value="' + esc(theme.title || '') + '"></div>'
+        + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(theme.sortOrder || 0) + '"></div>'
+        + '<div class="form-field"><label>表示開始日時</label><input type="datetime-local" data-field="startAt" value="' + esc(formatCornerDateTimeLocal(theme.startAt || '')) + '"></div>'
+        + '<div class="form-field"><label>表示終了日時</label><input type="datetime-local" data-field="endAt" value="' + esc(formatCornerDateTimeLocal(theme.endAt || '')) + '"></div>'
+        + '</div>'
+        + '<div class="form-field"><label>説明文</label><textarea data-field="description">' + esc(theme.description || '') + '</textarea></div>'
+        + '<label class="corner-inline-checkbox"><input type="checkbox" data-field="published"' + (theme.published ? ' checked' : '') + '> 公開する</label>'
+        + '<div class="corner-subsection-title">選択肢</div>'
+        + '<div class="corner-repeater-list" id="cornerParticipationOptions-' + index + '"></div>'
+        + '<div class="corner-inline-actions"><button class="btn-sm btn-edit" type="button" onclick="addCornerParticipationOption(' + index + ')">選択肢を追加</button></div>';
+      wrap.appendChild(card);
+      renderCornerParticipationOptions(index);
+    });
+  }
+
+  function renderCornerParticipationOptions(themeIndex) {
+    var theme = cornerContentData.participation.themes[themeIndex];
+    var wrap = document.getElementById('cornerParticipationOptions-' + themeIndex);
+    if (!theme || !wrap) return;
+    wrap.innerHTML = '';
+    theme.options.forEach(function(option, optionIndex) {
+      var card = document.createElement('div');
+      card.className = 'corner-repeat-card corner-participation-option-card';
+      card.dataset.optionIndex = optionIndex;
+      card.innerHTML = '<div class="corner-repeat-card-header"><div class="corner-repeat-card-title">選択肢 ' + (optionIndex + 1) + '</div><button class="btn-sm btn-delete" type="button" onclick="removeCornerParticipationOption(' + themeIndex + ',' + optionIndex + ')">削除</button></div>'
+        + '<div class="form-grid two-col">'
+        + '<div class="form-field"><label>表示名</label><input type="text" data-field="label" value="' + esc(option.label || '') + '"></div>'
+        + '<div class="form-field"><label>票数</label><input type="number" data-field="votes" value="' + esc(option.votes || 0) + '"></div>'
+        + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(option.sortOrder || 0) + '"></div>'
+        + '<div class="form-field"><label style="margin-top:27px;"><input type="checkbox" data-field="published"' + (option.published ? ' checked' : '') + '> 公開する</label></div>'
+        + '</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function readCornerParticipationFromDom() {
+    return {
+      title: document.getElementById('cornerParticipationTitle').value.trim(),
+      prompt: document.getElementById('cornerParticipationPrompt').value.trim(),
+      note: document.getElementById('cornerParticipationNote').value.trim(),
+      stickyNote: document.getElementById('cornerParticipationSticky').value.trim(),
+      themes: Array.prototype.map.call(document.querySelectorAll('.corner-participation-theme-card'), function(card, index) {
+        var current = cornerContentData.participation.themes[index];
+        return {
+          id: current ? current.id : makeCornerLocalId('participation-theme'),
+          title: card.querySelector('[data-field="title"]').value.trim(),
+          description: card.querySelector('[data-field="description"]').value.trim(),
+          published: card.querySelector('[data-field="published"]').checked,
+          sortOrder: parseInt(card.querySelector('[data-field="sortOrder"]').value, 10) || 0,
+          startAt: card.querySelector('[data-field="startAt"]').value || '',
+          endAt: card.querySelector('[data-field="endAt"]').value || '',
+          options: Array.prototype.map.call(card.querySelectorAll('.corner-participation-option-card'), function(optionCard, optionIndex) {
+            var currentOption = current && current.options ? current.options[optionIndex] : null;
+            return {
+              id: currentOption ? currentOption.id : makeCornerLocalId('participation-option'),
+              label: optionCard.querySelector('[data-field="label"]').value.trim(),
+              votes: parseInt(optionCard.querySelector('[data-field="votes"]').value, 10) || 0,
+              published: optionCard.querySelector('[data-field="published"]').checked,
+              sortOrder: parseInt(optionCard.querySelector('[data-field="sortOrder"]').value, 10) || 0
+            };
+          })
+        };
+      })
+    };
+  }
+
+  function renderCongestionParticipationAdmin() {
+    if (!cornerContentData || !cornerContentData.participation) return;
+    var section = cornerContentData.participation;
+    var title = document.getElementById('congestionParticipationTitle');
+    var prompt = document.getElementById('congestionParticipationPrompt');
+    var note = document.getElementById('congestionParticipationNote');
+    var sticky = document.getElementById('congestionParticipationSticky');
+    var wrap = document.getElementById('congestionParticipationThemes');
+    if (!title || !prompt || !note || !sticky || !wrap) return;
+    title.value = section.title || '';
+    prompt.value = section.prompt || '';
+    note.value = section.note || '';
+    sticky.value = section.stickyNote || '';
+    wrap.innerHTML = '';
+    (section.themes || []).forEach(function(theme, index) {
+      var card = document.createElement('div');
+      card.className = 'corner-repeat-card congestion-participation-theme-card';
+      card.dataset.index = index;
+      card.innerHTML = '<div class="corner-repeat-card-header"><div class="corner-repeat-card-title">テーマ ' + (index + 1) + ' <span class="corner-item-status">' + esc(parseCornerThemeStatus(theme)) + '</span></div><button class="btn-sm btn-delete" type="button" onclick="removeCongestionParticipationTheme(' + index + ')">削除</button></div>'
+        + '<div class="form-grid two-col">'
+        + '<div class="form-field"><label>タイトル</label><input type="text" data-field="title" value="' + esc(theme.title || '') + '"></div>'
+        + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(theme.sortOrder || 0) + '"></div>'
+        + '<div class="form-field"><label>表示開始日時</label><input type="datetime-local" data-field="startAt" value="' + esc(formatCornerDateTimeLocal(theme.startAt || '')) + '"></div>'
+        + '<div class="form-field"><label>表示終了日時</label><input type="datetime-local" data-field="endAt" value="' + esc(formatCornerDateTimeLocal(theme.endAt || '')) + '"></div>'
+        + '</div>'
+        + '<div class="form-field"><label>説明文</label><textarea data-field="description">' + esc(theme.description || '') + '</textarea></div>'
+        + '<label class="corner-inline-checkbox"><input type="checkbox" data-field="published"' + (theme.published ? ' checked' : '') + '> 公開する</label>'
+        + '<div class="corner-subsection-title">選択肢</div>'
+        + '<div class="corner-repeater-list" id="congestionParticipationOptions-' + index + '"></div>'
+        + '<div class="corner-inline-actions"><button class="btn-sm btn-edit" type="button" onclick="addCongestionParticipationOption(' + index + ')">選択肢を追加</button></div>';
+      wrap.appendChild(card);
+      renderCongestionParticipationOptions(index);
+    });
+  }
+
+  function renderCongestionParticipationOptions(themeIndex) {
+    var theme = cornerContentData && cornerContentData.participation && cornerContentData.participation.themes[themeIndex];
+    var wrap = document.getElementById('congestionParticipationOptions-' + themeIndex);
+    if (!theme || !wrap) return;
+    wrap.innerHTML = '';
+    (theme.options || []).forEach(function(option, optionIndex) {
+      var card = document.createElement('div');
+      card.className = 'corner-repeat-card congestion-participation-option-card';
+      card.innerHTML = '<div class="corner-repeat-card-header"><div class="corner-repeat-card-title">選択肢 ' + (optionIndex + 1) + '</div><button class="btn-sm btn-delete" type="button" onclick="removeCongestionParticipationOption(' + themeIndex + ',' + optionIndex + ')">削除</button></div>'
+        + '<div class="form-grid two-col">'
+        + '<div class="form-field"><label>表示名</label><input type="text" data-field="label" value="' + esc(option.label || '') + '"></div>'
+        + '<div class="form-field"><label>票数</label><input type="number" data-field="votes" value="' + esc(option.votes || 0) + '"></div>'
+        + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(option.sortOrder || 0) + '"></div>'
+        + '<div class="form-field"><label style="margin-top:27px;"><input type="checkbox" data-field="published"' + (option.published ? ' checked' : '') + '> 公開する</label></div>'
+        + '</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function readCongestionParticipationFromDom() {
+    return {
+      title: (document.getElementById('congestionParticipationTitle').value || '').trim(),
+      prompt: (document.getElementById('congestionParticipationPrompt').value || '').trim(),
+      note: (document.getElementById('congestionParticipationNote').value || '').trim(),
+      stickyNote: (document.getElementById('congestionParticipationSticky').value || '').trim(),
+      themes: Array.prototype.map.call(document.querySelectorAll('.congestion-participation-theme-card'), function(card, index) {
+        var current = cornerContentData.participation.themes[index];
+        return {
+          id: current ? current.id : makeCornerLocalId('participation-theme'),
+          title: card.querySelector('[data-field="title"]').value.trim(),
+          description: card.querySelector('[data-field="description"]').value.trim(),
+          published: card.querySelector('[data-field="published"]').checked,
+          sortOrder: parseInt(card.querySelector('[data-field="sortOrder"]').value, 10) || 0,
+          startAt: card.querySelector('[data-field="startAt"]').value || '',
+          endAt: card.querySelector('[data-field="endAt"]').value || '',
+          options: Array.prototype.map.call(card.querySelectorAll('.congestion-participation-option-card'), function(optionCard, optionIndex) {
+            var currentOption = current && current.options ? current.options[optionIndex] : null;
+            return {
+              id: currentOption ? currentOption.id : makeCornerLocalId('participation-option'),
+              label: optionCard.querySelector('[data-field="label"]').value.trim(),
+              votes: parseInt(optionCard.querySelector('[data-field="votes"]').value, 10) || 0,
+              published: optionCard.querySelector('[data-field="published"]').checked,
+              sortOrder: parseInt(optionCard.querySelector('[data-field="sortOrder"]').value, 10) || 0
+            };
+          })
+        };
+      })
+    };
+  }
+
+  function saveCongestionParticipation() {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    fetch(
+      GAS_API_URL
+        + '?page=calendar&action=cornerContentSave'
+        + '&section=participation'
+        + '&data=' + encodeURIComponent(JSON.stringify(cornerContentData.participation))
+    )
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        if (!result || result.ok !== true) throw new Error('save_failed');
+        renderCornerParticipationEditor();
+        renderCongestionParticipationAdmin();
+        showToast('アンケート設定を保存しました');
+      })
+      .catch(function() { showToast('アンケート設定の保存に失敗しました'); });
+  }
+
+  function addCongestionParticipationTheme() {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    cornerContentData.participation.themes.push({
+      id: makeCornerLocalId('participation-theme'),
+      title: '',
+      description: '',
+      published: true,
+      sortOrder: (cornerContentData.participation.themes.length + 1) * 10,
+      startAt: '',
+      endAt: '',
+      options: []
+    });
+    renderCongestionParticipationAdmin();
+  }
+
+  function removeCongestionParticipationTheme(index) {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    cornerContentData.participation.themes.splice(index, 1);
+    renderCongestionParticipationAdmin();
+  }
+
+  function addCongestionParticipationOption(themeIndex) {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    var theme = cornerContentData.participation.themes[themeIndex];
+    if (!theme) return;
+    theme.options.push({
+      id: makeCornerLocalId('participation-option'),
+      label: '',
+      votes: 0,
+      published: true,
+      sortOrder: (theme.options.length + 1) * 10
+    });
+    renderCongestionParticipationAdmin();
+  }
+
+  function removeCongestionParticipationOption(themeIndex, optionIndex) {
+    cornerContentData.participation = readCongestionParticipationFromDom();
+    var theme = cornerContentData.participation.themes[themeIndex];
+    if (!theme) return;
+    theme.options.splice(optionIndex, 1);
+    renderCongestionParticipationAdmin();
+  }
+
+  var originalLoadCornerContentAdmin = loadCornerContentAdmin;
+  loadCornerContentAdmin = function() {
+    return fetch(GAS_API_URL + '?page=calendar&action=cornerContentGet&staff=1')
+      .then(function(r) { return r.json(); })
+      .then(function(content) {
+        cornerContentData = content && typeof content === 'object' ? content : {};
+        renderCornerContentAdmin();
+        renderCongestionParticipationAdmin();
+      })
+      .catch(function() {
+        cornerContentData = {};
+        renderCornerContentAdmin();
+        renderCongestionParticipationAdmin();
+      });
+  };
+
+  var originalSwitchTabStaff = switchTab;
+  switchTab = function(name) {
+    originalSwitchTabStaff(name);
+    if (name === 'congestion') {
+      if (!cornerContentLoaded) {
+        cornerContentLoaded = true;
+        loadCornerContentAdmin();
+      } else {
+        renderCongestionParticipationAdmin();
+      }
+    }
+  };
+
+  if (!cornerContentLoaded) {
+    cornerContentLoaded = true;
+    loadCornerContentAdmin();
   }
 </script>
 </body>
