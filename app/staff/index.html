@@ -122,6 +122,59 @@
       display: inline-flex; align-items: center; background: #eaf2fb; color: #1a3a5c;
       border-radius: 999px; padding: 2px 8px; font-weight: 700;
     }
+    .board-editor-layout { display: grid; gap: 20px; }
+    .board-preview-panel {
+      border: 1px solid #dde6f0; border-radius: 12px; background: #f8fafc;
+      padding: 14px;
+    }
+    .board-preview-title {
+      font-size: 0.86rem; font-weight: 700; color: #1a3a5c; margin-bottom: 10px;
+    }
+    .board-preview-status {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; font-size: 0.74rem;
+    }
+    .board-preview-chip {
+      display: inline-flex; align-items: center; border-radius: 999px;
+      padding: 4px 9px; background: #eaf2fb; color: #1a3a5c; font-weight: 700;
+    }
+    .board-preview-chip.off { background: #eceff3; color: #777; }
+    .board-preview-article {
+      background: white; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0;
+    }
+    .board-preview-header {
+      background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
+      color: white; padding: 12px 16px; text-align: center; font-size: 1rem; font-weight: 700;
+    }
+    .board-preview-body { padding: 18px 16px 24px; }
+    .board-preview-meta {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin-bottom: 12px; font-size: 0.82rem;
+    }
+    .board-preview-type {
+      color: #1a3a5c; font-weight: 700; background: #eaf2fb; padding: 4px 8px; border-radius: 4px;
+    }
+    .board-preview-date { color: #666; }
+    .board-preview-heading {
+      font-size: 1.35rem; line-height: 1.45; color: #1a3a5c;
+      margin-bottom: 18px; font-weight: 700;
+    }
+    .board-preview-image {
+      width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden;
+      background: #eaf0f7; margin-bottom: 24px; display: flex; align-items: center; justify-content: center;
+      color: #7d8b9c; text-align: center; font-size: 0.88rem;
+    }
+    .board-preview-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .board-preview-content {
+      white-space: pre-wrap; font-size: 1rem; line-height: 1.8; color: #333;
+    }
+    .board-preview-footer {
+      margin-top: 28px; text-align: center;
+    }
+    .board-preview-back {
+      display: inline-block; padding: 10px 22px; border-radius: 8px;
+      border: 2px solid #1a3a5c; color: #1a3a5c; background: white; font-weight: 700;
+    }
     .empty-state {
       text-align: center; padding: 18px; color: #999; background: white; border-radius: 12px;
       box-shadow: 0 1px 6px rgba(0,0,0,0.06);
@@ -135,6 +188,11 @@
     @media (max-width: 640px) {
       .form-grid.two-col { grid-template-columns: 1fr; }
       .tab-btn { font-size: 0.72rem; }
+    }
+    @media (min-width: 980px) {
+      .container { max-width: 1160px; }
+      .board-editor-layout { grid-template-columns: minmax(0, 1fr) minmax(360px, 460px); align-items: start; }
+      .board-preview-panel { position: sticky; top: 20px; }
     }
   </style>
 </head>
@@ -202,6 +260,8 @@
       <div class="board-form">
         <div class="form-title" id="boardFormTitle">掲示板記事を作成</div>
         <input type="hidden" id="boardId">
+        <div class="board-editor-layout">
+          <div class="board-editor-fields">
         <div class="form-grid two-col">
           <div class="form-field">
             <label>タイトル (必須)</label>
@@ -216,10 +276,6 @@
           <div class="form-field">
             <label>表示日</label>
             <input type="date" id="boardDate">
-          </div>
-          <div class="form-field">
-            <label>要約</label>
-            <input type="text" id="boardSummary" placeholder="未入力なら本文冒頭を利用">
           </div>
         </div>
         <div class="form-grid two-col">
@@ -246,6 +302,30 @@
         <div class="form-btns">
           <button class="btn-primary" id="boardSubmitBtn" onclick="submitBoard()">保存する</button>
           <button class="btn-secondary" onclick="resetBoardForm()">フォームをクリア</button>
+        </div>
+          </div>
+          <div class="board-preview-panel">
+            <div class="board-preview-title">公開プレビュー</div>
+            <div class="board-preview-status" id="boardPreviewStatus"></div>
+            <div class="board-preview-article">
+              <div class="board-preview-header">BizCAFE 千葉大学店</div>
+              <div class="board-preview-body">
+                <div class="board-preview-meta">
+                  <span class="board-preview-type" id="previewCategory">お知らせ</span>
+                  <span class="board-preview-date" id="previewDate"></span>
+                </div>
+                <div class="board-preview-heading" id="previewTitle">タイトルを入力するとここに表示されます</div>
+                <div class="board-preview-image" id="previewImageWrap">
+                  <img id="previewImage" src="" alt="プレビュー画像" style="display:none;">
+                  <div id="previewImagePlaceholder">画像URLを入力するとここに表示されます</div>
+                </div>
+                <div class="board-preview-content" id="previewBody">本文を入力すると改行付きでここに表示されます。</div>
+                <div class="board-preview-footer">
+                  <span class="board-preview-back">一覧に戻る</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -281,6 +361,7 @@
   buildLevelButtons();
   loadCurrent();
   resetBoardForm();
+  initBoardPreview();
 
   function buildLevelButtons() {
     var grid = document.getElementById('levelGrid');
@@ -531,7 +612,7 @@
         + (item.showInUpdates ? '<span class="board-badge">更新一覧</span>' : '')
         + (item.showInArticles ? '<span class="board-badge">画像一覧</span>' : '')
         + '</div>'
-        + '<div class="board-item-summary">' + esc(item.summary || item.body || '') + '</div>'
+        + '<div class="board-item-summary">' + esc(item.summary || buildBoardSummaryText(item.body || '')) + '</div>'
         + '<div class="board-item-actions">'
         + '<button class="btn-sm btn-edit" onclick="startBoardEdit(\'' + item.id + '\')">編集</button>'
         + '<button class="btn-sm btn-toggle" onclick="toggleBoardPublished(\'' + item.id + '\',' + (!item.published) + ')">' + (item.published ? '非公開' : '公開する') + '</button>'
@@ -548,13 +629,13 @@
     document.getElementById('boardTitle').value = '';
     document.getElementById('boardCategory').value = '';
     document.getElementById('boardDate').value = todayDateValue();
-    document.getElementById('boardSummary').value = '';
     document.getElementById('boardImageUrl').value = '';
     document.getElementById('boardThumbnailUrl').value = '';
     document.getElementById('boardBody').value = '';
     document.getElementById('boardShowInUpdates').checked = true;
     document.getElementById('boardShowInArticles').checked = true;
     document.getElementById('boardPublished').checked = false;
+    renderBoardPreview();
   }
 
   function startBoardEdit(id) {
@@ -565,13 +646,13 @@
     document.getElementById('boardTitle').value = item.title || '';
     document.getElementById('boardCategory').value = item.category || '';
     document.getElementById('boardDate').value = (item.date || '').replace(/\//g, '-');
-    document.getElementById('boardSummary').value = item.summary || '';
     document.getElementById('boardImageUrl').value = item.imageUrl || '';
     document.getElementById('boardThumbnailUrl').value = item.thumbnailUrl || '';
     document.getElementById('boardBody').value = item.body || '';
     document.getElementById('boardShowInUpdates').checked = item.showInUpdates === true;
     document.getElementById('boardShowInArticles').checked = item.showInArticles === true;
     document.getElementById('boardPublished').checked = item.published === true;
+    renderBoardPreview();
     document.getElementById('paneBoard').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -580,7 +661,6 @@
       id: document.getElementById('boardId').value.trim(),
       title: document.getElementById('boardTitle').value.trim(),
       category: document.getElementById('boardCategory').value.trim(),
-      summary: document.getElementById('boardSummary').value.trim(),
       body: document.getElementById('boardBody').value.trim(),
       date: document.getElementById('boardDate').value,
       imageUrl: document.getElementById('boardImageUrl').value.trim(),
@@ -589,6 +669,7 @@
       showInArticles: document.getElementById('boardShowInArticles').checked,
       published: document.getElementById('boardPublished').checked
     };
+    payload.summary = buildBoardSummaryText(payload.body);
     if (!payload.title || !payload.body) {
       showToast('タイトルと本文は必須です');
       return;
@@ -643,6 +724,7 @@
 
   function saveBoardState(item, overrides) {
     var next = Object.assign({}, item, overrides || {});
+    next.summary = buildBoardSummaryText(next.body || '');
     var url = GAS_API_URL + '?page=calendar&action=boardSave'
       + '&id=' + encodeURIComponent(next.id || '')
       + '&title=' + encodeURIComponent(next.title || '')
@@ -663,6 +745,85 @@
         showToast('掲示板記事を更新しました');
       })
       .catch(function() { showToast('掲示板記事の更新に失敗しました'); });
+  }
+
+  function initBoardPreview() {
+    [
+      'boardTitle',
+      'boardCategory',
+      'boardDate',
+      'boardBody',
+      'boardImageUrl',
+      'boardThumbnailUrl',
+      'boardShowInUpdates',
+      'boardShowInArticles',
+      'boardPublished'
+    ].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('input', renderBoardPreview);
+      el.addEventListener('change', renderBoardPreview);
+    });
+    renderBoardPreview();
+  }
+
+  function getBoardPreviewData() {
+    var body = document.getElementById('boardBody').value.trim();
+    var imageUrl = document.getElementById('boardImageUrl').value.trim();
+    var thumbnailUrl = document.getElementById('boardThumbnailUrl').value.trim();
+    return {
+      title: document.getElementById('boardTitle').value.trim(),
+      category: document.getElementById('boardCategory').value.trim(),
+      date: document.getElementById('boardDate').value,
+      body: body,
+      summary: buildBoardSummaryText(body),
+      imageUrl: imageUrl,
+      thumbnailUrl: thumbnailUrl || imageUrl,
+      showInUpdates: document.getElementById('boardShowInUpdates').checked,
+      showInArticles: document.getElementById('boardShowInArticles').checked,
+      published: document.getElementById('boardPublished').checked
+    };
+  }
+
+  function renderBoardPreview() {
+    var data = getBoardPreviewData();
+    document.getElementById('previewCategory').textContent = data.category || 'お知らせ';
+    document.getElementById('previewDate').textContent = formatBoardPreviewDate(data.date);
+    document.getElementById('previewTitle').textContent = data.title || 'タイトルを入力するとここに表示されます';
+    document.getElementById('previewBody').textContent = data.body || '本文を入力すると改行付きでここに表示されます。';
+
+    var image = document.getElementById('previewImage');
+    var placeholder = document.getElementById('previewImagePlaceholder');
+    if (data.imageUrl) {
+      image.src = data.imageUrl;
+      image.style.display = 'block';
+      placeholder.style.display = 'none';
+    } else {
+      image.removeAttribute('src');
+      image.style.display = 'none';
+      placeholder.style.display = 'block';
+    }
+
+    document.getElementById('boardPreviewStatus').innerHTML =
+      buildBoardPreviewChip('更新一覧', data.showInUpdates) +
+      buildBoardPreviewChip('画像記事一覧', data.showInArticles) +
+      buildBoardPreviewChip(data.published ? '公開' : '非公開', data.published);
+  }
+
+  function buildBoardPreviewChip(label, active) {
+    return '<span class="board-preview-chip' + (active ? '' : ' off') + '">' + esc(label) + '</span>';
+  }
+
+  function buildBoardSummaryText(body) {
+    var text = String(body || '').replace(/\s+/g, ' ').trim();
+    if (!text) return '';
+    if (text.length <= 80) return text;
+    return text.slice(0, 80) + '...';
+  }
+
+  function formatBoardPreviewDate(value) {
+    if (!value) return '';
+    return value.replace(/-/g, '/');
   }
 
   function esc(s) {
