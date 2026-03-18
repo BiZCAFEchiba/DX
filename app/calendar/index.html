@@ -430,6 +430,70 @@
       box-shadow: 0 4px 14px rgba(122, 103, 43, 0.08);
       transform: rotate(-2deg);
     }
+    .corner-section-nav {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .corner-section-link {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid #dfe8f1;
+      border-radius: 18px;
+      padding: 14px 12px;
+      box-shadow: 0 6px 14px rgba(26, 58, 92, 0.06);
+      transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+    .corner-section-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 18px rgba(26, 58, 92, 0.1);
+    }
+    .corner-section-link-title {
+      font-size: 0.88rem;
+      font-weight: 800;
+      color: #1a3a5c;
+      margin-bottom: 4px;
+    }
+    .corner-section-link-note {
+      font-size: 0.77rem;
+      line-height: 1.55;
+      color: #6b7887;
+    }
+    .corner-section-shell {
+      display: none;
+      margin-bottom: 18px;
+      background: rgba(255, 255, 255, 0.82);
+      border-radius: 24px;
+      border: 1px solid #dfe8f1;
+      padding: 16px;
+    }
+    .corner-section-shell.visible {
+      display: block;
+    }
+    .corner-section-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      color: #1a3a5c;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    .corner-section-shell-title {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: #1a3a5c;
+      margin-bottom: 6px;
+    }
+    .corner-section-shell-note {
+      font-size: 0.84rem;
+      line-height: 1.65;
+      color: #607286;
+    }
     .corner-grid {
       display: grid;
       grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.95fr);
@@ -866,6 +930,62 @@
       color: #7d8b99;
       font-size: 0.88rem;
     }
+    .corner-question-more {
+      margin-top: 12px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .corner-more-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      color: #1a3a5c;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: #edf4fb;
+      border-radius: 999px;
+      padding: 8px 12px;
+    }
+    .corner-question-groups {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .corner-question-group {
+      background: #fff;
+      border: 1px solid #dde6ef;
+      border-radius: 20px;
+      padding: 16px;
+    }
+    .corner-question-group-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #1a3a5c;
+      margin-bottom: 12px;
+    }
+    .corner-inline-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .corner-static-toggle {
+      width: 100%;
+      border: none;
+      background: none;
+      padding: 0;
+      cursor: pointer;
+      text-align: left;
+    }
+    .corner-static-answer {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #d7e1ec;
+    }
+    .corner-q-item.open .corner-static-answer {
+      display: block;
+    }
 
     /* ===== モバイル: 横タブ ===== */
     @media (max-width: 600px) {
@@ -899,6 +1019,7 @@
       .corner-wrap { padding: 16px 12px 30px; }
       .corner-board { padding: 16px; border-radius: 22px; }
       .corner-title { font-size: 1.55rem; }
+      .corner-section-nav { grid-template-columns: 1fr; }
       .corner-grid,
       .corner-worry-grid { grid-template-columns: 1fr; }
       .corner-mini-note { max-width: none; transform: rotate(0deg); }
@@ -1048,6 +1169,29 @@
             </div>
             <div class="corner-mini-note">気になったテーマを眺めたり、スタッフの雰囲気を感じてください!</div>
           </div>
+          <div class="corner-section-nav">
+            <a class="corner-section-link" href="#corner-worries">
+              <div class="corner-section-link-title">お悩み相談</div>
+              <div class="corner-section-link-note">Qを開いてスタッフの答えを見る</div>
+            </a>
+            <a class="corner-section-link" href="#corner-participation">
+              <div class="corner-section-link-title">参加型コーナー</div>
+              <div class="corner-section-link-note">地域タグや参加メモを見る</div>
+            </a>
+            <a class="corner-section-link" href="#corner-questions">
+              <div class="corner-section-link-title">質問一覧 / Q&A</div>
+              <div class="corner-section-link-note">カテゴリ別に公開中の質問を見る</div>
+            </a>
+            <a class="corner-section-link" href="#corner-staff">
+              <div class="corner-section-link-title">スタッフ紹介・コラム</div>
+              <div class="corner-section-link-note">スタッフやコラムだけを見る</div>
+            </a>
+          </div>
+          <div class="corner-section-shell" id="cornerSectionShell">
+            <a class="corner-section-back" href="#corner">← コーナートップに戻る</a>
+            <div class="corner-section-shell-title" id="cornerSectionShellTitle"></div>
+            <div class="corner-section-shell-note" id="cornerSectionShellNote"></div>
+          </div>
           <section class="corner-live-section">
             <div class="corner-live-card">
               <div class="corner-live-title">質問を投稿する</div>
@@ -1087,6 +1231,9 @@
               <div class="corner-question-list" id="cornerQuestionList">
                 <div class="corner-question-empty">読み込み中...</div>
               </div>
+              <div class="corner-question-more" id="cornerQuestionMoreWrap" style="display:none;">
+                <a class="corner-more-link" href="#corner-questions">もっと見る</a>
+              </div>
             </div>
           </section>
           <div class="corner-grid">
@@ -1123,6 +1270,7 @@
   var cornerContentLoaded = false;
   var cornerContentData = null;
   var cornerIndustryFilter = 'all';
+  var cornerViewMode = 'top';
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
@@ -1146,6 +1294,7 @@
         cornerRendered = true;
         renderCorner();
       }
+      syncCornerViewFromHash();
       if (!cornerContentLoaded) {
         cornerContentLoaded = true;
         loadCornerContent();
@@ -1572,6 +1721,7 @@ window.onDayClick = function(dateISO) {
       .then(function(r) { return r.json(); })
       .then(function(items) {
         renderCornerQuestions(Array.isArray(items) ? items : []);
+        renderCorner();
       })
       .catch(function() {
         wrap.innerHTML = '<div class="corner-question-empty">質問一覧の読み込みに失敗しました。</div>';
@@ -1580,14 +1730,19 @@ window.onDayClick = function(dateISO) {
 
   function renderCornerQuestions(items) {
     var wrap = document.getElementById('cornerQuestionList');
+    var moreWrap = document.getElementById('cornerQuestionMoreWrap');
     if (!wrap) return;
+    var list = Array.isArray(items) ? items : [];
+    window.__cornerQuestionItems = list;
+    var displayItems = cornerViewMode === 'questions' ? list : list.slice(0, 3);
     if (!items || items.length === 0) {
       wrap.innerHTML = '<div class="corner-question-empty">まだ公開中の質問はありません。最初の1件を投稿してみてください。</div>';
+      if (moreWrap) moreWrap.style.display = 'none';
       return;
     }
 
     var html = '';
-    items.forEach(function(item) {
+    displayItems.forEach(function(item) {
       var categoryLabel = getCornerCategoryLabel(item.category);
       var answered = !!item.answerBody;
       html += '<article class="corner-question-item" id="cornerQuestionItem-' + esc(item.id) + '">'
@@ -1614,10 +1769,13 @@ window.onDayClick = function(dateISO) {
         + '</article>';
     });
     wrap.innerHTML = html;
+    if (moreWrap) {
+      moreWrap.style.display = (cornerViewMode !== 'questions' && list.length > 3) ? 'flex' : 'none';
+    }
   }
 
-  function toggleCornerQuestionDetail(id) {
-    var el = document.getElementById('cornerQuestionItem-' + id);
+  function toggleCornerQuestionDetail(id, pageMode) {
+    var el = document.getElementById((pageMode ? 'cornerQuestionPageItem-' : 'cornerQuestionItem-') + id);
     if (!el) return;
     el.classList.toggle('open');
   }
@@ -1701,31 +1859,92 @@ window.onDayClick = function(dateISO) {
       });
   }
 
+  function syncCornerViewFromHash() {
+    var hash = window.location.hash || '#corner';
+    if (hash === '#corner-worries') {
+      cornerViewMode = 'worries';
+    } else if (hash === '#corner-participation') {
+      cornerViewMode = 'participation';
+    } else if (hash === '#corner-questions') {
+      cornerViewMode = 'questions';
+    } else if (hash === '#corner-staff') {
+      cornerViewMode = 'staff';
+    } else {
+      cornerViewMode = 'top';
+    }
+    applyCornerViewMode();
+  }
+
+  function applyCornerViewMode() {
+    var shell = document.getElementById('cornerSectionShell');
+    var titleEl = document.getElementById('cornerSectionShellTitle');
+    var noteEl = document.getElementById('cornerSectionShellNote');
+    var questions = document.querySelector('.corner-live-section');
+    var grid = document.querySelector('.corner-grid');
+    if (!shell || !titleEl || !noteEl || !questions || !grid) return;
+
+    if (cornerViewMode === 'top') {
+      shell.classList.remove('visible');
+      questions.style.display = '';
+      grid.style.display = '';
+      return;
+    }
+
+    var meta = {
+      worries: { title: 'お悩み相談コーナー', note: '質問を押すと、スタッフの回答が開く形式です。' },
+      participation: { title: '参加型コーナー', note: '地域タグやメッセージをまとめて見られます。' },
+      questions: { title: '質問一覧 / Q&A コーナー', note: 'カテゴリごとに公開中の質問とQ&Aを整理しています。' },
+      staff: { title: 'スタッフ紹介・コラムコーナー', note: 'スタッフ紹介とコラムだけをまとめて見られます。' }
+    }[cornerViewMode];
+
+    shell.classList.add('visible');
+    titleEl.textContent = meta ? meta.title : '';
+    noteEl.textContent = meta ? meta.note : '';
+    questions.style.display = cornerViewMode === 'questions' ? '' : 'none';
+    grid.style.display = '';
+  }
+
   function renderCorner() {
     var content = cornerContentData || window.CORNER_CONTENT;
     if (!content) return;
     var primary = document.getElementById('cornerPrimaryColumn');
     var secondary = document.getElementById('cornerSecondaryColumn');
     if (!primary || !secondary) return;
+    var primarySections = [];
+    var secondarySections = [];
 
-    primary.innerHTML = [
-      renderWorriesSection(content.worries),
-      renderParticipationSection(content.participation)
-    ].join('');
+    if (cornerViewMode === 'top') {
+      primarySections = [
+        renderWorriesSection(content.worries),
+        renderParticipationSection(content.participation)
+      ];
+      secondarySections = [
+        renderStaffSection(content.staffColumns)
+      ];
+    } else if (cornerViewMode === 'worries') {
+      primarySections = [renderWorriesSection(content.worries)];
+    } else if (cornerViewMode === 'participation') {
+      primarySections = [renderParticipationSection(content.participation)];
+    } else if (cornerViewMode === 'questions') {
+      primarySections = [renderQuestionPageSection()];
+    } else if (cornerViewMode === 'staff') {
+      primarySections = [renderStaffSection(content.staffColumns)];
+    }
 
-    secondary.innerHTML = [
-      renderIndustrySection(content.industryQa),
-      renderStaffSection(content.staffColumns)
-    ].join('');
+    primary.innerHTML = primarySections.join('');
+    secondary.innerHTML = secondarySections.join('');
   }
 
   function renderWorriesSection(section) {
     if (!section) return '';
     var categories = (section.categories || []).map(function(category) {
       var entries = (category.entries || []).map(function(entry) {
-        return '<div class="corner-q-item">'
+        var itemId = 'cornerStatic-' + esc(category.key || 'category') + '-' + esc(entry.id || '');
+        return '<div class="corner-q-item" id="' + itemId + '">'
+          + '<button type="button" class="corner-static-toggle" onclick="toggleCornerStaticAnswer(\'' + itemId + '\')">'
           + '<span class="corner-q-line"><span class="corner-q-label">Q</span><span class="corner-q-text">' + esc(entry.question) + '</span></span>'
-          + '<span class="corner-a-line"><span class="corner-a-label">A</span><span class="corner-a-text">' + esc(entry.answer) + '</span></span>'
+          + '</button>'
+          + '<div class="corner-static-answer"><span class="corner-a-line"><span class="corner-a-label">A</span><span class="corner-a-text">' + esc(entry.answer) + '</span></span></div>'
           + '</div>';
       }).join('');
       return '<div class="corner-worry-box' + (category.key === 'other' ? ' wide' : '') + '">'
@@ -1795,6 +2014,87 @@ window.onDayClick = function(dateISO) {
       + '</section>';
   }
 
+  function renderQuestionPageSection() {
+    var groups = getCornerQuestionGroups();
+    if (!groups.length) {
+      return '<section class="corner-card sketch"><div class="corner-card-header"><h3 class="corner-card-title">質問一覧 / Q&A コーナー</h3><p class="corner-card-note">公開中の質問をカテゴリごとに表示します。</p></div><div class="corner-question-empty">まだ公開中の質問はありません。</div></section>';
+    }
+    var groupHtml = groups.map(function(group) {
+      var items = group.items.map(function(item) {
+        var answered = !!item.answerBody;
+        return '<article class="corner-question-item" id="cornerQuestionPageItem-' + esc(item.id) + '">'
+          + '<button type="button" class="corner-question-trigger" onclick="toggleCornerQuestionDetail(\'' + esc(item.id) + '\', true)">'
+          + '<div class="corner-question-topline">'
+          + '<div class="corner-question-meta"><span>' + esc(item.displayDate || '') + '</span></div>'
+          + '<span class="corner-question-badge ' + (answered ? 'answered' : 'pending') + '">' + (answered ? '回答済み' : '未回答') + '</span>'
+          + '</div>'
+          + '<div class="corner-question-item-title">' + esc(item.title || '') + '</div>'
+          + '<div class="corner-question-preview">' + esc(item.previewText || '') + '</div>'
+          + '</button>'
+          + '<div class="corner-question-detail">'
+          + '<div class="corner-detail-section"><div class="corner-detail-label">質問本文</div><div class="corner-detail-body">' + esc(item.body || '') + '</div></div>'
+          + '<div class="corner-detail-section"><div class="corner-detail-label">スタッフからの回答</div>'
+          + (answered
+            ? '<div class="corner-answer-box"><div class="corner-detail-body">' + esc(item.answerBody || '') + '</div><div class="corner-answer-meta">' + esc(item.answeredBy || 'スタッフ') + (item.answeredDisplayDate ? ' / ' + esc(item.answeredDisplayDate) : '') + '</div></div>'
+            : '<div class="corner-detail-body">まだ回答準備中です。公開後に順次更新します。</div>')
+          + '</div></div>'
+          + '</article>';
+      }).join('');
+      return '<section class="corner-question-group"><h4 class="corner-question-group-title">' + esc(group.label) + '</h4><div class="corner-inline-list">' + items + '</div></section>';
+    }).join('');
+    return '<section class="corner-card sketch"><div class="corner-card-header"><h3 class="corner-card-title">質問一覧 / Q&A コーナー</h3><p class="corner-card-note">カテゴリごとに質問と回答を整理しています。業界・企業Q&Aもこの一覧に含めています。</p></div><div class="corner-question-groups">' + groupHtml + '</div></section>';
+  }
+
+  function getCornerQuestionGroups() {
+    var content = cornerContentData || window.CORNER_CONTENT || {};
+    var questions = collectVisibleCornerQuestions();
+    var industryItems = collectIndustryQuestionItems(content.industryQa || {});
+    var categories = ['job-hunt', 'class', 'other', 'industry'];
+    return categories.map(function(category) {
+      var merged = [];
+      questions.forEach(function(item) {
+        if ((item.category || 'other') === category) merged.push(item);
+      });
+      if (category === 'industry') {
+        merged = merged.concat(industryItems);
+      }
+      return {
+        key: category,
+        label: getCornerCategoryLabel(category),
+        items: merged
+      };
+    }).filter(function(group) { return group.items.length > 0; });
+  }
+
+  function collectVisibleCornerQuestions() {
+    var wrap = document.getElementById('cornerQuestionList');
+    var items = [];
+    if (!wrap) return items;
+    return window.__cornerQuestionItems || [];
+  }
+
+  function collectIndustryQuestionItems(section) {
+    var tags = {};
+    (section.tags || []).forEach(function(tag) {
+      if (tag && tag.id && tag.published !== false) tags[tag.id] = tag.label || '';
+    });
+    return (section.items || []).filter(function(item) {
+      return item && item.published !== false;
+    }).map(function(item) {
+      return {
+        id: 'industry-managed-' + item.id,
+        category: 'industry',
+        title: item.title || '',
+        body: item.comment || '',
+        answerBody: item.body || '',
+        answeredBy: tags[item.tagId] || 'スタッフ',
+        displayDate: '',
+        answeredDisplayDate: '',
+        previewText: item.comment || item.body || ''
+      };
+    });
+  }
+
   function renderStaffSection(section) {
     if (!section) return '';
     var staff = (section.staff || []).map(function(entry) {
@@ -1827,10 +2127,26 @@ window.onDayClick = function(dateISO) {
     renderCorner();
   }
 
+  function toggleCornerStaticAnswer(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('open');
+  }
+
+  window.addEventListener('hashchange', function() {
+    var hash = window.location.hash || '';
+    if (hash.indexOf('#corner') === 0) {
+      switchTab('corner');
+      syncCornerViewFromHash();
+      renderCorner();
+      renderCornerQuestions(window.__cornerQuestionItems || []);
+    }
+  });
+
   // 初期読み込み時のタブ切り替え処理
   if (window.location.hash === '#board') {
     switchTab('board');
-  } else if (window.location.hash === '#corner') {
+  } else if ((window.location.hash || '').indexOf('#corner') === 0) {
     switchTab('corner');
   }
 </script>
