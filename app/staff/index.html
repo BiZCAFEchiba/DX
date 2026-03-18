@@ -281,13 +281,13 @@
         <div class="form-grid two-col">
           <div class="form-field">
             <label>メイン画像URL</label>
-            <input type="url" id="boardImageUrl" placeholder="/calendar/images/board/2026-03/example.jpg">
-            <div class="field-help">記事詳細の大きい画像URLです。`/calendar/images/board/...` または公開済み画像URLを入力してください。</div>
+            <input type="text" id="boardImageUrl" placeholder="2026-03/example.jpg">
+            <div class="field-help">`2026-03/example.jpg` のように入力すると `/calendar/images/board/` を自動補完します。公開済みURLの直接入力も可能です。</div>
           </div>
           <div class="form-field">
             <label>サムネイルURL</label>
-            <input type="url" id="boardThumbnailUrl" placeholder="/calendar/images/board/2026-03/example-thumb.jpg">
-            <div class="field-help">一覧カード用の画像URLです。未入力ならメイン画像URLを流用します。</div>
+            <input type="text" id="boardThumbnailUrl" placeholder="2026-03/example-thumb.jpg">
+            <div class="field-help">一覧カード用の画像URLです。短いパス指定に対応しています。未入力ならメイン画像URLを流用します。</div>
           </div>
         </div>
         <div class="form-field">
@@ -663,8 +663,8 @@
       category: document.getElementById('boardCategory').value.trim(),
       body: document.getElementById('boardBody').value.trim(),
       date: document.getElementById('boardDate').value,
-      imageUrl: document.getElementById('boardImageUrl').value.trim(),
-      thumbnailUrl: document.getElementById('boardThumbnailUrl').value.trim(),
+      imageUrl: normalizeBoardAssetUrl(document.getElementById('boardImageUrl').value),
+      thumbnailUrl: normalizeBoardAssetUrl(document.getElementById('boardThumbnailUrl').value),
       showInUpdates: document.getElementById('boardShowInUpdates').checked,
       showInArticles: document.getElementById('boardShowInArticles').checked,
       published: document.getElementById('boardPublished').checked
@@ -764,13 +764,21 @@
       el.addEventListener('input', renderBoardPreview);
       el.addEventListener('change', renderBoardPreview);
     });
+    ['boardImageUrl', 'boardThumbnailUrl'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('blur', function() {
+        el.value = normalizeBoardAssetUrl(el.value);
+        renderBoardPreview();
+      });
+    });
     renderBoardPreview();
   }
 
   function getBoardPreviewData() {
     var body = document.getElementById('boardBody').value.trim();
-    var imageUrl = document.getElementById('boardImageUrl').value.trim();
-    var thumbnailUrl = document.getElementById('boardThumbnailUrl').value.trim();
+    var imageUrl = normalizeBoardAssetUrl(document.getElementById('boardImageUrl').value);
+    var thumbnailUrl = normalizeBoardAssetUrl(document.getElementById('boardThumbnailUrl').value);
     return {
       title: document.getElementById('boardTitle').value.trim(),
       category: document.getElementById('boardCategory').value.trim(),
@@ -812,6 +820,15 @@
 
   function buildBoardPreviewChip(label, active) {
     return '<span class="board-preview-chip' + (active ? '' : ' off') + '">' + esc(label) + '</span>';
+  }
+
+  function normalizeBoardAssetUrl(value) {
+    var text = String(value || '').trim();
+    if (!text) return '';
+    if (/^https?:\/\//i.test(text)) return text;
+    if (text.indexOf('/calendar/images/board/') === 0) return text;
+    if (text.charAt(0) === '/') return text;
+    return '/calendar/images/board/' + text.replace(/^\.?\/*/, '');
   }
 
   function buildBoardSummaryText(body) {
