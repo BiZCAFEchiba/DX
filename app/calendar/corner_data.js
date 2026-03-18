@@ -7,7 +7,7 @@ window.CORNER_CONTENT = {
   ],
   worries: {
     title: 'スタッフがお悩み答えます!',
-    note: 'カテゴリごとに、よくある相談とスタッフからのひとことをまとめています。',
+    note: 'カテゴリごとに、よくある質問とスタッフからのひとことをまとめています。',
     categories: [
       {
         id: 'worry-job-hunt',
@@ -20,14 +20,14 @@ window.CORNER_CONTENT = {
           {
             id: 'worry-job-hunt-1',
             question: '自己分析はどこから始めるのがよいですか?',
-            answer: 'まずは、これまで楽しかったことや頑張れた経験を3つほど書き出してみるのがおすすめです。',
+            answer: 'まずはこれまで楽しかったことや大変だったことを3つほど書き出してみるのがおすすめです。',
             published: true,
             sortOrder: 10
           },
           {
             id: 'worry-job-hunt-2',
             question: 'インターンに参加していなくても大丈夫ですか?',
-            answer: '大丈夫です。参加の有無よりも、そこから何を学びどう動いたかが大切です。',
+            answer: '大丈夫です。参加していない理由よりも、今から何を学ぶかの方が大事です。',
             published: true,
             sortOrder: 20
           }
@@ -44,7 +44,7 @@ window.CORNER_CONTENT = {
           {
             id: 'worry-class-1',
             question: '授業と就活の両立が不安です。',
-            answer: '先に締切のある予定を見える化して、週ごとにやることを分けると整理しやすいです。',
+            answer: '学期の予定を先に見える化して、忙しい週を早めに把握しておくと調整しやすくなります。',
             published: true,
             sortOrder: 10
           }
@@ -61,7 +61,7 @@ window.CORNER_CONTENT = {
           {
             id: 'worry-other-1',
             question: 'BizCAFEはどんなときに使うのがおすすめですか?',
-            answer: '相談したいとき、予定の合間に休憩したいとき、スタッフと気軽に話したいときに使ってもらえます。',
+            answer: '一人で集中したいときにも、スタッフと気軽に話したいときにも使いやすい場所です。',
             published: true,
             sortOrder: 10
           }
@@ -73,24 +73,8 @@ window.CORNER_CONTENT = {
     title: '参加型コーナー',
     prompt: 'みんなの声をちょっとずつ集めるコーナーです。',
     note: '公開中テーマをひとつ選んで投票できます。',
-    stickyNote: '気軽に選んでみてください!',
-    themes: [
-      {
-        id: 'theme-origin',
-        title: 'みんなの出身地',
-        description: '出身地に近い地域を選んでください。',
-        published: true,
-        sortOrder: 10,
-        options: [
-          { id: 'hokkaido', label: '北海道', votes: 1, sortOrder: 10, published: true },
-          { id: 'tohoku', label: '東北', votes: 2, sortOrder: 20, published: true },
-          { id: 'kanto', label: '関東', votes: 6, sortOrder: 30, published: true },
-          { id: 'chubu', label: '中部', votes: 3, sortOrder: 40, published: true },
-          { id: 'kansai', label: '関西', votes: 2, sortOrder: 50, published: true },
-          { id: 'kyushu', label: '九州', votes: 1, sortOrder: 60, published: true }
-        ]
-      }
-    ]
+    stickyNote: '気になるテーマがあれば気軽に参加してみてください!',
+    themes: []
   },
   staffColumns: {
     title: 'スタッフ紹介・コラム',
@@ -99,7 +83,7 @@ window.CORNER_CONTENT = {
         id: 'staff-1',
         name: 'Aoi',
         role: '3年 / 就活相談スタッフ',
-        profile: '就活の進め方や自己分析の相談を担当。まずは雑談からでも大丈夫です。',
+        profile: '就活の進め方や自己分析の相談が得意です。まずは話しながら整理したい人向けです。',
         tags: ['就活', '自己分析'],
         published: true,
         sortOrder: 10
@@ -108,7 +92,7 @@ window.CORNER_CONTENT = {
         id: 'staff-2',
         name: 'Riku',
         role: '4年 / 業界研究サポート',
-        profile: '業界研究や企業比較の始め方を一緒に整理します。',
+        profile: '業界研究や企業比較の始め方を一緒に整理できます。',
         tags: ['業界研究', '企業比較'],
         published: true,
         sortOrder: 20
@@ -118,7 +102,7 @@ window.CORNER_CONTENT = {
       {
         id: 'column-1',
         title: 'BizCAFEスタッフが考える、就活の最初の一歩',
-        body: 'まずは興味のあることを3つ書き出してみるだけでも前に進めます。',
+        body: 'まずは完璧を目指さず、気になることを言葉にしてみるだけでも前に進みます。',
         published: true,
         sortOrder: 10
       }

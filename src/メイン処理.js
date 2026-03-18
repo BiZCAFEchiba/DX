@@ -262,6 +262,17 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(participationVoteResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // customer 側ページ閲覧数の記録
+    if (param.action === 'pageViewTrack') {
+      var pageViewTrackResult = trackCornerPageView_(param.pageKey || '');
+      return ContentService.createTextOutput(JSON.stringify(pageViewTrackResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // staff 側閲覧数確認
+    if (param.action === 'pageViewGet') {
+      return ContentService.createTextOutput(JSON.stringify(getCornerPageViews_()))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // 混雑状況更新（スタッフ用）
     if (param.action === 'setCongestion') {
       var newLevel = parseInt(param.level || '0');

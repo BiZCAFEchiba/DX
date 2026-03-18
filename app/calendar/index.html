@@ -1282,6 +1282,49 @@
   var cornerViewMode = 'top';
   var cornerQuestionFilter = 'all';
   var cornerSelectedParticipationThemeId = '';
+  var trackedPageViews = {};
+
+  function applyCustomerTabLabels() {
+    var boardTab = document.getElementById('tabBtnBoard');
+    var cornerTab = document.getElementById('tabBtnCorner');
+    if (boardTab) boardTab.innerHTML = '<span class="tab-icon">📣</span>お知らせ';
+    if (cornerTab) cornerTab.innerHTML = '<span class="tab-icon">💬</span>なんでも掲示板';
+
+    var heroKicker = document.querySelector('.corner-kicker');
+    var heroTitle = document.querySelector('.corner-title');
+    if (heroKicker) heroKicker.textContent = '参加できる、ゆるやかな相談スペース';
+    if (heroTitle) heroTitle.textContent = 'なんでも掲示板';
+
+    var questionLinkTitle = document.querySelector('a[href="#corner-questions"] .corner-section-link-title');
+    var questionLinkNote = document.querySelector('a[href="#corner-questions"] .corner-section-link-note');
+    if (questionLinkTitle) questionLinkTitle.textContent = 'なんでも相談・質問';
+    if (questionLinkNote) questionLinkNote.textContent = 'カテゴリ別に公開中の質問を見られます';
+  }
+
+  function getCurrentPageViewKey(name) {
+    if (name === 'board') return 'notices';
+    if (name === 'corner') {
+      return {
+        top: 'free_board',
+        worries: 'corner_worries',
+        participation: 'corner_participation',
+        questions: 'corner_questions',
+        staff: 'corner_staff'
+      }[cornerViewMode || 'top'] || 'free_board';
+    }
+    return 'calendar_home';
+  }
+
+  function trackPageView(pageKey) {
+    if (!pageKey || trackedPageViews[pageKey]) return;
+    trackedPageViews[pageKey] = true;
+    fetch(
+      GAS_API_URL
+        + '?page=calendar&action=pageViewTrack'
+        + '&pageKey=' + encodeURIComponent(pageKey)
+    ).catch(function() {});
+  }
+
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
@@ -1314,6 +1357,7 @@
       }
       loadCornerQuestions();
     }
+    trackPageView(getCurrentPageViewKey(name));
   }
 
   // ===== Q&A =====
@@ -2342,6 +2386,7 @@ window.onDayClick = function(dateISO) {
       syncCornerViewFromHash();
       renderCorner();
       renderCornerQuestions(window.__cornerQuestionItems || []);
+      trackPageView(getCurrentPageViewKey('corner'));
     }
   });
 
@@ -2350,6 +2395,10 @@ window.onDayClick = function(dateISO) {
     switchTab('board');
   } else if ((window.location.hash || '').indexOf('#corner') === 0) {
     switchTab('corner');
+  }
+  applyCustomerTabLabels();
+  if (window.location.hash !== '#board' && (window.location.hash || '').indexOf('#corner') !== 0) {
+    trackPageView('calendar_home');
   }
 </script>
 </body>

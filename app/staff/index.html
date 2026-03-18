@@ -637,6 +637,66 @@
   var cornerAllItems = [];
   var cornerContentData = null;
 
+  function ensureCornerAdminEnhancements() {
+    var stack = document.querySelector('#paneCorner .corner-manage-stack');
+    if (!stack) return;
+
+    if (!document.getElementById('cornerPageViewCard')) {
+      var statsCard = document.createElement('section');
+      statsCard.className = 'corner-admin-form corner-content-card';
+      statsCard.id = 'cornerPageViewCard';
+      statsCard.innerHTML = '<div class="form-title">ページ閲覧回数</div>'
+        + '<div class="corner-inline-help">customer 側で見られた回数の簡易集計です。</div>'
+        + '<div id="cornerPageViewStats" class="readonly-box">読み込み中...</div>';
+      stack.parentNode.insertBefore(statsCard, stack);
+    }
+
+    var categorySection = document.getElementById('cornerQuestionCategories');
+    var listTitle = document.querySelector('#paneCorner #cornerItems') ? document.querySelector('#paneCorner #cornerItems').previousElementSibling : null;
+    var listWrap = document.getElementById('cornerItems');
+    var editForm = document.getElementById('cornerAdminForm');
+    if (categorySection && listTitle && listWrap && editForm) {
+      var manageBody = listWrap.closest('.corner-manage-body');
+      var categoryCard = categorySection.closest('section');
+      if (manageBody && categoryCard) {
+        manageBody.insertBefore(listTitle, manageBody.firstChild);
+        manageBody.insertBefore(listWrap, listTitle.nextSibling);
+        manageBody.insertBefore(editForm, listWrap.nextSibling);
+        manageBody.appendChild(categoryCard);
+      }
+    }
+  }
+
+  function loadPageViewStats() {
+    var wrap = document.getElementById('cornerPageViewStats');
+    if (!wrap) return;
+    wrap.textContent = '読み込み中...';
+    fetch(GAS_API_URL + '?page=calendar&action=pageViewGet')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderPageViewStats(data || {}); })
+      .catch(function() { wrap.textContent = '読み込みに失敗しました'; });
+  }
+
+  function renderPageViewStats(data) {
+    var wrap = document.getElementById('cornerPageViewStats');
+    if (!wrap) return;
+    var labels = {
+      calendar_home: 'ホーム',
+      notices: 'お知らせ',
+      free_board: 'なんでも掲示板トップ',
+      corner_worries: 'お悩み相談',
+      corner_participation: '参加型',
+      corner_questions: 'なんでも相談・質問',
+      corner_staff: 'スタッフ紹介・コラム'
+    };
+    wrap.innerHTML = Object.keys(labels).map(function(key) {
+      return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eef2f6;">'
+        + '<span>' + esc(labels[key]) + '</span>'
+        + '<strong>' + esc(String(Number(data[key] || 0))) + '回</strong>'
+        + '</div>';
+    }).join('');
+  }
+
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(pane) { pane.classList.remove('active'); });
@@ -645,6 +705,10 @@
     document.getElementById('pane' + suffix).classList.add('active');
     if (name === 'qa' && !qaLoaded) { qaLoaded = true; loadQA(); }
     if (name === 'board' && !boardLoaded) { boardLoaded = true; loadBoard(); }
+    if (name === 'corner') {
+      ensureCornerAdminEnhancements();
+      loadPageViewStats();
+    }
     if (name === 'corner' && !cornerLoaded) { cornerLoaded = true; loadCornerQuestions(); }
     if (name === 'corner' && !cornerContentLoaded) { cornerContentLoaded = true; loadCornerContentAdmin(); }
   }
