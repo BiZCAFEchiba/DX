@@ -1185,7 +1185,7 @@
               </span>
               <span class="sns-link-body"><span class="sns-link-name">Instagram</span><span class="sns-link-note">イベントや店内の様子を更新中</span></span>
             </a>
-            <a class="sns-link-card x" href="https://x.com/bizcafe_chiba?s=21&t=p2IDmUbITB8gE7T0y1dQxQ" target="_blank" rel="noopener noreferrer">
+            <a class="sns-link-card x" href="https://x.com/bizcafe_chiba" target="_blank" rel="noopener noreferrer">
               <span class="sns-link-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" focusable="false"><path d="M18.9 2H22l-6.77 7.74L23 22h-6.1l-4.78-6.25L6.65 22H3.53l7.24-8.27L1 2h6.26l4.32 5.7L18.9 2zm-1.07 18h1.69L6.35 3.9H4.54L17.83 20z" fill="currentColor"/></svg>
               </span>
@@ -2445,18 +2445,103 @@ window.onDayClick = function(dateISO) {
     document.head.appendChild(style);
   }
 
-  function isParticipationThemeVisible(theme) {
-    if (!theme || theme.published === false) return false;
+  function getParticipationThemeDisplayStatus(theme) {
+    if (!theme || theme.published === false) return 'hidden';
     var now = new Date();
     if (theme.startAt) {
       var start = new Date(theme.startAt);
-      if (!isNaN(start.getTime()) && now < start) return false;
+      if (!isNaN(start.getTime()) && now < start) return 'upcoming';
     }
     if (theme.endAt) {
       var end = new Date(theme.endAt);
-      if (!isNaN(end.getTime()) && now > end) return false;
+      if (!isNaN(end.getTime()) && now > end) return 'ended';
     }
-    return true;
+    if (!theme.startAt && !theme.endAt) return 'always';
+    return 'active';
+  }
+
+  function isParticipationThemeVisible(theme) {
+    var status = getParticipationThemeDisplayStatus(theme);
+    return status !== 'hidden' && status !== 'ended';
+  }
+
+  function formatParticipationDateTime(value) {
+    if (!value) return '';
+    var date = new Date(value);
+    if (isNaN(date.getTime())) return '';
+    return date.getFullYear() + '/' + pad2(date.getMonth() + 1) + '/' + pad2(date.getDate())
+      + ' ' + pad2(date.getHours()) + ':' + pad2(date.getMinutes());
+  }
+
+  function getParticipationPeriodLabel(theme) {
+    var status = getParticipationThemeDisplayStatus(theme);
+    var start = formatParticipationDateTime(theme.startAt || '');
+    var end = formatParticipationDateTime(theme.endAt || '');
+    if (status === 'always') return '常時受付中';
+    if (status === 'upcoming') {
+      return start ? (start + ' から投票開始') : 'まもなく開始';
+    }
+    if (start && end) return '投票期間: ' + start + ' 〜 ' + end;
+    if (start) return start + ' から受付中';
+    if (end) return end + ' まで投票できます';
+    return '常時受付中';
+  }
+
+  function renderParticipationSection(section) {
+    if (!section) return '';
+    var themes = (section.themes || []).filter(isParticipationThemeVisible).slice().sort(function(a, b) {
+      return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+    });
+    if (!themes.length) {
+      return '<section class="corner-card sketch">'
+        + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.prompt || '') + ' ' + esc(section.note || '') + '</p></div>'
+        + '<div class="corner-question-empty">現在公開中のアンケートはありません。</div>'
+        + '</section>';
+    }
+
+    var activeTheme = themes[0];
+    for (var i = 0; i < themes.length; i++) {
+      if (themes[i].id === cornerSelectedParticipationThemeId) {
+        activeTheme = themes[i];
+        break;
+      }
+    }
+
+    var themeStatus = getParticipationThemeDisplayStatus(activeTheme);
+    var voted = hasCornerParticipationVoted(activeTheme.id);
+    var canVote = themeStatus === 'active' || themeStatus === 'always';
+    var totalVotes = (activeTheme.options || []).reduce(function(sum, option) {
+      return sum + Number(option.votes || 0);
+    }, 0);
+    var themeTabs = themes.length > 1
+      ? '<div class="corner-tag-row">' + themes.map(function(theme) {
+          return '<button type="button" class="corner-chip' + (theme.id === activeTheme.id ? ' active' : '') + '" onclick="selectCornerParticipationTheme(\'' + esc(theme.id) + '\')">' + esc(theme.title || '') + '</button>';
+        }).join('') + '</div>'
+      : '';
+    var optionHtml = (activeTheme.options || []).map(function(option) {
+      var votes = Number(option.votes || 0);
+      var percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+      if (voted || !canVote) {
+        return '<div class="corner-industry-item">'
+          + '<div class="corner-industry-head"><span class="corner-industry-name">' + esc(option.label || '') + '</span><span class="corner-industry-comment">' + percent + '% / ' + votes + '票</span></div>'
+          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#1a3a5c,#2a5f8f);"></div></div></div>'
+          + '</div>';
+      }
+      return '<button type="button" class="corner-section-link" style="text-align:left;" onclick="voteCornerParticipation(\'' + esc(activeTheme.id) + '\',\'' + esc(option.id) + '\')">'
+        + '<div class="corner-section-link-title">' + esc(option.label || '') + '</div>'
+        + '<div class="corner-section-link-note">この選択肢に投票する</div>'
+        + '</button>';
+    }).join('');
+
+    return '<section class="corner-card sketch">'
+      + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.prompt || '') + ' ' + esc(section.note || '') + '</p></div>'
+      + themeTabs
+      + '<div class="corner-worry-head other" style="margin-bottom:12px;">' + esc(activeTheme.title || '') + '</div>'
+      + '<div class="corner-card-note" style="margin-bottom:8px;">' + esc(activeTheme.description || '') + '</div>'
+      + '<div class="corner-card-note" style="margin-bottom:14px;font-weight:600;color:#1a3a5c;">' + esc(getParticipationPeriodLabel(activeTheme)) + '</div>'
+      + '<div class="corner-industry-list">' + optionHtml + '</div>'
+      + '<div class="corner-sticky">' + esc(section.stickyNote || '') + (voted ? ' 投票ありがとうございました。' : (canVote ? '' : ' 開始までは結果のみ表示しています。')) + '</div>'
+      + '</section>';
   }
 
   function renderCongestionParticipation() {

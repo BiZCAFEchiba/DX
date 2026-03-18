@@ -883,6 +883,7 @@ function getCornerThemeLifecycleStatus_(theme, nowDate) {
   if (!theme || theme.published === false) return 'hidden';
   var start = theme.startAt ? new Date(theme.startAt) : null;
   var end = theme.endAt ? new Date(theme.endAt) : null;
+  if (!theme.startAt && !theme.endAt) return 'always';
   if (start && !isNaN(start.getTime()) && now < start) return 'upcoming';
   if (end && !isNaN(end.getTime()) && now > end) return 'ended';
   return 'active';
@@ -946,7 +947,10 @@ function filterPublishedCornerContent_(content) {
     })
     .filter(function(category) { return category.entries.length > 0; });
   normalized.participation.themes = normalized.participation.themes
-    .filter(function(theme) { return getCornerThemeLifecycleStatus_(theme, now) === 'active'; })
+    .filter(function(theme) {
+      var status = getCornerThemeLifecycleStatus_(theme, now);
+      return status === 'active' || status === 'always' || status === 'upcoming';
+    })
     .map(function(theme) {
       var nextTheme = copyCornerObject_(theme);
       nextTheme.options = (nextTheme.options || []).filter(function(option) {
@@ -976,7 +980,8 @@ function voteCornerParticipation_(themeId, optionId) {
     }
   }
   if (!theme) return { ok: false, error: 'theme_not_found' };
-  if (getCornerThemeLifecycleStatus_(theme, getCornerNowDate_()) !== 'active') {
+  var themeStatus = getCornerThemeLifecycleStatus_(theme, getCornerNowDate_());
+  if (themeStatus !== 'active' && themeStatus !== 'always') {
     return { ok: false, error: 'theme_inactive' };
   }
 

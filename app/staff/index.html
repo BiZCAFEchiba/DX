@@ -2316,9 +2316,19 @@
     var now = new Date();
     var start = theme.startAt ? new Date(theme.startAt) : null;
     var end = theme.endAt ? new Date(theme.endAt) : null;
+    if (!theme.startAt && !theme.endAt) return '無期限';
     if (start && !isNaN(start.getTime()) && now < start) return '開始前';
     if (end && !isNaN(end.getTime()) && now > end) return '終了済み';
     return '公開中';
+  }
+
+  function getCornerThemePeriodSummary(theme) {
+    var start = formatCornerDateTimeLocal(theme && theme.startAt || '');
+    var end = formatCornerDateTimeLocal(theme && theme.endAt || '');
+    if (!start && !end) return '期間指定なし';
+    if (start && end) return start.replace('T', ' ') + ' 〜 ' + end.replace('T', ' ');
+    if (start) return start.replace('T', ' ') + ' から';
+    return end.replace('T', ' ') + ' まで';
   }
 
   function renderCornerParticipationEditor() {
@@ -2417,10 +2427,11 @@
     sticky.value = section.stickyNote || '';
     wrap.innerHTML = '';
     (section.themes || []).forEach(function(theme, index) {
-      var card = document.createElement('div');
+      var card = document.createElement('details');
       card.className = 'corner-repeat-card congestion-participation-theme-card';
       card.dataset.index = index;
-      card.innerHTML = '<div class="corner-repeat-card-header"><div class="corner-repeat-card-title">テーマ ' + (index + 1) + ' <span class="corner-item-status">' + esc(parseCornerThemeStatus(theme)) + '</span></div><button class="btn-sm btn-delete" type="button" onclick="removeCongestionParticipationTheme(' + index + ')">削除</button></div>'
+      card.innerHTML = '<summary class="corner-repeat-card-header" style="cursor:pointer;list-style:none;"><div class="corner-repeat-card-title">' + esc(theme.title || ('テーマ ' + (index + 1))) + ' <span class="corner-item-status">' + esc(parseCornerThemeStatus(theme)) + '</span><div style="font-size:12px;color:#6b7b88;margin-top:4px;">' + esc(getCornerThemePeriodSummary(theme)) + '</div></div></summary>'
+        + '<div class="corner-inline-actions" style="justify-content:flex-end;margin:10px 0 6px;"><button class="btn-sm btn-delete" type="button" onclick="removeCongestionParticipationTheme(' + index + ')">削除</button></div>'
         + '<div class="form-grid two-col">'
         + '<div class="form-field"><label>タイトル</label><input type="text" data-field="title" value="' + esc(theme.title || '') + '"></div>'
         + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(theme.sortOrder || 0) + '"></div>'
