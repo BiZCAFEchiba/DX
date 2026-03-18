@@ -239,6 +239,12 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(questionSaveResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // staff 側コーナー質問削除
+    if (param.action === 'cornerQuestionDelete') {
+      var questionDeleteResult = deleteCornerQuestion_(param.id || '');
+      return ContentService.createTextOutput(JSON.stringify(questionDeleteResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // コーナー表示コンテンツ取得
     if (param.action === 'cornerContentGet') {
       return ContentService.createTextOutput(JSON.stringify(getCornerContent_(param.staff === '1')))
@@ -248,6 +254,12 @@ function doGet(e) {
     if (param.action === 'cornerContentSave') {
       var cornerContentResult = saveCornerSection_(param.section || '', param.data || '');
       return ContentService.createTextOutput(JSON.stringify(cornerContentResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 参加型コーナー投票
+    if (param.action === 'cornerParticipationVote') {
+      var participationVoteResult = voteCornerParticipation_(param.themeId || '', param.optionId || '');
+      return ContentService.createTextOutput(JSON.stringify(participationVoteResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // 混雑状況更新（スタッフ用）

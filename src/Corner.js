@@ -18,9 +18,9 @@ function getCornerQuestionDetail_(id, staffMode) {
 
 function submitCornerQuestion_(payload) {
   var nickname = String(payload.nickname || '').trim();
-  var category = String(payload.category || '').trim();
   var title = String(payload.title || '').trim();
   var body = String(payload.body || '').trim();
+  var category = normalizeCornerQuestionCategory_(payload.category);
 
   if (!title) return { ok: false, error: 'title_required' };
   if (!body) return { ok: false, error: 'body_required' };
@@ -30,7 +30,7 @@ function submitCornerQuestion_(payload) {
   var item = buildCornerQuestionItem_({
     id: String(new Date().getTime()),
     nickname: nickname || '匿名',
-    category: category || 'other',
+    category: category,
     title: title,
     body: body,
     createdAt: now,
@@ -66,7 +66,7 @@ function saveCornerQuestion_(payload) {
   var next = {
     id: current.id,
     nickname: sanitizeCornerText_(pickDefined_(payload.nickname, current.nickname || '匿名')),
-    category: sanitizeCornerText_(pickDefined_(payload.category, current.category || 'other')),
+    category: normalizeCornerQuestionCategory_(pickDefined_(payload.category, current.category || 'other')),
     title: sanitizeCornerText_(pickDefined_(payload.title, current.title || '')),
     body: sanitizeCornerText_(pickDefined_(payload.body, current.body || '')),
     createdAt: current.createdAt || now,
@@ -92,6 +92,16 @@ function saveCornerQuestion_(payload) {
   return { ok: true, id: next.id };
 }
 
+function deleteCornerQuestion_(id) {
+  var targetId = sanitizeCornerText_(id);
+  if (!targetId) return { ok: false, error: 'id_required' };
+  var items = loadCornerQuestions_();
+  var nextItems = items.filter(function(item) { return item.id !== targetId; });
+  if (nextItems.length === items.length) return { ok: false, error: 'not_found' };
+  saveCornerQuestions_(nextItems);
+  return { ok: true, id: targetId };
+}
+
 function getCornerContent_(staffMode) {
   var content = loadCornerContent_();
   return staffMode ? content : filterPublishedCornerContent_(content);
@@ -109,12 +119,13 @@ function saveCornerSection_(sectionKey, rawData) {
     return { ok: false, error: 'invalid_json' };
   }
 
-  if (key === 'worries') {
+  if (key === 'questionCategories') {
+    content.questionCategories = normalizeCornerQuestionCategories_(data);
+    remapCornerQuestionCategories_(content.questionCategories);
+  } else if (key === 'worries') {
     content.worries = normalizeCornerWorriesSection_(data);
   } else if (key === 'participation') {
     content.participation = normalizeCornerParticipationSection_(data);
-  } else if (key === 'industryQa') {
-    content.industryQa = normalizeCornerIndustrySection_(data);
   } else if (key === 'staffColumns') {
     content.staffColumns = normalizeCornerStaffSection_(data);
   } else {
@@ -123,6 +134,42 @@ function saveCornerSection_(sectionKey, rawData) {
 
   saveCornerContent_(content);
   return { ok: true, section: key };
+}
+
+function voteCornerParticipation_(themeId, optionId) {
+  var targetThemeId = sanitizeCornerText_(themeId);
+  var targetOptionId = sanitizeCornerText_(optionId);
+  if (!targetThemeId) return { ok: false, error: 'theme_required' };
+  if (!targetOptionId) return { ok: false, error: 'option_required' };
+
+  var content = loadCornerContent_();
+  var themes = content.participation && Array.isArray(content.participation.themes) ? content.participation.themes : [];
+  var theme = null;
+  for (var i = 0; i < themes.length; i++) {
+    if (themes[i].id === targetThemeId) {
+      theme = themes[i];
+      break;
+    }
+  }
+  if (!theme || theme.published === false) return { ok: false, error: 'theme_not_found' };
+
+  var option = null;
+  for (var j = 0; j < theme.options.length; j++) {
+    if (theme.options[j].id === targetOptionId) {
+      option = theme.options[j];
+      break;
+    }
+  }
+  if (!option) return { ok: false, error: 'option_not_found' };
+
+  option.votes = parseCornerVoteCount_(option.votes) + 1;
+  saveCornerContent_(content);
+  return {
+    ok: true,
+    themeId: targetThemeId,
+    optionId: targetOptionId,
+    theme: copyCornerObject_(theme)
+  };
 }
 
 function loadCornerQuestions_() {
@@ -158,9 +205,8 @@ function buildCornerQuestionItem_(item) {
   var answerBody = sanitizeCornerText_(item.answerBody || '');
   var published = item.published === true;
   var status = answerBody ? 'answered' : (published ? 'published' : 'pending');
-
   var createdAt = sanitizeCornerText_(item.createdAt || getCornerNowIso_());
-  var category = sanitizeCornerText_(item.category || 'other');
+  var category = normalizeCornerQuestionCategory_(item.category || 'other');
   var tags = Array.isArray(item.tags) ? item.tags.map(sanitizeCornerText_).filter(Boolean) : [];
 
   return {
@@ -209,6 +255,12 @@ function saveCornerContent_(content) {
 
 function getDefaultCornerContent_() {
   return normalizeCornerContent_({
+    questionCategories: [
+      { id: 'job-hunt', label: '就活関連', sortOrder: 10, published: true },
+      { id: 'class', label: '単位・授業関連', sortOrder: 20, published: true },
+      { id: 'other', label: 'その他', sortOrder: 30, published: true },
+      { id: 'industry', label: '業界・企業関連', sortOrder: 40, published: true }
+    ],
     worries: {
       title: 'スタッフがお悩み答えます!',
       note: 'カテゴリごとに、よくある相談とスタッフからのひとことをまとめています。',
@@ -223,15 +275,15 @@ function getDefaultCornerContent_() {
           entries: [
             {
               id: 'worry-job-hunt-1',
-              question: '自己分析は何から始めるのがいいですか？',
-              answer: 'まずは、これまで楽しかった経験や頑張れた場面を書き出してみるのがおすすめです。',
+              question: '自己分析はどこから始めるのがよいですか?',
+              answer: 'まずは、これまで楽しかったことや頑張れた経験を3つほど書き出してみるのがおすすめです。',
               published: true,
               sortOrder: 10
             },
             {
               id: 'worry-job-hunt-2',
-              question: 'インターンに参加していなくても大丈夫ですか？',
-              answer: '大丈夫です。参加有無より、そこから何を学び、どう動いたかを言葉にできることが大切です。',
+              question: 'インターンに参加していなくても大丈夫ですか?',
+              answer: '大丈夫です。参加有無だけでなく、そこから何を学びどう動いたかが大切です。',
               published: true,
               sortOrder: 20
             }
@@ -248,7 +300,7 @@ function getDefaultCornerContent_() {
             {
               id: 'worry-class-1',
               question: '授業と就活の両立が不安です。',
-              answer: '予定が見える化できるとかなり楽になります。先に固定予定を書き出して、空き時間で動く形にすると整理しやすいです。',
+              answer: '先に締切のある予定を見える化して、週ごとに動く内容を軽く分けると整理しやすいです。',
               published: true,
               sortOrder: 10
             }
@@ -257,15 +309,15 @@ function getDefaultCornerContent_() {
         {
           id: 'worry-other',
           key: 'other',
-          title: 'その他なんでも!',
+          title: 'その他何でも!!',
           accent: 'other',
           published: true,
           sortOrder: 30,
           entries: [
             {
               id: 'worry-other-1',
-              question: 'BizCAFEはどう使うのがおすすめですか？',
-              answer: '空きコマの作業、イベント参加、スタッフとの雑談など、その日の気分で使い分けてもらって大丈夫です。',
+              question: 'BizCAFEはどんなときに使うのがおすすめですか?',
+              answer: '相談したいとき、予定の合間に休憩したいとき、スタッフと気軽に話したいときに使ってもらえます。',
               published: true,
               sortOrder: 10
             }
@@ -275,63 +327,24 @@ function getDefaultCornerContent_() {
     },
     participation: {
       title: '参加型コーナー',
-      prompt: 'みんなの出身地は？',
-      note: '初期版では地域タグでゆるく表現しています。',
-      stickyNote: '気になる地域があったらスタッフにも聞いてみてください。',
-      tags: [
-        { id: 'region-hokkaido', label: '北海道', count: '1名', tone: 'blue', published: true, sortOrder: 10 },
-        { id: 'region-tohoku', label: '東北', count: '2名', tone: 'teal', published: true, sortOrder: 20 },
-        { id: 'region-kanto', label: '関東', count: '6名', tone: 'yellow', published: true, sortOrder: 30 },
-        { id: 'region-chubu', label: '中部', count: '3名', tone: 'pink', published: true, sortOrder: 40 },
-        { id: 'region-kansai', label: '関西', count: '2名', tone: 'green', published: true, sortOrder: 50 },
-        { id: 'region-kyushu', label: '九州', count: '1名', tone: 'orange', published: true, sortOrder: 60 }
-      ]
-    },
-    industryQa: {
-      title: '業界・企業Q&Aコーナー',
-      note: '気になる業界タグを押すと、そのテーマのQ&Aだけを見られます。',
-      tags: [
-        { id: 'it', label: 'IT', sortOrder: 10, published: true },
-        { id: 'maker', label: 'メーカー', sortOrder: 20, published: true },
-        { id: 'consulting', label: 'コンサル', sortOrder: 30, published: true },
-        { id: 'trading', label: '商社', sortOrder: 40, published: true }
-      ],
-      items: [
+      prompt: 'みんなの声をちょっとずつ集めるコーナーです。',
+      note: '公開中テーマをひとつ選んで投票できます。',
+      stickyNote: '気軽に選んでみてください!',
+      themes: [
         {
-          id: 'industry-it-1',
-          title: 'IT業界は文系でも挑戦できますか？',
-          comment: '基礎から学びたい人向け',
-          body: '文系から挑戦している先輩も多いです。業界理解に加えて、なぜITに興味を持ったのかを整理しておくと話しやすくなります。',
-          tagId: 'it',
+          id: 'theme-origin',
+          title: 'みんなの出身地',
+          description: '出身地に近い地域を選んでください。',
           published: true,
-          sortOrder: 10
-        },
-        {
-          id: 'industry-maker-1',
-          title: 'メーカーは職種の幅が広いと聞きました。',
-          comment: '職種理解の入口',
-          body: '研究、技術、営業、企画など幅が広いです。まずは職種ごとに働き方がどう違うかを見ると理解しやすいです。',
-          tagId: 'maker',
-          published: true,
-          sortOrder: 20
-        },
-        {
-          id: 'industry-consulting-1',
-          title: 'コンサル業界って何をしているの？',
-          comment: '業界の基本',
-          body: '課題整理や改善提案を通じて企業を支援する仕事です。まずは「誰のどんな課題を扱うか」で会社ごとの差を見るのがおすすめです。',
-          tagId: 'consulting',
-          published: true,
-          sortOrder: 30
-        },
-        {
-          id: 'industry-trading-1',
-          title: '商社とメーカーの違いが分かりません。',
-          comment: '比較のヒント',
-          body: '商社はモノや事業をつなぐ立場、メーカーは自社でつくる立場という違いから見ると整理しやすいです。',
-          tagId: 'trading',
-          published: true,
-          sortOrder: 40
+          sortOrder: 10,
+          options: [
+            { id: 'hokkaido', label: '北海道', votes: 1, sortOrder: 10 },
+            { id: 'tohoku', label: '東北', votes: 2, sortOrder: 20 },
+            { id: 'kanto', label: '関東', votes: 6, sortOrder: 30 },
+            { id: 'chubu', label: '中部', votes: 3, sortOrder: 40 },
+            { id: 'kansai', label: '関西', votes: 2, sortOrder: 50 },
+            { id: 'kyushu', label: '九州', votes: 1, sortOrder: 60 }
+          ]
         }
       ]
     },
@@ -341,8 +354,8 @@ function getDefaultCornerContent_() {
         {
           id: 'staff-1',
           name: 'Aoi',
-          role: '3年 / 就活伴走スタッフ',
-          profile: '就活の進め方や、最初の一歩の踏み出し方を一緒に整理するのが得意です。',
+          role: '3年 / 就活相談スタッフ',
+          profile: '就活の進め方や自己分析の相談を担当。まずは雑談からでも大丈夫です。',
           tags: ['就活', '自己分析'],
           published: true,
           sortOrder: 10
@@ -351,7 +364,7 @@ function getDefaultCornerContent_() {
           id: 'staff-2',
           name: 'Riku',
           role: '4年 / 業界研究サポート',
-          profile: '業界比較や企業研究の始め方を、分かりやすく伝えることを大切にしています。',
+          profile: '業界研究や企業比較の始め方を一緒に整理します。',
           tags: ['業界研究', '企業比較'],
           published: true,
           sortOrder: 20
@@ -361,16 +374,9 @@ function getDefaultCornerContent_() {
         {
           id: 'column-1',
           title: 'BizCAFEスタッフが考える、就活の最初の一歩',
-          body: 'まずは完璧に進めようとせず、気になる業界を3つほど挙げてみるだけでも十分です。少しずつ輪郭を作っていきましょう。',
+          body: 'まずは興味のあることを3つ書き出してみるだけでも前に進めます。',
           published: true,
           sortOrder: 10
-        },
-        {
-          id: 'column-2',
-          title: '授業が忙しい時期の就活との向き合い方',
-          body: '全部を同時に頑張るより、今週やることを絞る方が続きやすいです。スタッフにも気軽に相談してください。',
-          published: true,
-          sortOrder: 20
         }
       ]
     }
@@ -380,15 +386,18 @@ function getDefaultCornerContent_() {
 function normalizeCornerContent_(content) {
   var source = content || {};
   return {
+    questionCategories: normalizeCornerQuestionCategories_(source.questionCategories),
     worries: normalizeCornerWorriesSection_(source.worries || {}),
     participation: normalizeCornerParticipationSection_(source.participation || {}),
-    industryQa: normalizeCornerIndustrySection_(source.industryQa || {}),
     staffColumns: normalizeCornerStaffSection_(source.staffColumns || {})
   };
 }
 
 function filterPublishedCornerContent_(content) {
   var normalized = normalizeCornerContent_(content);
+  normalized.questionCategories = normalized.questionCategories.filter(function(item) {
+    return item.published !== false;
+  });
   normalized.worries.categories = normalized.worries.categories
     .filter(function(category) { return category.published; })
     .map(function(category) {
@@ -397,12 +406,52 @@ function filterPublishedCornerContent_(content) {
       return next;
     })
     .filter(function(category) { return category.entries.length > 0; });
-
-  normalized.participation.tags = normalized.participation.tags.filter(function(tag) { return tag.published; });
-  normalized.industryQa.tags = normalized.industryQa.tags.filter(function(tag) { return tag.published; });
-  normalized.industryQa.items = normalized.industryQa.items.filter(function(item) { return item.published; });
+  normalized.participation.themes = normalized.participation.themes
+    .filter(function(theme) { return theme.published; })
+    .map(function(theme) {
+      var nextTheme = copyCornerObject_(theme);
+      nextTheme.options = (nextTheme.options || []).filter(function(option) {
+        return option.published !== false;
+      });
+      return nextTheme;
+    })
+    .filter(function(theme) { return theme.options.length > 0; });
   normalized.staffColumns.staff = normalized.staffColumns.staff.filter(function(item) { return item.published; });
   normalized.staffColumns.columns = normalized.staffColumns.columns.filter(function(item) { return item.published; });
+  return normalized;
+}
+
+function normalizeCornerQuestionCategories_(categories) {
+  var list = Array.isArray(categories) ? categories : [];
+  var normalized = [];
+  for (var i = 0; i < list.length; i++) {
+    var item = list[i] || {};
+    normalized.push({
+      id: sanitizeCornerText_(item.id || ('category-' + (i + 1))),
+      label: sanitizeCornerText_(item.label || 'カテゴリ'),
+      sortOrder: parseCornerSortOrder_(item.sortOrder, (i + 1) * 10),
+      published: item.published !== false
+    });
+  }
+
+  if (!normalized.length) {
+    normalized = [
+      { id: 'job-hunt', label: '就活関連', sortOrder: 10, published: true },
+      { id: 'class', label: '単位・授業関連', sortOrder: 20, published: true },
+      { id: 'other', label: 'その他', sortOrder: 30, published: true },
+      { id: 'industry', label: '業界・企業関連', sortOrder: 40, published: true }
+    ];
+  }
+
+  var hasOther = false;
+  normalized.forEach(function(item) {
+    if (item.id === 'other') hasOther = true;
+  });
+  if (!hasOther) {
+    normalized.push({ id: 'other', label: '未分類', sortOrder: 9990, published: true });
+  }
+
+  normalized.sort(sortCornerByOrder_);
   return normalized;
 }
 
@@ -448,66 +497,52 @@ function normalizeCornerParticipationSection_(section) {
     prompt: sanitizeCornerText_(section.prompt || ''),
     note: sanitizeCornerText_(section.note || ''),
     stickyNote: sanitizeCornerText_(section.stickyNote || ''),
-    tags: []
+    themes: []
   };
-  var tags = Array.isArray(section.tags) ? section.tags : [];
-  for (var i = 0; i < tags.length; i++) {
-    var tag = tags[i] || {};
-    next.tags.push({
-      id: sanitizeCornerText_(tag.id || ('region-tag-' + (i + 1))),
-      label: sanitizeCornerText_(tag.label || ''),
-      count: sanitizeCornerText_(tag.count || ''),
-      tone: sanitizeCornerText_(tag.tone || ''),
-      published: tag.published !== false,
-      sortOrder: parseCornerSortOrder_(tag.sortOrder, (i + 1) * 10)
-    });
+  var themes = Array.isArray(section.themes) ? section.themes : [];
+  if (!themes.length && Array.isArray(section.tags) && section.tags.length) {
+    themes = [{
+      id: 'theme-origin',
+      title: 'みんなの出身地',
+      description: sanitizeCornerText_(section.prompt || ''),
+      published: true,
+      sortOrder: 10,
+      options: section.tags.map(function(tag, index) {
+        return {
+          id: sanitizeCornerText_(tag.id || ('region-' + (index + 1))),
+          label: sanitizeCornerText_(tag.label || ''),
+          votes: parseCornerVoteCount_(tag.count),
+          published: tag.published !== false,
+          sortOrder: parseCornerSortOrder_(tag.sortOrder, (index + 1) * 10)
+        };
+      })
+    }];
   }
-  next.tags.sort(sortCornerByOrder_);
-  return next;
-}
-
-function normalizeCornerIndustrySection_(section) {
-  var next = {
-    title: sanitizeCornerText_(section.title || '業界・企業Q&Aコーナー'),
-    note: sanitizeCornerText_(section.note || ''),
-    tags: [],
-    items: []
-  };
-  var rawTags = Array.isArray(section.tags) ? section.tags : [];
-  var publishedTagIds = {};
-  for (var i = 0; i < rawTags.length; i++) {
-    var tag = rawTags[i] || {};
-    var normalizedTag = {
-      id: sanitizeCornerText_(tag.id || ('industry-tag-' + (i + 1))),
-      label: sanitizeCornerText_(tag.label || ''),
-      sortOrder: parseCornerSortOrder_(tag.sortOrder, (i + 1) * 10),
-      published: tag.published !== false
+  for (var i = 0; i < themes.length; i++) {
+    var theme = themes[i] || {};
+    var normalizedTheme = {
+      id: sanitizeCornerText_(theme.id || ('theme-' + (i + 1))),
+      title: sanitizeCornerText_(theme.title || 'テーマ'),
+      description: sanitizeCornerText_(theme.description || ''),
+      published: theme.published !== false,
+      sortOrder: parseCornerSortOrder_(theme.sortOrder, (i + 1) * 10),
+      options: []
     };
-    if (normalizedTag.id) {
-      next.tags.push(normalizedTag);
-      publishedTagIds[normalizedTag.id] = true;
+    var options = Array.isArray(theme.options) ? theme.options : [];
+    for (var j = 0; j < options.length; j++) {
+      var option = options[j] || {};
+      normalizedTheme.options.push({
+        id: sanitizeCornerText_(option.id || (normalizedTheme.id + '-option-' + (j + 1))),
+        label: sanitizeCornerText_(option.label || ''),
+        votes: parseCornerVoteCount_(option.votes),
+        published: option.published !== false,
+        sortOrder: parseCornerSortOrder_(option.sortOrder, (j + 1) * 10)
+      });
     }
+    normalizedTheme.options.sort(sortCornerByOrder_);
+    next.themes.push(normalizedTheme);
   }
-  next.tags.sort(sortCornerByOrder_);
-
-  var items = Array.isArray(section.items) ? section.items : [];
-  for (var j = 0; j < items.length; j++) {
-    var item = items[j] || {};
-    var tagId = sanitizeCornerText_(item.tagId || '');
-    if (tagId && !publishedTagIds[tagId]) {
-      tagId = '';
-    }
-    next.items.push({
-      id: sanitizeCornerText_(item.id || ('industry-item-' + (j + 1))),
-      title: sanitizeCornerText_(item.title || ''),
-      comment: sanitizeCornerText_(item.comment || ''),
-      body: sanitizeCornerText_(pickDefined_(item.body, item.answer || '')),
-      tagId: tagId,
-      published: item.published !== false,
-      sortOrder: parseCornerSortOrder_(item.sortOrder, (j + 1) * 10)
-    });
-  }
-  next.items.sort(sortCornerByOrder_);
+  next.themes.sort(sortCornerByOrder_);
   return next;
 }
 
@@ -557,9 +592,52 @@ function normalizeCornerTagList_(tags) {
     .filter(Boolean);
 }
 
+function normalizeCornerQuestionCategory_(categoryId) {
+  var category = sanitizeCornerText_(categoryId || 'other');
+  var map = getCornerQuestionCategoryMap_();
+  if (map[category]) return category;
+  if (map.other) return 'other';
+  var keys = Object.keys(map);
+  return keys.length ? keys[0] : 'other';
+}
+
+function remapCornerQuestionCategories_(categories) {
+  var items = loadCornerQuestions_();
+  var nextItems = [];
+  var map = {};
+  categories.forEach(function(category) {
+    map[category.id] = true;
+  });
+  var fallbackId = map.other ? 'other' : (categories[0] ? categories[0].id : 'other');
+
+  for (var i = 0; i < items.length; i++) {
+    var item = copyCornerObject_(items[i]);
+    if (!map[item.category]) {
+      item.category = fallbackId;
+      item.updatedAt = getCornerNowIso_();
+    }
+    nextItems.push(buildCornerQuestionItem_(item));
+  }
+  saveCornerQuestions_(nextItems);
+}
+
+function getCornerQuestionCategoryMap_() {
+  var content = loadCornerContent_();
+  var map = {};
+  (content.questionCategories || []).forEach(function(item) {
+    if (item && item.id) map[item.id] = item;
+  });
+  return map;
+}
+
 function parseCornerSortOrder_(value, fallback) {
   var num = parseInt(value, 10);
   return isNaN(num) ? fallback : num;
+}
+
+function parseCornerVoteCount_(value) {
+  var num = parseInt(value, 10);
+  return isNaN(num) || num < 0 ? 0 : num;
 }
 
 function sortCornerByOrder_(a, b) {

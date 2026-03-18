@@ -1194,7 +1194,7 @@
               <div class="corner-section-link-note">地域タグや参加メモを見る</div>
             </a>
             <a class="corner-section-link" href="#corner-questions">
-              <div class="corner-section-link-title">質問一覧 / Q&A</div>
+              <div class="corner-section-link-title">なんでも相談・質問</div>
               <div class="corner-section-link-note">カテゴリ別に公開中の質問を見る</div>
             </a>
             <a class="corner-section-link" href="#corner-staff">
@@ -1218,12 +1218,7 @@
                 </div>
                 <div>
                   <label class="corner-form-label" for="cornerCategory">カテゴリ</label>
-                  <select class="corner-form-select" id="cornerCategory">
-                    <option value="job-hunt">就活関連</option>
-                    <option value="class">単位・授業関連</option>
-                    <option value="industry">業界・企業関連</option>
-                    <option value="other">その他</option>
-                  </select>
+                  <select class="corner-form-select" id="cornerCategory"></select>
                 </div>
                 <div>
                   <label class="corner-form-label" for="cornerQuestionTitle">タイトル</label>
@@ -1284,8 +1279,9 @@
   var cornerRendered = false;
   var cornerContentLoaded = false;
   var cornerContentData = null;
-  var cornerIndustryFilter = 'all';
   var cornerViewMode = 'top';
+  var cornerQuestionFilter = 'all';
+  var cornerSelectedParticipationThemeId = '';
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
@@ -1305,6 +1301,7 @@
     if (name === 'board') { renderBoardTop(); }
 
     if (name === 'corner') {
+      initCornerCategoryOptions();
       if (!cornerRendered) {
         cornerRendered = true;
         renderCorner();
@@ -1831,7 +1828,7 @@ window.onDayClick = function(dateISO) {
       .then(function(result) {
         if (!result || result.ok !== true) throw new Error('submit_failed');
         if (nicknameEl) nicknameEl.value = '';
-        if (categoryEl) categoryEl.value = 'job-hunt';
+        if (categoryEl) initCornerCategoryOptions();
         if (titleEl) titleEl.value = '';
         if (bodyEl) bodyEl.value = '';
         if (msgEl) {
@@ -1862,15 +1859,60 @@ window.onDayClick = function(dateISO) {
     }[category] || 'その他';
   }
 
+  function getCornerCategoryLabel(category) {
+    var categories = getCornerQuestionCategories(false);
+    for (var i = 0; i < categories.length; i++) {
+      if (categories[i].id === category) return categories[i].label;
+    }
+    return 'その他';
+  }
+
+  function getCornerQuestionCategories(publishedOnly) {
+    var content = cornerContentData || window.CORNER_CONTENT || {};
+    var categories = Array.isArray(content.questionCategories) ? content.questionCategories.slice() : [];
+    categories.sort(function(a, b) {
+      return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+    });
+    if (publishedOnly) {
+      categories = categories.filter(function(item) { return item.published !== false; });
+    }
+    return categories;
+  }
+
+  function getCornerQuestionFilterOptions() {
+    return [{ id: 'all', label: 'すべて' }].concat(
+      getCornerQuestionCategories(true).map(function(category) {
+        return { id: category.id, label: category.label || '' };
+      })
+    );
+  }
+
+  function initCornerCategoryOptions() {
+    var select = document.getElementById('cornerCategory');
+    if (!select) return;
+    var current = select.value || '';
+    var options = getCornerQuestionCategories(true);
+    select.innerHTML = options.map(function(category) {
+      return '<option value="' + esc(category.id) + '">' + esc(category.label || '') + '</option>';
+    }).join('');
+    if (current && options.some(function(category) { return category.id === current; })) {
+      select.value = current;
+    } else if (options.length) {
+      select.value = options[0].id;
+    }
+  }
+
   function loadCornerContent() {
     fetch(GAS_API_URL + '?page=calendar&action=cornerContentGet')
       .then(function(r) { return r.json(); })
       .then(function(content) {
         cornerContentData = content && typeof content === 'object' ? content : null;
+        initCornerCategoryOptions();
         renderCorner();
       })
       .catch(function() {
         cornerContentData = null;
+        initCornerCategoryOptions();
         renderCorner();
       });
   }
@@ -1911,7 +1953,7 @@ window.onDayClick = function(dateISO) {
     var meta = {
       worries: { title: 'お悩み相談コーナー', note: '質問を押すと、スタッフの回答が開く形式です。' },
       participation: { title: '参加型コーナー', note: '地域タグやメッセージをまとめて見られます。' },
-      questions: { title: '質問一覧 / Q&A コーナー', note: 'カテゴリごとに公開中の質問とQ&Aを整理しています。' },
+      questions: { title: 'なんでも相談・質問コーナー', note: 'カテゴリごとに公開中の質問とQ&Aを整理しています。' },
       staff: { title: 'スタッフ紹介・コラムコーナー', note: 'スタッフ紹介とコラムだけをまとめて見られます。' }
     }[cornerViewMode];
 
@@ -2123,6 +2165,174 @@ window.onDayClick = function(dateISO) {
     var el = document.getElementById(id);
     if (!el) return;
     el.classList.toggle('open');
+  }
+
+  function renderParticipationSection(section) {
+    if (!section) return '';
+    var themes = (section.themes || []).slice().sort(function(a, b) {
+      return Number(a.sortOrder || 0) - Number(b.sortOrder || 0);
+    });
+    if (!themes.length) {
+      return '<section class="corner-card sketch">'
+        + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.prompt || '') + ' ' + esc(section.note || '') + '</p></div>'
+        + '<div class="corner-question-empty">まだ公開中の参加型テーマはありません。</div>'
+        + '</section>';
+    }
+
+    var activeTheme = themes[0];
+    for (var i = 0; i < themes.length; i++) {
+      if (themes[i].id === cornerSelectedParticipationThemeId) {
+        activeTheme = themes[i];
+        break;
+      }
+    }
+
+    var voted = hasCornerParticipationVoted(activeTheme.id);
+    var totalVotes = (activeTheme.options || []).reduce(function(sum, option) {
+      return sum + Number(option.votes || 0);
+    }, 0);
+    var themeTabs = themes.length > 1
+      ? '<div class="corner-tag-row">' + themes.map(function(theme) {
+          return '<button type="button" class="corner-chip' + (theme.id === activeTheme.id ? ' active' : '') + '" onclick="selectCornerParticipationTheme(\'' + esc(theme.id) + '\')">' + esc(theme.title || '') + '</button>';
+        }).join('') + '</div>'
+      : '';
+    var optionHtml = (activeTheme.options || []).map(function(option) {
+      var votes = Number(option.votes || 0);
+      var percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+      if (voted) {
+        return '<div class="corner-industry-item">'
+          + '<div class="corner-industry-head"><span class="corner-industry-name">' + esc(option.label || '') + '</span><span class="corner-industry-comment">' + percent + '% / ' + votes + '票</span></div>'
+          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#1a3a5c,#2a5f8f);"></div></div></div>'
+          + '</div>';
+      }
+      return '<button type="button" class="corner-section-link" style="text-align:left;" onclick="voteCornerParticipation(\'' + esc(activeTheme.id) + '\',\'' + esc(option.id) + '\')">'
+        + '<div class="corner-section-link-title">' + esc(option.label || '') + '</div>'
+        + '<div class="corner-section-link-note">この選択肢に投票する</div>'
+        + '</button>';
+    }).join('');
+
+    return '<section class="corner-card sketch">'
+      + '<div class="corner-card-header"><h3 class="corner-card-title">' + esc(section.title) + '</h3><p class="corner-card-note">' + esc(section.prompt || '') + ' ' + esc(section.note || '') + '</p></div>'
+      + themeTabs
+      + '<div class="corner-worry-head other" style="margin-bottom:12px;">' + esc(activeTheme.title || '') + '</div>'
+      + '<div class="corner-card-note" style="margin-bottom:14px;">' + esc(activeTheme.description || '') + '</div>'
+      + '<div class="corner-industry-list">' + optionHtml + '</div>'
+      + '<div class="corner-sticky">' + esc(section.stickyNote || '') + (voted ? ' 投票ありがとうございました。' : '') + '</div>'
+      + '</section>';
+  }
+
+  function renderQuestionPageSection() {
+    var groups = getCornerQuestionGroups();
+    var filters = getCornerQuestionFilterOptions();
+    var filterHtml = '<div class="corner-tag-row">' + filters.map(function(filter) {
+      return '<button type="button" class="corner-chip' + (cornerQuestionFilter === filter.id ? ' active' : '') + '" onclick="setCornerQuestionFilter(\'' + esc(filter.id) + '\')">' + esc(filter.label || '') + '</button>';
+    }).join('') + '</div>';
+    if (!groups.length) {
+      return '<section class="corner-card sketch"><div class="corner-card-header"><h3 class="corner-card-title">なんでも相談・質問コーナー</h3><p class="corner-card-note">カテゴリごとに公開中の質問を見られます。</p></div>' + filterHtml + '<div class="corner-question-empty">まだ公開中の質問はありません。</div></section>';
+    }
+    var groupHtml = groups.map(function(group) {
+      var items = group.items.map(function(item) {
+        var answered = !!item.answerBody;
+        return '<article class="corner-question-item" id="cornerQuestionPageItem-' + esc(item.id) + '">'
+          + '<button type="button" class="corner-question-trigger" onclick="toggleCornerQuestionDetail(\'' + esc(item.id) + '\', true)">'
+          + '<div class="corner-question-topline">'
+          + '<div class="corner-question-meta"><span class="corner-question-badge">' + esc(group.label) + '</span><span>' + esc(item.displayDate || '') + '</span></div>'
+          + '<span class="corner-question-badge ' + (answered ? 'answered' : 'pending') + '">' + (answered ? '回答済み' : '未回答') + '</span>'
+          + '</div>'
+          + '<div class="corner-question-item-title">' + esc(item.title || '') + '</div>'
+          + '<div class="corner-question-preview">' + esc(item.previewText || '') + '</div>'
+          + '</button>'
+          + '<div class="corner-question-detail">'
+          + '<div class="corner-detail-section"><div class="corner-detail-label">質問本文</div><div class="corner-detail-body">' + esc(item.body || '') + '</div></div>'
+          + '<div class="corner-detail-section"><div class="corner-detail-label">スタッフからの回答</div>'
+          + (answered
+            ? '<div class="corner-answer-box"><div class="corner-detail-body">' + esc(item.answerBody || '') + '</div><div class="corner-answer-meta">' + esc(item.answeredBy || 'スタッフ') + (item.answeredDisplayDate ? ' / ' + esc(item.answeredDisplayDate) : '') + '</div></div>'
+            : '<div class="corner-detail-body">まだ回答準備中です。公開後に順次更新します。</div>')
+          + '</div></div>'
+          + '</article>';
+      }).join('');
+      return '<section class="corner-question-group"><h4 class="corner-question-group-title">' + esc(group.label) + '</h4><div class="corner-inline-list">' + items + '</div></section>';
+    }).join('');
+    return '<section class="corner-card sketch"><div class="corner-card-header"><h3 class="corner-card-title">なんでも相談・質問コーナー</h3><p class="corner-card-note">カテゴリを選ぶと、そのカテゴリの公開中質問だけを見られます。</p></div>' + filterHtml + '<div class="corner-question-groups">' + groupHtml + '</div></section>';
+  }
+
+  function getCornerQuestionGroups() {
+    var questions = collectVisibleCornerQuestions();
+    var categories = getCornerQuestionCategories(true);
+    if (cornerQuestionFilter !== 'all') {
+      var selectedCategory = null;
+      for (var i = 0; i < categories.length; i++) {
+        if (categories[i].id === cornerQuestionFilter) {
+          selectedCategory = categories[i];
+          break;
+        }
+      }
+      var filteredItems = questions.filter(function(item) {
+        return (item.category || 'other') === cornerQuestionFilter;
+      });
+      return filteredItems.length ? [{
+        key: cornerQuestionFilter,
+        label: selectedCategory ? selectedCategory.label : getCornerCategoryLabel(cornerQuestionFilter),
+        items: filteredItems
+      }] : [];
+    }
+    return categories.map(function(category) {
+      var merged = [];
+      questions.forEach(function(item) {
+        if ((item.category || 'other') === category.id) merged.push(item);
+      });
+      return {
+        key: category.id,
+        label: category.label,
+        items: merged
+      };
+    }).filter(function(group) { return group.items.length > 0; });
+  }
+
+  function setCornerQuestionFilter(categoryId) {
+    cornerQuestionFilter = categoryId || 'all';
+    renderCorner();
+  }
+
+  function selectCornerParticipationTheme(themeId) {
+    cornerSelectedParticipationThemeId = themeId || '';
+    renderCorner();
+  }
+
+  function getCornerParticipationVoteKey(themeId) {
+    return 'corner_vote_' + String(themeId || '');
+  }
+
+  function hasCornerParticipationVoted(themeId) {
+    try {
+      return localStorage.getItem(getCornerParticipationVoteKey(themeId)) === '1';
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function voteCornerParticipation(themeId, optionId) {
+    if (!themeId || !optionId || hasCornerParticipationVoted(themeId)) return;
+    fetch(
+      GAS_API_URL
+        + '?page=calendar&action=cornerParticipationVote'
+        + '&themeId=' + encodeURIComponent(themeId)
+        + '&optionId=' + encodeURIComponent(optionId)
+    )
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        if (!result || result.ok !== true) throw new Error('vote_failed');
+        try {
+          localStorage.setItem(getCornerParticipationVoteKey(themeId), '1');
+        } catch (err) {}
+        if (cornerContentData && cornerContentData.participation && Array.isArray(cornerContentData.participation.themes)) {
+          cornerContentData.participation.themes = cornerContentData.participation.themes.map(function(theme) {
+            return theme.id === themeId ? result.theme : theme;
+          });
+        }
+        renderCorner();
+      })
+      .catch(function() {});
   }
 
   window.addEventListener('hashchange', function() {

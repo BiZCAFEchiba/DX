@@ -525,9 +525,10 @@
                 <label>付箋メッセージ</label>
                 <input type="text" id="cornerParticipationSticky" placeholder="気になる地域があれば...">
               </div>
-              <div class="corner-repeater-list" id="cornerParticipationTags"></div>
+              <div class="corner-inline-help">公開中テーマの中から customer 側に表示されます。各テーマごとに選択肢を持てます。</div>
+              <div class="corner-repeater-list" id="cornerParticipationThemes"></div>
               <div class="form-btns">
-                <button class="btn-secondary" type="button" onclick="addCornerParticipationTag()">地域タグを追加</button>
+                <button class="btn-secondary" type="button" onclick="addCornerParticipationTheme()">テーマを追加</button>
                 <button class="btn-primary" type="button" onclick="saveCornerSection('participation')">保存する</button>
               </div>
             </section>
@@ -537,6 +538,15 @@
         <details class="corner-manage-group" open>
           <summary>質問管理</summary>
           <div class="corner-manage-body">
+            <section class="corner-admin-form corner-content-card" style="margin-bottom:16px;">
+              <div class="form-title">質問カテゴリ</div>
+              <div class="corner-inline-help">customer 側の投稿フォームと質問一覧のカテゴリで共通利用します。削除したカテゴリの既存質問は未分類へ移します。</div>
+              <div class="corner-repeater-list" id="cornerQuestionCategories"></div>
+              <div class="form-btns">
+                <button class="btn-secondary" type="button" onclick="addCornerQuestionCategory()">カテゴリを追加</button>
+                <button class="btn-primary" type="button" onclick="saveCornerSection('questionCategories')">保存する</button>
+              </div>
+            </section>
             <div class="corner-admin-form" id="cornerAdminForm" style="display:none;">
               <div class="form-title" id="cornerFormTitle">コーナー質問を管理</div>
               <input type="hidden" id="cornerEditId">
@@ -1560,6 +1570,314 @@
         showToast('公開状態を更新しました');
       })
       .catch(function() { showToast('公開状態の更新に失敗しました'); });
+  }
+
+  function normalizeCornerContentForAdmin(content) {
+    return {
+      questionCategories: normalizeCornerQuestionCategoriesForAdmin(content.questionCategories || []),
+      worries: normalizeCornerWorriesForAdmin(content.worries || {}),
+      participation: normalizeCornerParticipationForAdmin(content.participation || {}),
+      staffColumns: normalizeCornerStaffColumnsForAdmin(content.staffColumns || {})
+    };
+  }
+
+  function normalizeCornerQuestionCategoriesForAdmin(items) {
+    var list = Array.isArray(items) ? items : [];
+    if (!list.length) {
+      list = [
+        { id: 'job-hunt', label: '就活関連', sortOrder: 10, published: true },
+        { id: 'class', label: '単位・授業関連', sortOrder: 20, published: true },
+        { id: 'other', label: 'その他', sortOrder: 30, published: true },
+        { id: 'industry', label: '業界・企業関連', sortOrder: 40, published: true }
+      ];
+    }
+    var normalized = list.map(function(item, index) {
+      return {
+        id: item.id || makeCornerLocalId('question-category'),
+        label: item.label || '',
+        sortOrder: Number(item.sortOrder || ((index + 1) * 10)),
+        published: item.published !== false
+      };
+    });
+    if (!normalized.some(function(item) { return item.id === 'other'; })) {
+      normalized.push({ id: 'other', label: '未分類', sortOrder: 9990, published: true });
+    }
+    normalized.sort(function(a, b) { return Number(a.sortOrder || 0) - Number(b.sortOrder || 0); });
+    return normalized;
+  }
+
+  function normalizeCornerParticipationForAdmin(section) {
+    return {
+      title: section.title || '参加型コーナー',
+      prompt: section.prompt || '',
+      note: section.note || '',
+      stickyNote: section.stickyNote || '',
+      themes: Array.isArray(section.themes) ? section.themes.map(function(theme, index) {
+        return {
+          id: theme.id || makeCornerLocalId('participation-theme'),
+          title: theme.title || '',
+          description: theme.description || '',
+          published: theme.published !== false,
+          sortOrder: Number(theme.sortOrder || ((index + 1) * 10)),
+          options: Array.isArray(theme.options) ? theme.options.map(function(option, optionIndex) {
+            return {
+              id: option.id || makeCornerLocalId('participation-option'),
+              label: option.label || '',
+              votes: Number(option.votes || 0),
+              published: option.published !== false,
+              sortOrder: Number(option.sortOrder || ((optionIndex + 1) * 10))
+            };
+          }) : []
+        };
+      }) : []
+    };
+  }
+
+  function renderCornerContentAdmin() {
+    cornerContentData = normalizeCornerContentForAdmin(cornerContentData || {});
+    renderCornerQuestionCategoryEditor();
+    renderCornerWorriesEditor();
+    renderCornerParticipationEditor();
+    renderCornerStaffEditor();
+  }
+
+  function renderCornerQuestionCategoryEditor() {
+    var wrap = document.getElementById('cornerQuestionCategories');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    cornerContentData.questionCategories.forEach(function(category, index) {
+      var locked = category.id === 'other';
+      var card = document.createElement('div');
+      card.className = 'corner-repeat-card corner-question-category-card';
+      card.dataset.index = index;
+      card.innerHTML = '<div class="corner-repeat-card-header"><div class="corner-repeat-card-title">カテゴリ ' + (index + 1) + '</div>' + (locked ? '' : '<button class="btn-sm btn-delete" type="button" onclick="removeCornerQuestionCategory(' + index + ')">削除</button>') + '</div>'
+        + '<div class="form-grid two-col">'
+        + '<div class="form-field"><label>ID</label><input type="text" data-field="id" value="' + esc(category.id || '') + '"' + (locked ? ' readonly' : '') + '></div>'
+        + '<div class="form-field"><label>表示名</label><input type="text" data-field="label" value="' + esc(category.label || '') + '"></div>'
+        + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(category.sortOrder || 0) + '"></div>'
+        + '<div class="form-field"><label style="margin-top:27px;"><input type="checkbox" data-field="published"' + (category.published ? ' checked' : '') + (locked ? ' disabled' : '') + '> 公開する</label></div>'
+        + '</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function renderCornerParticipationEditor() {
+    var section = cornerContentData.participation;
+    document.getElementById('cornerParticipationTitle').value = section.title || '';
+    document.getElementById('cornerParticipationPrompt').value = section.prompt || '';
+    document.getElementById('cornerParticipationNote').value = section.note || '';
+    document.getElementById('cornerParticipationSticky').value = section.stickyNote || '';
+    var wrap = document.getElementById('cornerParticipationThemes');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    section.themes.forEach(function(theme, index) {
+      var card = document.createElement('div');
+      card.className = 'corner-repeat-card corner-participation-theme-card';
+      card.dataset.index = index;
+      card.innerHTML = '<div class="corner-repeat-card-header"><div class="corner-repeat-card-title">テーマ ' + (index + 1) + '</div><button class="btn-sm btn-delete" type="button" onclick="removeCornerParticipationTheme(' + index + ')">削除</button></div>'
+        + '<div class="form-grid two-col">'
+        + '<div class="form-field"><label>タイトル</label><input type="text" data-field="title" value="' + esc(theme.title || '') + '"></div>'
+        + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(theme.sortOrder || 0) + '"></div>'
+        + '</div>'
+        + '<div class="form-field"><label>説明文</label><textarea data-field="description">' + esc(theme.description || '') + '</textarea></div>'
+        + '<label class="corner-inline-checkbox"><input type="checkbox" data-field="published"' + (theme.published ? ' checked' : '') + '> 公開する</label>'
+        + '<div class="corner-subsection-title">選択肢</div>'
+        + '<div class="corner-repeater-list" id="cornerParticipationOptions-' + index + '"></div>'
+        + '<div class="corner-inline-actions"><button class="btn-sm btn-edit" type="button" onclick="addCornerParticipationOption(' + index + ')">選択肢を追加</button></div>';
+      wrap.appendChild(card);
+      renderCornerParticipationOptions(index);
+    });
+  }
+
+  function renderCornerParticipationOptions(themeIndex) {
+    var theme = cornerContentData.participation.themes[themeIndex];
+    var wrap = document.getElementById('cornerParticipationOptions-' + themeIndex);
+    if (!theme || !wrap) return;
+    wrap.innerHTML = '';
+    theme.options.forEach(function(option, optionIndex) {
+      var card = document.createElement('div');
+      card.className = 'corner-repeat-card corner-participation-option-card';
+      card.dataset.optionIndex = optionIndex;
+      card.innerHTML = '<div class="corner-repeat-card-header"><div class="corner-repeat-card-title">選択肢 ' + (optionIndex + 1) + '</div><button class="btn-sm btn-delete" type="button" onclick="removeCornerParticipationOption(' + themeIndex + ',' + optionIndex + ')">削除</button></div>'
+        + '<div class="form-grid two-col">'
+        + '<div class="form-field"><label>表示名</label><input type="text" data-field="label" value="' + esc(option.label || '') + '"></div>'
+        + '<div class="form-field"><label>票数</label><input type="number" data-field="votes" value="' + esc(option.votes || 0) + '"></div>'
+        + '<div class="form-field"><label>表示順</label><input type="number" data-field="sortOrder" value="' + esc(option.sortOrder || 0) + '"></div>'
+        + '<div class="form-field"><label style="margin-top:27px;"><input type="checkbox" data-field="published"' + (option.published ? ' checked' : '') + '> 公開する</label></div>'
+        + '</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function readCornerParticipationFromDom() {
+    return {
+      title: document.getElementById('cornerParticipationTitle').value.trim(),
+      prompt: document.getElementById('cornerParticipationPrompt').value.trim(),
+      note: document.getElementById('cornerParticipationNote').value.trim(),
+      stickyNote: document.getElementById('cornerParticipationSticky').value.trim(),
+      themes: Array.prototype.map.call(document.querySelectorAll('.corner-participation-theme-card'), function(card, index) {
+        var current = cornerContentData.participation.themes[index];
+        return {
+          id: current ? current.id : makeCornerLocalId('participation-theme'),
+          title: card.querySelector('[data-field="title"]').value.trim(),
+          description: card.querySelector('[data-field="description"]').value.trim(),
+          published: card.querySelector('[data-field="published"]').checked,
+          sortOrder: parseInt(card.querySelector('[data-field="sortOrder"]').value, 10) || 0,
+          options: Array.prototype.map.call(card.querySelectorAll('.corner-participation-option-card'), function(optionCard, optionIndex) {
+            var currentOption = current && current.options ? current.options[optionIndex] : null;
+            return {
+              id: currentOption ? currentOption.id : makeCornerLocalId('participation-option'),
+              label: optionCard.querySelector('[data-field="label"]').value.trim(),
+              votes: parseInt(optionCard.querySelector('[data-field="votes"]').value, 10) || 0,
+              published: optionCard.querySelector('[data-field="published"]').checked,
+              sortOrder: parseInt(optionCard.querySelector('[data-field="sortOrder"]').value, 10) || 0
+            };
+          })
+        };
+      })
+    };
+  }
+
+  function syncCornerSectionFromDom(sectionKey) {
+    if (sectionKey === 'questionCategories') {
+      cornerContentData.questionCategories = readCornerQuestionCategoriesFromDom();
+    } else if (sectionKey === 'worries') {
+      cornerContentData.worries = readCornerWorriesFromDom();
+    } else if (sectionKey === 'participation') {
+      cornerContentData.participation = readCornerParticipationFromDom();
+    } else if (sectionKey === 'staffColumns') {
+      cornerContentData.staffColumns = readCornerStaffColumnsFromDom();
+    }
+  }
+
+  function readCornerQuestionCategoriesFromDom() {
+    var items = Array.prototype.map.call(document.querySelectorAll('.corner-question-category-card'), function(card, index) {
+      var current = cornerContentData.questionCategories[index];
+      var id = (card.querySelector('[data-field="id"]').value.trim() || (current ? current.id : makeCornerLocalId('question-category')))
+        .replace(/\s+/g, '-')
+        .toLowerCase();
+      return {
+        id: id,
+        label: card.querySelector('[data-field="label"]').value.trim(),
+        sortOrder: parseInt(card.querySelector('[data-field="sortOrder"]').value, 10) || 0,
+        published: current && current.id === 'other' ? true : card.querySelector('[data-field="published"]').checked
+      };
+    });
+    if (!items.some(function(item) { return item.id === 'other'; })) {
+      items.push({ id: 'other', label: '未分類', sortOrder: 9990, published: true });
+    }
+    return items;
+  }
+
+  function addCornerQuestionCategory() {
+    syncCornerSectionFromDom('questionCategories');
+    cornerContentData.questionCategories.push({
+      id: 'category-' + (cornerContentData.questionCategories.length + 1),
+      label: '',
+      sortOrder: (cornerContentData.questionCategories.length + 1) * 10,
+      published: true
+    });
+    renderCornerQuestionCategoryEditor();
+  }
+
+  function removeCornerQuestionCategory(index) {
+    syncCornerSectionFromDom('questionCategories');
+    var category = cornerContentData.questionCategories[index];
+    if (!category || category.id === 'other') return;
+    cornerContentData.questionCategories.splice(index, 1);
+    renderCornerQuestionCategoryEditor();
+    showToast('カテゴリを削除しました。保存すると既存質問は未分類へ移ります');
+  }
+
+  function addCornerParticipationTheme() {
+    syncCornerSectionFromDom('participation');
+    cornerContentData.participation.themes.push({
+      id: makeCornerLocalId('participation-theme'),
+      title: '',
+      description: '',
+      published: true,
+      sortOrder: (cornerContentData.participation.themes.length + 1) * 10,
+      options: []
+    });
+    renderCornerParticipationEditor();
+  }
+
+  function removeCornerParticipationTheme(index) {
+    syncCornerSectionFromDom('participation');
+    cornerContentData.participation.themes.splice(index, 1);
+    renderCornerParticipationEditor();
+  }
+
+  function addCornerParticipationOption(themeIndex) {
+    syncCornerSectionFromDom('participation');
+    var theme = cornerContentData.participation.themes[themeIndex];
+    if (!theme) return;
+    theme.options.push({
+      id: makeCornerLocalId('participation-option'),
+      label: '',
+      votes: 0,
+      published: true,
+      sortOrder: (theme.options.length + 1) * 10
+    });
+    renderCornerParticipationEditor();
+  }
+
+  function removeCornerParticipationOption(themeIndex, optionIndex) {
+    syncCornerSectionFromDom('participation');
+    var theme = cornerContentData.participation.themes[themeIndex];
+    if (!theme) return;
+    theme.options.splice(optionIndex, 1);
+    renderCornerParticipationEditor();
+  }
+
+  function renderCornerItems() {
+    var wrap = document.getElementById('cornerItems');
+    wrap.innerHTML = '';
+    if (cornerAllItems.length === 0) {
+      wrap.innerHTML = '<div class="empty-state">まだ質問はありません。</div>';
+      return;
+    }
+    cornerAllItems.forEach(function(item) {
+      var answered = !!item.answerBody;
+      var card = document.createElement('div');
+      card.className = 'corner-item-card' + (item.published ? '' : ' unpublished');
+      card.innerHTML = '<div class="corner-item-title">' + esc(item.title) + '</div>'
+        + '<div class="corner-meta">'
+        + '<span class="corner-badge">' + esc(getCornerCategoryLabel(item.category)) + '</span>'
+        + '<span>' + esc(item.nickname || '匿名') + '</span>'
+        + '<span>' + esc(item.displayDate || '') + '</span>'
+        + '<span class="corner-badge ' + (answered ? 'answered' : 'pending') + '">' + (answered ? '回答済み' : '未回答') + '</span>'
+        + '</div>'
+        + '<div class="corner-item-summary">' + esc(item.previewText || '') + '</div>'
+        + '<div class="corner-item-actions">'
+        + '<button class="btn-sm btn-edit" onclick="startCornerEdit(\'' + item.id + '\')">回答・編集</button>'
+        + '<button class="btn-sm btn-toggle" onclick="toggleCornerPublished(\'' + item.id + '\',' + (!item.published) + ')">' + (item.published ? '非公開へ' : '公開する') + '</button>'
+        + '<button class="btn-sm btn-delete" onclick="deleteCornerQuestion(\'' + item.id + '\')">削除</button>'
+        + '<span class="corner-item-status">' + getCornerAdminStatusLabel(item) + '</span>'
+        + '</div>';
+      wrap.appendChild(card);
+    });
+  }
+
+  function deleteCornerQuestion(id) {
+    if (!confirm('この質問を削除しますか？')) return;
+    fetch(GAS_API_URL + '?page=calendar&action=cornerQuestionDelete&id=' + encodeURIComponent(id))
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        if (!result || result.ok !== true) throw new Error('delete_failed');
+        if (document.getElementById('cornerEditId').value === id) cancelCornerEdit();
+        loadCornerQuestions();
+        showToast('質問を削除しました');
+      })
+      .catch(function() { showToast('質問の削除に失敗しました'); });
+  }
+
+  function getCornerCategoryLabel(category) {
+    var categories = (cornerContentData && cornerContentData.questionCategories) || [];
+    for (var i = 0; i < categories.length; i++) {
+      if (categories[i].id === category) return categories[i].label;
+    }
+    return '未分類';
   }
 
   function getCornerAdminStatusLabel(item) {

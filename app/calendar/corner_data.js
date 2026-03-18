@@ -1,4 +1,10 @@
 window.CORNER_CONTENT = {
+  questionCategories: [
+    { id: 'job-hunt', label: '就活関連', sortOrder: 10, published: true },
+    { id: 'class', label: '単位・授業関連', sortOrder: 20, published: true },
+    { id: 'other', label: 'その他', sortOrder: 30, published: true },
+    { id: 'industry', label: '業界・企業関連', sortOrder: 40, published: true }
+  ],
   worries: {
     title: 'スタッフがお悩み答えます!',
     note: 'カテゴリごとに、よくある相談とスタッフからのひとことをまとめています。',
@@ -13,15 +19,15 @@ window.CORNER_CONTENT = {
         entries: [
           {
             id: 'worry-job-hunt-1',
-            question: '自己分析は何から始めるのがいいですか？',
-            answer: 'まずは、これまで楽しかった経験や頑張れた場面を書き出してみるのがおすすめです。',
+            question: '自己分析はどこから始めるのがよいですか?',
+            answer: 'まずは、これまで楽しかったことや頑張れた経験を3つほど書き出してみるのがおすすめです。',
             published: true,
             sortOrder: 10
           },
           {
             id: 'worry-job-hunt-2',
-            question: 'インターンに参加していなくても大丈夫ですか？',
-            answer: '大丈夫です。参加有無より、そこから何を学び、どう動いたかを言葉にできることが大切です。',
+            question: 'インターンに参加していなくても大丈夫ですか?',
+            answer: '大丈夫です。参加の有無よりも、そこから何を学びどう動いたかが大切です。',
             published: true,
             sortOrder: 20
           }
@@ -38,7 +44,7 @@ window.CORNER_CONTENT = {
           {
             id: 'worry-class-1',
             question: '授業と就活の両立が不安です。',
-            answer: '予定が見える化できるとかなり楽になります。先に固定予定を書き出して、空き時間で動く形にすると整理しやすいです。',
+            answer: '先に締切のある予定を見える化して、週ごとにやることを分けると整理しやすいです。',
             published: true,
             sortOrder: 10
           }
@@ -47,15 +53,15 @@ window.CORNER_CONTENT = {
       {
         id: 'worry-other',
         key: 'other',
-        title: 'その他なんでも!',
+        title: 'その他何でも!!',
         accent: 'other',
         published: true,
         sortOrder: 30,
         entries: [
           {
             id: 'worry-other-1',
-            question: 'BizCAFEはどう使うのがおすすめですか？',
-            answer: '空きコマの作業、イベント参加、スタッフとの雑談など、その日の気分で使い分けてもらって大丈夫です。',
+            question: 'BizCAFEはどんなときに使うのがおすすめですか?',
+            answer: '相談したいとき、予定の合間に休憩したいとき、スタッフと気軽に話したいときに使ってもらえます。',
             published: true,
             sortOrder: 10
           }
@@ -65,63 +71,24 @@ window.CORNER_CONTENT = {
   },
   participation: {
     title: '参加型コーナー',
-    prompt: 'みんなの出身地は？',
-    note: '初期版では地域タグでゆるく表現しています。',
-    stickyNote: '気になる地域があったらスタッフにも聞いてみてください。',
-    tags: [
-      { id: 'region-hokkaido', label: '北海道', count: '1名', tone: 'blue', published: true, sortOrder: 10 },
-      { id: 'region-tohoku', label: '東北', count: '2名', tone: 'teal', published: true, sortOrder: 20 },
-      { id: 'region-kanto', label: '関東', count: '6名', tone: 'yellow', published: true, sortOrder: 30 },
-      { id: 'region-chubu', label: '中部', count: '3名', tone: 'pink', published: true, sortOrder: 40 },
-      { id: 'region-kansai', label: '関西', count: '2名', tone: 'green', published: true, sortOrder: 50 },
-      { id: 'region-kyushu', label: '九州', count: '1名', tone: 'orange', published: true, sortOrder: 60 }
-    ]
-  },
-  industryQa: {
-    title: '業界・企業Q&Aコーナー',
-    note: '気になる業界タグを押すと、そのテーマのQ&Aだけを見られます。',
-    tags: [
-      { id: 'it', label: 'IT', sortOrder: 10, published: true },
-      { id: 'maker', label: 'メーカー', sortOrder: 20, published: true },
-      { id: 'consulting', label: 'コンサル', sortOrder: 30, published: true },
-      { id: 'trading', label: '商社', sortOrder: 40, published: true }
-    ],
-    items: [
+    prompt: 'みんなの声をちょっとずつ集めるコーナーです。',
+    note: '公開中テーマをひとつ選んで投票できます。',
+    stickyNote: '気軽に選んでみてください!',
+    themes: [
       {
-        id: 'industry-it-1',
-        title: 'IT業界は文系でも挑戦できますか？',
-        comment: '基礎から学びたい人向け',
-        body: '文系から挑戦している先輩も多いです。業界理解に加えて、なぜITに興味を持ったのかを整理しておくと話しやすくなります。',
-        tagId: 'it',
+        id: 'theme-origin',
+        title: 'みんなの出身地',
+        description: '出身地に近い地域を選んでください。',
         published: true,
-        sortOrder: 10
-      },
-      {
-        id: 'industry-maker-1',
-        title: 'メーカーは職種の幅が広いと聞きました。',
-        comment: '職種理解の入口',
-        body: '研究、技術、営業、企画など幅が広いです。まずは職種ごとに働き方がどう違うかを見ると理解しやすいです。',
-        tagId: 'maker',
-        published: true,
-        sortOrder: 20
-      },
-      {
-        id: 'industry-consulting-1',
-        title: 'コンサル業界って何をしているの？',
-        comment: '業界の基本',
-        body: '課題整理や改善提案を通じて企業を支援する仕事です。まずは「誰のどんな課題を扱うか」で会社ごとの差を見るのがおすすめです。',
-        tagId: 'consulting',
-        published: true,
-        sortOrder: 30
-      },
-      {
-        id: 'industry-trading-1',
-        title: '商社とメーカーの違いが分かりません。',
-        comment: '比較のヒント',
-        body: '商社はモノや事業をつなぐ立場、メーカーは自社でつくる立場という違いから見ると整理しやすいです。',
-        tagId: 'trading',
-        published: true,
-        sortOrder: 40
+        sortOrder: 10,
+        options: [
+          { id: 'hokkaido', label: '北海道', votes: 1, sortOrder: 10, published: true },
+          { id: 'tohoku', label: '東北', votes: 2, sortOrder: 20, published: true },
+          { id: 'kanto', label: '関東', votes: 6, sortOrder: 30, published: true },
+          { id: 'chubu', label: '中部', votes: 3, sortOrder: 40, published: true },
+          { id: 'kansai', label: '関西', votes: 2, sortOrder: 50, published: true },
+          { id: 'kyushu', label: '九州', votes: 1, sortOrder: 60, published: true }
+        ]
       }
     ]
   },
@@ -131,8 +98,8 @@ window.CORNER_CONTENT = {
       {
         id: 'staff-1',
         name: 'Aoi',
-        role: '3年 / 就活伴走スタッフ',
-        profile: '就活の進め方や、最初の一歩の踏み出し方を一緒に整理するのが得意です。',
+        role: '3年 / 就活相談スタッフ',
+        profile: '就活の進め方や自己分析の相談を担当。まずは雑談からでも大丈夫です。',
         tags: ['就活', '自己分析'],
         published: true,
         sortOrder: 10
@@ -141,7 +108,7 @@ window.CORNER_CONTENT = {
         id: 'staff-2',
         name: 'Riku',
         role: '4年 / 業界研究サポート',
-        profile: '業界比較や企業研究の始め方を、分かりやすく伝えることを大切にしています。',
+        profile: '業界研究や企業比較の始め方を一緒に整理します。',
         tags: ['業界研究', '企業比較'],
         published: true,
         sortOrder: 20
@@ -151,16 +118,9 @@ window.CORNER_CONTENT = {
       {
         id: 'column-1',
         title: 'BizCAFEスタッフが考える、就活の最初の一歩',
-        body: 'まずは完璧に進めようとせず、気になる業界を3つほど挙げてみるだけでも十分です。少しずつ輪郭を作っていきましょう。',
+        body: 'まずは興味のあることを3つ書き出してみるだけでも前に進めます。',
         published: true,
         sortOrder: 10
-      },
-      {
-        id: 'column-2',
-        title: '授業が忙しい時期の就活との向き合い方',
-        body: '全部を同時に頑張るより、今週やることを絞る方が続きやすいです。スタッフにも気軽に相談してください。',
-        published: true,
-        sortOrder: 20
       }
     ]
   }
