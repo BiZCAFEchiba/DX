@@ -354,6 +354,9 @@
   <button class="tab-btn" id="tabCorner" onclick="switchTab('corner')">
     <span class="tab-icon">🧷</span>コーナー管理
   </button>
+  <button class="tab-btn" id="tabMaintenance" onclick="switchTab('maintenance')">
+    <span class="tab-icon">🔧</span>メンテ管理
+  </button>
 </nav>
 
 <div class="tab-content">
@@ -646,6 +649,16 @@
       </div>
     </div>
   </div>
+
+  <div class="tab-pane" id="paneMaintenance">
+    <div class="container">
+      <div class="section-title">顧客アプリ メンテナンス管理</div>
+      <div class="corner-inline-help" style="margin-bottom:16px;">ONにすると、顧客アプリの該当タブにメンテナンス中の案内が表示されます。</div>
+      <div id="maintenanceList"></div>
+      <button class="update-btn" id="maintenanceSaveBtn" style="margin-top:20px;" onclick="saveMaintenanceSettings()">保存する</button>
+      <div id="maintenanceMsg" style="text-align:center;margin-top:10px;font-size:0.85rem;color:#666;"></div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -759,7 +772,7 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(pane) { pane.classList.remove('active'); });
-    var suffix = { congestion: 'Congestion', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter' }[name];
+    var suffix = { congestion: 'Congestion', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance' }[name];
     document.getElementById('tab' + suffix).classList.add('active');
     document.getElementById('pane' + suffix).classList.add('active');
     if (name === 'qa' && !qaLoaded) { qaLoaded = true; loadQA(); }
@@ -770,6 +783,63 @@
     if (name === 'counter') { loadPageViewStats(); }
     if (name === 'corner' && !cornerLoaded) { cornerLoaded = true; loadCornerQuestions(); }
     if (name === 'corner' && !cornerContentLoaded) { cornerContentLoaded = true; loadCornerContentAdmin(); }
+    if (name === 'maintenance' && !maintenanceLoaded) { maintenanceLoaded = true; loadMaintenance(); }
+  }
+
+  // ===== メンテナンス管理 =====
+  var maintenanceLoaded = false;
+  var MAINTENANCE_TABS = [
+    { id: 'congestion', label: '混雑状況' },
+    { id: 'calendar',   label: 'カレンダー' },
+    { id: 'qa',         label: 'Q&A' },
+    { id: 'board',      label: '掲示板' },
+    { id: 'corner',     label: 'コーナー' }
+  ];
+
+  function loadMaintenance() {
+    var list = document.getElementById('maintenanceList');
+    list.textContent = '読み込み中...';
+    fetch(GAS_API_URL + '?page=calendar&action=maintenanceGet')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderMaintenanceList(data); })
+      .catch(function() { list.textContent = '取得に失敗しました。'; });
+  }
+
+  function renderMaintenanceList(data) {
+    var wrap = document.getElementById('maintenanceList');
+    wrap.innerHTML = MAINTENANCE_TABS.map(function(tab) {
+      var checked = data[tab.id] ? ' checked' : '';
+      return '<label style="display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid #eee;font-size:1rem;cursor:pointer;">'
+        + '<input type="checkbox" id="mt_' + tab.id + '"' + checked + ' style="width:20px;height:20px;cursor:pointer;">'
+        + '<span>' + tab.label + '</span>'
+        + (data[tab.id] ? '<span style="font-size:0.8rem;color:#e53935;font-weight:700;">メンテ中</span>' : '')
+        + '</label>';
+    }).join('');
+  }
+
+  function saveMaintenanceSettings() {
+    var btn = document.getElementById('maintenanceSaveBtn');
+    var msg = document.getElementById('maintenanceMsg');
+    btn.disabled = true;
+    msg.textContent = '保存中...';
+    var promises = MAINTENANCE_TABS.map(function(tab) {
+      var el = document.getElementById('mt_' + tab.id);
+      var enabled = el ? el.checked : false;
+      return fetch(GAS_API_URL + '?page=calendar&action=maintenanceSet&tab=' + tab.id + '&enabled=' + enabled)
+        .then(function(r) { return r.json(); });
+    });
+    Promise.all(promises)
+      .then(function(results) {
+        var newData = {};
+        results.forEach(function(r) { if (r.ok) newData[r.tab] = r.enabled; });
+        renderMaintenanceList(newData);
+        msg.textContent = '保存しました。';
+        btn.disabled = false;
+      })
+      .catch(function() {
+        msg.textContent = '保存に失敗しました。';
+        btn.disabled = false;
+      });
   }
 
   applyStaffLabels();

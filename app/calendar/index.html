@@ -1077,7 +1077,13 @@
   </nav>
 
   <!-- コンテンツ -->
-  <div class="tab-content">
+  <div class="tab-content" style="position:relative;">
+    <!-- メンテナンスオーバーレイ -->
+    <div id="maintenanceOverlay" style="display:none;position:absolute;inset:0;z-index:100;background:#f5f7fa;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px 24px;text-align:center;">
+      <div style="font-size:3rem;">🔧</div>
+      <div style="font-size:1.2rem;font-weight:700;color:#1a3a5c;">メンテナンス中</div>
+      <div style="font-size:0.9rem;color:#666;max-width:280px;line-height:1.6;">ただいまこのページはメンテナンス中です。<br>しばらくお待ちください。</div>
+    </div>
 
 
     <!-- 混雑状況パネル -->
@@ -2593,7 +2599,35 @@ window.onDayClick = function(dateISO) {
         renderCongestionParticipation();
       }
     }
+    applyMaintenanceOverlay(name);
   };
+
+  // ===== メンテナンスオーバーレイ =====
+  var maintenanceStatus = {};
+
+  function applyMaintenanceOverlay(tabName) {
+    var overlay = document.getElementById('maintenanceOverlay');
+    if (!overlay) return;
+    if (maintenanceStatus[tabName]) {
+      overlay.style.display = 'flex';
+    } else {
+      overlay.style.display = 'none';
+    }
+  }
+
+  fetch('/api/gas?page=calendar&action=maintenanceGet')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      maintenanceStatus = data;
+      // 現在アクティブなタブに適用
+      var activeBtn = document.querySelector('.tab-btn.active');
+      if (activeBtn) {
+        var tabMap = { tabBtnCongestion: 'congestion', tabBtnCalendar: 'calendar', tabBtnQA: 'qa', tabBtnBoard: 'board', tabBtnCorner: 'corner' };
+        var currentTab = tabMap[activeBtn.id];
+        if (currentTab) applyMaintenanceOverlay(currentTab);
+      }
+    })
+    .catch(function() {});
 
   var originalVoteCornerParticipation = voteCornerParticipation;
   voteCornerParticipation = function(themeId, optionId) {

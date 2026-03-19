@@ -293,6 +293,30 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid level' }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // メンテナンス状態取得
+    if (param.action === 'maintenanceGet') {
+      var props = PropertiesService.getScriptProperties();
+      var mtTabs = ['congestion', 'calendar', 'qa', 'board', 'corner'];
+      var mtResult = {};
+      mtTabs.forEach(function(tab) {
+        mtResult[tab] = props.getProperty('MAINTENANCE_' + tab) === 'true';
+      });
+      return ContentService.createTextOutput(JSON.stringify(mtResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // メンテナンス状態設定
+    if (param.action === 'maintenanceSet') {
+      var mtTab = param.tab || '';
+      var mtValidTabs = ['congestion', 'calendar', 'qa', 'board', 'corner'];
+      if (mtValidTabs.indexOf(mtTab) === -1) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_tab' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var mtEnabled = param.enabled === 'true';
+      PropertiesService.getScriptProperties().setProperty('MAINTENANCE_' + mtTab, String(mtEnabled));
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, tab: mtTab, enabled: mtEnabled }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (param.action) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,
