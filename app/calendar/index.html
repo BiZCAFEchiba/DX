@@ -2888,7 +2888,7 @@ window.onDayClick = function(dateISO) {
   var roomSelectedDate = '';
   var roomSelectedStart = '';
   var roomSelectedEnd = '';
-  var roomSelectedDuration = 30;
+  var roomSelectedDuration = 15;
   var roomAvailableSlots = [];
 
   (function() {
@@ -2990,7 +2990,7 @@ window.onDayClick = function(dateISO) {
     document.querySelectorAll('.room-slot-btn').forEach(function(b) {
       if (b.textContent === startTime) b.classList.add('selected');
     });
-    roomSelectedDuration = 30;
+    roomSelectedDuration = 15;
     renderRoomDurationBtns();
     updateRoomFormHeader();
     document.getElementById('roomFormSection').style.display = 'block';
@@ -3003,7 +3003,7 @@ window.onDayClick = function(dateISO) {
     var startMin = roomTimeToMinClient(roomSelectedStart);
     var maxDur = 120;
     var slot30 = roomAvailableSlots;
-    [30, 60, 90, 120].forEach(function(dur) {
+    [15, 30, 45, 60, 75, 90, 105, 120].forEach(function(dur) {
       if (dur > maxDur) return;
       var endMin = startMin + dur;
       var endTime = roomMinToTimeClient(endMin);
@@ -3018,7 +3018,7 @@ window.onDayClick = function(dateISO) {
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'room-dur-btn' + (dur === roomSelectedDuration ? ' selected' : '');
-      btn.textContent = (dur < 60 ? dur + '分' : (dur / 60) + '時間');
+      btn.textContent = dur < 60 ? dur + '分' : (Number.isInteger(dur / 60) ? (dur / 60) + '時間' : Math.floor(dur / 60) + '時間' + (dur % 60) + '分');
       btn.onclick = function() {
         roomSelectedDuration = dur;
         renderRoomDurationBtns();

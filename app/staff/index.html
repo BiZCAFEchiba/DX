@@ -703,14 +703,12 @@
         </div>
 
         <!-- ID発行 -->
-        <div style="display:flex;gap:8px;margin-bottom:10px;">
-          <button class="btn-primary" style="white-space:nowrap;" onclick="issueShiruPass()">ID発行</button>
-        </div>
+        <button onclick="issueShiruPass()" style="width:100%;padding:16px;font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,#1a6fc4,#0d9488);color:#fff;border:none;border-radius:12px;cursor:pointer;letter-spacing:0.08em;margin-bottom:12px;box-shadow:0 4px 12px rgba(26,111,196,0.35);">🎫 知るパスID 発行</button>
         <div id="shiruPassResult" style="display:none;">
-          <div style="background:#eaf2fb;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px;">
-            <div style="font-size:0.78rem;color:#666;margin-bottom:4px;">発行されたID（カードに記入してください）</div>
-            <div id="shiruPassIdDisplay" style="font-size:2rem;font-weight:900;letter-spacing:0.25em;color:#1a3a5c;font-family:monospace;"></div>
-            <div id="shiruPassExpiryDisplay" style="font-size:0.78rem;color:#888;margin-top:4px;"></div>
+          <div style="background:linear-gradient(135deg,#e8f4fd,#d4f5ef);border-radius:12px;padding:18px;text-align:center;margin-bottom:12px;border:2px solid #1a6fc4;">
+            <div style="font-size:0.78rem;color:#555;margin-bottom:6px;font-weight:600;">✅ 発行されたID（カードに記入してください）</div>
+            <div id="shiruPassIdDisplay" style="font-size:2.6rem;font-weight:900;letter-spacing:0.3em;color:#1a3a5c;font-family:monospace;background:#fff;border-radius:8px;padding:10px 16px;display:inline-block;box-shadow:0 2px 8px rgba(0,0,0,0.12);"></div>
+            <div id="shiruPassExpiryDisplay" style="font-size:0.82rem;color:#1a6fc4;font-weight:700;margin-top:8px;"></div>
           </div>
         </div>
         <!-- 発行済みID一覧 -->
