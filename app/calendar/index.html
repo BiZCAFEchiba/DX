@@ -1393,12 +1393,9 @@
           <div class="room-card room-card-success">
             <div style="font-size:2.5rem;text-align:center;">✅</div>
             <div class="room-success-title">予約が完了しました</div>
-            <div class="room-success-note">当日は受付でお声がけください。</div>
+            <div class="room-success-note">時間になったらご自由にご利用ください。</div>
             <div id="roomSuccessDetail" class="room-success-detail"></div>
-            <div style="width:100%;background:#fff8e1;border-radius:8px;padding:10px 14px;text-align:center;">
-              <div style="font-size:0.75rem;color:#888;margin-bottom:4px;">📌 この端末からキャンセルできます（予約ID）</div>
-              <div id="roomSuccessId" style="font-family:monospace;font-size:0.9rem;font-weight:700;color:#1a3a5c;word-break:break-all;"></div>
-            </div>
+            <div id="roomSuccessId" style="display:none;"></div>
             <button class="room-btn-ghost" onclick="resetRoomForm()">別の日程を予約する</button>
           </div>
         </div>
@@ -3090,9 +3087,18 @@ window.onDayClick = function(dateISO) {
             invalid_time: '時刻の指定が正しくありません。',
             too_long: '最大2時間まで予約できます。',
             time_conflict: 'この時間帯はすでに予約が入っています。別の時間を選択してください。',
+            quota_exceeded: '知るパスIDの予約可能時間を超えています。',
             reservation_restricted: '予約の制限がかかっています。スタッフにお問い合わせください。'
           };
-          showRoomMsg(errMsgs[data.error] || ('エラー: ' + data.error), 'error');
+          var errMsg = errMsgs[data.error];
+          if (data.error === 'quota_exceeded') {
+            if (data.remainMin > 0) {
+              errMsg = '予約上限（' + data.maxHours + '時間）に達しています。あと' + data.remainMin + '分まで予約できます。';
+            } else {
+              errMsg = '予約上限（' + data.maxHours + '時間）に達しています。現在の予約終了後に再度ご利用いただけます。';
+            }
+          }
+          showRoomMsg(errMsg || ('エラー: ' + data.error), 'error');
           return;
         }
         // 成功

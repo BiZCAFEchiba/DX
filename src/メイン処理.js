@@ -429,6 +429,16 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true, days: getShiruPassValidDays_() }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // ルーム予約上限時間 取得/設定（スタッフ用）
+    if (param.action === 'roomMaxHours') {
+      if (param.set) {
+        var setHoursResult = setRoomMaxHours_(param.set);
+        return ContentService.createTextOutput(JSON.stringify(setHoursResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, hours: getRoomMaxHours_() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (param.action) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,

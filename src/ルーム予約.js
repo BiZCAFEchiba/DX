@@ -12,6 +12,7 @@ var ROOM_MAX_DAYS_AHEAD     = 14;
 var ROOM_WARNING_THRESHOLD  = 2;   // ノーショーN回でスタッフ通知
 var ROOM_RESTRICT_THRESHOLD = 3;   // ノーショーN回で予約制限
 var SHIRU_PASS_VALID_DAYS_DEFAULT = 14; // 知るパスID有効期間デフォルト（日）
+var ROOM_MAX_HOURS_DEFAULT        = 2;  // 知るパスID毎の予約上限時間デフォルト（時間）
 
 // ===== ヘルパー =====
 
@@ -78,7 +79,8 @@ function readAllRoomReservations_() {
       status:      String(data[i][9] || ''),
       staffMemo:   String(data[i][10] || ''),
       updatedAt:   data[i][11] instanceof Date ? Utilities.formatDate(data[i][11], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][11] || ''),
-      checkedInAt: data[i][12] instanceof Date ? Utilities.formatDate(data[i][12], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][12] || '')
+      checkedInAt: data[i][12] instanceof Date ? Utilities.formatDate(data[i][12], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][12] || ''),
+      shiruPassId: String(data[i][13] || '')
     });
   }
   return rows;
@@ -164,6 +166,36 @@ function setShiruPassValidDays_(days) {
   if (isNaN(d) || d <= 0) return { ok: false, error: 'invalid_days' };
   PropertiesService.getScriptProperties().setProperty('SHIRU_PASS_VALID_DAYS', String(d));
   return { ok: true, days: d };
+}
+
+function getRoomMaxHours_() {
+  var v = parseFloat(PropertiesService.getScriptProperties().getProperty('ROOM_MAX_HOURS') || '');
+  return isNaN(v) || v <= 0 ? ROOM_MAX_HOURS_DEFAULT : v;
+}
+
+function setRoomMaxHours_(hours) {
+  var h = parseFloat(hours);
+  if (isNaN(h) || h <= 0) return { ok: false, error: 'invalid_hours' };
+  PropertiesService.getScriptProperties().setProperty('ROOM_MAX_HOURS', String(h));
+  return { ok: true, hours: h };
+}
+
+// 知るパスIDが現在使用中の予約合計分数（未来 or 本日の終了前の approved のみ）
+function getUsedMinutesByShiruPass_(shiruPassId) {
+  var now = new Date();
+  var nowStr = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd HH:mm');
+  var reservations = readAllRoomReservations_();
+  var total = 0;
+  reservations.forEach(function(r) {
+    if (String(r.shiruPassId || '').toUpperCase() !== String(shiruPassId).toUpperCase()) return;
+    if (r.status !== 'approved' && r.status !== 'checked_in') return;
+    // 終了時刻がまだ過ぎていないものだけカウント
+    var endStr = r.date + ' ' + r.end;
+    if (endStr > nowStr) {
+      total += roomTimeToMin_(r.end) - roomTimeToMin_(r.start);
+    }
+  });
+  return total;
 }
 
 function renewShiruPassId_(id) {
@@ -269,11 +301,20 @@ function reserveRoom_(p) {
   });
   if (conflict) return { ok: false, error: 'time_conflict' };
 
+  // 知るパスID毎の予約合計時間クォータチェック
+  var maxMinutes = Math.round(getRoomMaxHours_() * 60);
+  var requestedMin = eMin - sMin;
+  var usedMin = getUsedMinutesByShiruPass_(p.shiruPassId);
+  if (usedMin + requestedMin > maxMinutes) {
+    var remainMin = Math.max(0, maxMinutes - usedMin);
+    return { ok: false, error: 'quota_exceeded', remainMin: remainMin, maxHours: getRoomMaxHours_() };
+  }
+
   var id = generateRoomId_(p.date);
   getRoomSheet_().appendRow([
     id, now, p.date, p.start, p.end,
     1, p.purpose || '', p.name, '',
-    'approved', '', now, ''
+    'approved', '', now, '', p.shiruPassId || ''
   ]);
 
   return { ok: true, id: id };
