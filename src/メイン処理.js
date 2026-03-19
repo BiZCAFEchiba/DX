@@ -294,23 +294,32 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     // メンテナンス状態取得
+    // tabs=id1,id2,... でタブIDを指定（指定なしの場合は全MAINTENANCE_*プロパティを返す）
+    // 未設定タブはデフォルトでメンテ中（true）
     if (param.action === 'maintenanceGet') {
       var props = PropertiesService.getScriptProperties();
-      var mtTabs = ['congestion', 'calendar', 'qa', 'board', 'corner'];
       var mtResult = {};
-      mtTabs.forEach(function(tab) {
-        // 未設定（新規タブ）はデフォルトでメンテ中（true）扱い
-        mtResult[tab] = props.getProperty('MAINTENANCE_' + tab) !== 'false';
-      });
+      if (param.tabs) {
+        param.tabs.split(',').forEach(function(tab) {
+          tab = tab.trim();
+          if (tab) mtResult[tab] = props.getProperty('MAINTENANCE_' + tab) !== 'false';
+        });
+      } else {
+        var allProps = props.getProperties();
+        Object.keys(allProps).forEach(function(key) {
+          if (key.indexOf('MAINTENANCE_') === 0) {
+            mtResult[key.replace('MAINTENANCE_', '')] = allProps[key] !== 'false';
+          }
+        });
+      }
       return ContentService.createTextOutput(JSON.stringify(mtResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    // メンテナンス状態設定
+    // メンテナンス状態設定（タブIDの制限なし）
     if (param.action === 'maintenanceSet') {
       var mtTab = param.tab || '';
-      var mtValidTabs = ['congestion', 'calendar', 'qa', 'board', 'corner'];
-      if (mtValidTabs.indexOf(mtTab) === -1) {
-        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_tab' }))
+      if (!mtTab) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'tab required' }))
           .setMimeType(ContentService.MimeType.JSON);
       }
       var mtEnabled = param.enabled === 'true';

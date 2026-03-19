@@ -2618,16 +2618,21 @@ window.onDayClick = function(dateISO) {
     }
   }
 
-  fetch('/api/gas?page=calendar&action=maintenanceGet')
+  // DOMからタブIDを自動収集してGASに渡す
+  var customerTabIds = Array.from(document.querySelectorAll('.tab-btn')).map(function(btn) {
+    var m = (btn.getAttribute('onclick') || '').match(/switchTab\('(\w+)'\)/);
+    return m ? m[1] : null;
+  }).filter(Boolean);
+
+  fetch('/api/gas?page=calendar&action=maintenanceGet&tabs=' + customerTabIds.join(','))
     .then(function(r) { return r.json(); })
     .then(function(data) {
       maintenanceStatus = data;
       // スプラッシュが消える前にオーバーレイを適用
       var activeBtn = document.querySelector('.tab-btn.active');
       if (activeBtn) {
-        var tabMap = { tabBtnCongestion: 'congestion', tabBtnCalendar: 'calendar', tabBtnQA: 'qa', tabBtnBoard: 'board', tabBtnCorner: 'corner' };
-        var currentTab = tabMap[activeBtn.id];
-        if (currentTab) applyMaintenanceOverlay(currentTab);
+        var m = (activeBtn.getAttribute('onclick') || '').match(/switchTab\('(\w+)'\)/);
+        if (m) applyMaintenanceOverlay(m[1]);
       }
       checkSplashReady();
     })

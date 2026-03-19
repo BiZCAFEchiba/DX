@@ -810,7 +810,8 @@
   function loadMaintenance() {
     var list = document.getElementById('maintenanceList');
     list.textContent = '読み込み中...';
-    fetch(GAS_API_URL + '?page=calendar&action=maintenanceGet')
+    var tabIds = MAINTENANCE_TABS.map(function(t) { return t.id; }).join(',');
+    fetch(GAS_API_URL + '?page=calendar&action=maintenanceGet&tabs=' + tabIds)
       .then(function(r) { return r.json(); })
       .then(function(data) { maintenanceData = data; renderMaintenanceList(); })
       .catch(function() { list.textContent = '取得に失敗しました。'; });
