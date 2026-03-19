@@ -281,15 +281,14 @@ function reserveRoom_(p) {
 
 // ===== キャンセル（顧客用） =====
 
-function cancelRoom_(id, contact) {
-  if (!id || !contact) return { ok: false, error: 'missing_params' };
+function cancelRoom_(id) {
+  if (!id) return { ok: false, error: 'missing_params' };
   var r = readAllRoomReservations_().find(function(r) { return r.id === id; });
-  if (!r)                   return { ok: false, error: 'not_found' };
-  if (r.contact !== contact) return { ok: false, error: 'unauthorized' };
-  if (r.status !== 'pending' && r.status !== 'approved') return { ok: false, error: 'cannot_cancel' };
+  if (!r) return { ok: false, error: 'not_found' };
+  if (r.status !== 'approved') return { ok: false, error: 'cannot_cancel' };
 
   var todayStr = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
-  if (r.date === todayStr)   return { ok: false, error: 'cannot_cancel_today' };
+  if (r.date === todayStr) return { ok: false, error: 'cannot_cancel_today' };
 
   var sheet = getRoomSheet_();
   sheet.getRange(r.rowIndex, 10).setValue('cancelled');

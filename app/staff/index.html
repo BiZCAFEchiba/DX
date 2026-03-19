@@ -3006,7 +3006,6 @@
       el.className = 'staff-room-item';
       var actionsHtml = '';
       if (r.status === 'pending')  actionsHtml += '<button class="staff-room-btn approve" onclick="staffRoomApprove(\'' + r.id + '\')">承認</button>';
-      if (r.status === 'approved') actionsHtml += '<button class="staff-room-btn cancel" onclick="staffRoomCancel(\'' + r.id + '\')">キャンセル</button>';
       el.innerHTML = ''
         + '<div class="staff-room-item-header">'
         +   '<span class="staff-room-item-time">' + r.start + ' 〜 ' + r.end + '</span>'

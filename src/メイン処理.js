@@ -339,9 +339,9 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(roomReserveResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    // ルーム予約: キャンセル
+    // ルーム予約: キャンセル（顧客が予約IDのみで実行）
     if (param.action === 'roomCancel') {
-      var roomCancelResult = cancelRoom_(param.id || '', param.contact || '');
+      var roomCancelResult = cancelRoom_(param.id || '');
       return ContentService.createTextOutput(JSON.stringify(roomCancelResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
