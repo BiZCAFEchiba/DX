@@ -712,17 +712,6 @@
         </div>
       </div>
 
-      <!-- チェックインモード切替 -->
-      <div class="current-card" style="padding:16px;margin-bottom:16px;">
-        <div class="section-title" style="margin-bottom:8px;">チェックインモード</div>
-        <div style="font-size:0.82rem;color:#666;margin-bottom:12px;">「スタッフのみ」: スタッフが来室確認してチェックイン<br>「顧客・スタッフ両方」: 顧客がアプリから自分でチェックインできる</div>
-        <div style="display:flex;gap:10px;">
-          <button id="checkinModeStaffBtn" class="btn-secondary" style="flex:1;" onclick="setCheckinMode('staff')">スタッフのみ</button>
-          <button id="checkinModeBothBtn" class="btn-secondary" style="flex:1;" onclick="setCheckinMode('both')">顧客・スタッフ両方</button>
-        </div>
-        <div id="checkinModeMsg" style="font-size:0.82rem;color:#666;margin-top:8px;text-align:center;"></div>
-      </div>
-
       <!-- 日付選択 -->
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
         <input type="date" id="staffRoomDate" class="room-date-input" style="flex:1;">
@@ -3017,9 +3006,7 @@
       el.className = 'staff-room-item';
       var actionsHtml = '';
       if (r.status === 'pending')  actionsHtml += '<button class="staff-room-btn approve" onclick="staffRoomApprove(\'' + r.id + '\')">承認</button>';
-      if (r.status === 'approved' || r.status === 'pending') actionsHtml += '<button class="staff-room-btn checkin" onclick="staffRoomCheckIn(\'' + r.id + '\')">チェックイン</button>';
-      if (r.status === 'approved' || r.status === 'pending') actionsHtml += '<button class="staff-room-btn cancel" onclick="staffRoomCancel(\'' + r.id + '\')">キャンセル</button>';
-      if (r.status === 'approved') actionsHtml += '<button class="staff-room-btn noshow" onclick="staffRoomNoShow(\'' + r.id + '\')">ノーショー</button>';
+      if (r.status === 'approved') actionsHtml += '<button class="staff-room-btn cancel" onclick="staffRoomCancel(\'' + r.id + '\')">キャンセル</button>';
       el.innerHTML = ''
         + '<div class="staff-room-item-header">'
         +   '<span class="staff-room-item-time">' + r.start + ' 〜 ' + r.end + '</span>'
