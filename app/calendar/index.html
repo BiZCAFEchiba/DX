@@ -1364,6 +1364,11 @@
               <div class="room-duration-btns" id="roomDurationBtns"></div>
             </div>
             <div class="room-form-row">
+              <label class="room-form-label" for="roomShiruPassId">知るパスID <span class="room-required">必須</span></label>
+              <input class="room-form-input" id="roomShiruPassId" type="text" placeholder="例: A7K3P9" maxlength="6" style="text-transform:uppercase;letter-spacing:0.15em;font-family:monospace;font-weight:700;">
+              <div id="roomPassMsg" style="font-size:0.78rem;margin-top:2px;min-height:1em;"></div>
+            </div>
+            <div class="room-form-row">
               <label class="room-form-label" for="roomName">お名前 <span class="room-required">必須</span></label>
               <input class="room-form-input" id="roomName" type="text" placeholder="山田 太郎">
             </div>
@@ -2913,6 +2918,37 @@ window.onDayClick = function(dateISO) {
       var maxD = new Date(today.getTime() + 14 * 86400000);
       el.max = maxD.getFullYear() + '-' + ('0'+(maxD.getMonth()+1)).slice(-2) + '-' + ('0'+maxD.getDate()).slice(-2);
     }
+    // 知るパスID: 入力時にリアルタイム検証
+    var passEl = document.getElementById('roomShiruPassId');
+    var passMsg = document.getElementById('roomPassMsg');
+    if (passEl && passMsg) {
+      var passTimer = null;
+      passEl.addEventListener('input', function() {
+        var v = passEl.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        passEl.value = v;
+        passMsg.textContent = '';
+        passMsg.style.color = '';
+        clearTimeout(passTimer);
+        if (v.length === 6) {
+          passMsg.textContent = '確認中...';
+          passTimer = setTimeout(function() {
+            fetch(GAS_API_URL + '?page=calendar&action=shiruPassValidate&id=' + encodeURIComponent(v))
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                if (data.valid) {
+                  passMsg.textContent = '✅ 有効です（有効期限: ' + data.expiry + '）';
+                  passMsg.style.color = '#28a745';
+                } else {
+                  var msgs = { not_found: '❌ IDが見つかりません', expired: '❌ 有効期限切れです' };
+                  passMsg.textContent = msgs[data.reason] || '❌ 無効なIDです';
+                  passMsg.style.color = '#c0392b';
+                }
+              })
+              .catch(function() { passMsg.textContent = ''; });
+          }, 600);
+        }
+      });
+    }
   })();
 
   function loadRoomSlots() {
@@ -3029,6 +3065,7 @@ window.onDayClick = function(dateISO) {
   }
 
   function submitRoomReservation() {
+    var shiruPassId = (document.getElementById('roomShiruPassId').value || '').trim().toUpperCase();
     var name    = (document.getElementById('roomName').value || '').trim();
     var contact = (document.getElementById('roomContact').value || '').trim();
     var people  = document.getElementById('roomPeople').value;
@@ -3036,6 +3073,7 @@ window.onDayClick = function(dateISO) {
     var msgEl   = document.getElementById('roomFormMsg');
 
     msgEl.style.display = 'none';
+    if (!shiruPassId) { showRoomMsg('知るパスIDを入力してください。', 'error'); return; }
     if (!name) { showRoomMsg('お名前を入力してください。', 'error'); return; }
     if (!contact) { showRoomMsg('連絡先を入力してください。', 'error'); return; }
     if (!roomSelectedDate || !roomSelectedStart || !roomSelectedEnd) {
@@ -3053,7 +3091,8 @@ window.onDayClick = function(dateISO) {
       + '&name=' + encodeURIComponent(name)
       + '&contact=' + encodeURIComponent(contact)
       + '&people=' + encodeURIComponent(people)
-      + '&purpose=' + encodeURIComponent(purpose);
+      + '&purpose=' + encodeURIComponent(purpose)
+      + '&shiruPassId=' + encodeURIComponent(shiruPassId);
 
     fetch(url)
       .then(function(r) { return r.json(); })
@@ -3061,6 +3100,9 @@ window.onDayClick = function(dateISO) {
         if (!data.ok) {
           var errMsgs = {
             missing_params: '入力内容を確認してください。',
+            shiru_pass_required: '知るパスIDを入力してください。',
+            shiru_pass_invalid: '知るパスIDが正しくありません。カードに記載のIDを確認してください。',
+            shiru_pass_expired: '知るパスIDの有効期限が切れています。スタッフにお声がけください。',
             date_out_of_range: '指定の日付は予約できません（本日から14日以内）。',
             invalid_time: '時刻の指定が正しくありません。',
             too_long: '最大2時間まで予約できます。',

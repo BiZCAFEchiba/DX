@@ -395,6 +395,24 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(roomUserUpdateResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 知るパスID発行（スタッフ用）
+    if (param.action === 'shiruPassIssue') {
+      var issueResult = issueShiruPassId_(param.note || '');
+      return ContentService.createTextOutput(JSON.stringify(issueResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 知るパスID検証（顧客用）
+    if (param.action === 'shiruPassValidate') {
+      var validateResult = validateShiruPassId_(param.id || '');
+      return ContentService.createTextOutput(JSON.stringify(validateResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 知るパスID一覧（スタッフ用）
+    if (param.action === 'shiruPassList') {
+      var listResult = getShiruPassList_();
+      return ContentService.createTextOutput(JSON.stringify(listResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (param.action) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,

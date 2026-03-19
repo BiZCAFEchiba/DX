@@ -4,12 +4,14 @@
 
 var SHEET_ROOM_RESERVATIONS = 'ルーム予約';
 var SHEET_ROOM_USERS        = 'ルーム利用者';
+var SHEET_SHIRU_PASS        = '知るパスID';
 var ROOM_CHECKIN_MODE_KEY   = 'ROOM_CHECKIN_MODE'; // 'both' or 'staff'
 var ROOM_NO_SHOW_AFTER_MIN  = 15;  // 開始後N分でno_show判定
 var ROOM_CHECKIN_BEFORE_MIN = 10;  // 開始N分前からチェックイン可
 var ROOM_MAX_DAYS_AHEAD     = 14;
 var ROOM_WARNING_THRESHOLD  = 2;   // ノーショーN回でスタッフ通知
 var ROOM_RESTRICT_THRESHOLD = 3;   // ノーショーN回で予約制限
+var SHIRU_PASS_VALID_DAYS   = 14;  // 知るパスID有効期間（日）
 
 // ===== ヘルパー =====
 
@@ -129,10 +131,97 @@ function getRoomAvailability_(dateStr) {
   };
 }
 
+// ===== 知るパスID管理 =====
+
+function getShiruPassSheet_() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_SHIRU_PASS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_SHIRU_PASS);
+    sheet.getRange(1, 1, 1, 4).setValues([['ID', '発行日時', '有効期限', 'メモ']]);
+    sheet.getRange(1, 1, 1, 4).setFontWeight('bold');
+  }
+  return sheet;
+}
+
+function generateShiruPassId_() {
+  // 6桁英数字（紛らわしい文字を除く: 0,O,1,I,L）
+  var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  var id = '';
+  for (var i = 0; i < 6; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
+function issueShiruPassId_(note) {
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var now = new Date();
+  var expiry = new Date(now.getTime() + SHIRU_PASS_VALID_DAYS * 86400000);
+
+  // ID重複チェック（既存IDと被らないように再生成）
+  var existingIds = data.slice(1).map(function(r) { return String(r[0]); });
+  var id;
+  var tries = 0;
+  do {
+    id = generateShiruPassId_();
+    tries++;
+  } while (existingIds.indexOf(id) !== -1 && tries < 100);
+
+  var expiryStr = Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd');
+  sheet.appendRow([id, now, expiry, note || '']);
+  return { ok: true, id: id, expiry: expiryStr };
+}
+
+function validateShiruPassId_(id) {
+  if (!id) return { valid: false, reason: 'missing' };
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var nowTime = new Date().getTime();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
+      var expiry = data[i][2] instanceof Date ? data[i][2] : new Date(data[i][2]);
+      if (isNaN(expiry.getTime())) return { valid: false, reason: 'invalid_data' };
+      if (expiry.getTime() < nowTime) {
+        return { valid: false, reason: 'expired', expiry: Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd') };
+      }
+      return { valid: true, expiry: Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd') };
+    }
+  }
+  return { valid: false, reason: 'not_found' };
+}
+
+function getShiruPassList_() {
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var now = new Date();
+  var rows = [];
+  for (var i = 1; i < data.length; i++) {
+    if (!data[i][0]) continue;
+    var expiry = data[i][2] instanceof Date ? data[i][2] : new Date(data[i][2]);
+    rows.push({
+      id:        String(data[i][0]),
+      issuedAt:  data[i][1] instanceof Date ? Utilities.formatDate(data[i][1], TIMEZONE, 'yyyy-MM-dd HH:mm') : String(data[i][1]),
+      expiry:    isNaN(expiry.getTime()) ? '' : Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd'),
+      expired:   isNaN(expiry.getTime()) ? true : expiry.getTime() < now.getTime(),
+      note:      String(data[i][3] || '')
+    });
+  }
+  return { ok: true, passes: rows.reverse() }; // 新しい順
+}
+
 // ===== 予約申請 =====
 
 function reserveRoom_(p) {
   if (!p.date || !p.start || !p.end || !p.name || !p.contact) return { ok: false, error: 'missing_params' };
+
+  // 知るパスIDの検証
+  var passResult = validateShiruPassId_(p.shiruPassId || '');
+  if (!passResult.valid) {
+    var errMap = { missing: 'shiru_pass_required', not_found: 'shiru_pass_invalid', expired: 'shiru_pass_expired' };
+    return { ok: false, error: errMap[passResult.reason] || 'shiru_pass_invalid' };
+  }
 
   var now = new Date();
   var todayStr = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd');
