@@ -75,12 +75,10 @@ function readAllRoomReservations_() {
       people:      Number(data[i][5] || 1),
       purpose:     String(data[i][6] || ''),
       name:        String(data[i][7] || ''),
-      contact:     String(data[i][8] || ''),
-      status:      String(data[i][9] || ''),
-      staffMemo:   String(data[i][10] || ''),
-      updatedAt:   data[i][11] instanceof Date ? Utilities.formatDate(data[i][11], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][11] || ''),
-      checkedInAt: data[i][12] instanceof Date ? Utilities.formatDate(data[i][12], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][12] || ''),
-      shiruPassId: String(data[i][13] || '')
+      status:      String(data[i][8] || ''),
+      updatedAt:   data[i][9] instanceof Date ? Utilities.formatDate(data[i][9], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][9] || ''),
+      checkedInAt: data[i][10] instanceof Date ? Utilities.formatDate(data[i][10], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][10] || ''),
+      shiruPassId: String(data[i][11] || '')
     });
   }
   return rows;
@@ -313,8 +311,8 @@ function reserveRoom_(p) {
   var id = generateRoomId_(p.date);
   getRoomSheet_().appendRow([
     id, now, p.date, p.start, p.end,
-    1, p.purpose || '', p.name, '',
-    'approved', '', now, '', p.shiruPassId || ''
+    1, p.purpose || '', p.name,
+    'approved', now, '', p.shiruPassId || ''
   ]);
 
   return { ok: true, id: id };
@@ -332,8 +330,8 @@ function cancelRoom_(id) {
   if (r.date === todayStr) return { ok: false, error: 'cannot_cancel_today' };
 
   var sheet = getRoomSheet_();
-  sheet.getRange(r.rowIndex, 10).setValue('cancelled');
-  sheet.getRange(r.rowIndex, 12).setValue(new Date());
+  sheet.getRange(r.rowIndex, 9).setValue('cancelled');
+  sheet.getRange(r.rowIndex, 10).setValue(new Date());
   return { ok: true };
 }
 
@@ -358,9 +356,9 @@ function checkInRoom_(id, contact, isStaff) {
   }
 
   var sheet = getRoomSheet_();
-  sheet.getRange(r.rowIndex, 10).setValue('checked_in');
-  sheet.getRange(r.rowIndex, 12).setValue(new Date());
-  sheet.getRange(r.rowIndex, 13).setValue(new Date());
+  sheet.getRange(r.rowIndex, 9).setValue('checked_in');
+  sheet.getRange(r.rowIndex, 10).setValue(new Date());
+  sheet.getRange(r.rowIndex, 11).setValue(new Date());
   return { ok: true };
 }
 
@@ -398,11 +396,9 @@ function updateRoomStatus_(id, status, memo) {
   if (!r) return { ok: false, error: 'not_found' };
 
   var sheet = getRoomSheet_();
-  sheet.getRange(r.rowIndex, 10).setValue(status);
-  sheet.getRange(r.rowIndex, 12).setValue(new Date());
-  if (memo) sheet.getRange(r.rowIndex, 11).setValue(memo);
-  if (status === 'checked_in' && !r.checkedInAt) sheet.getRange(r.rowIndex, 13).setValue(new Date());
-  if (status === 'no_show') incrementRoomNoShow_(r.contact, r.date);
+  sheet.getRange(r.rowIndex, 9).setValue(status);
+  sheet.getRange(r.rowIndex, 10).setValue(new Date());
+  if (status === 'checked_in' && !r.checkedInAt) sheet.getRange(r.rowIndex, 11).setValue(new Date());
 
   return { ok: true };
 }
