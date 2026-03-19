@@ -139,16 +139,21 @@ function onYuchiFormSubmit(e) {
       return;
     }
 
-    // 質問タイトルでスタッフ名を取得
+    // 質問タイトルでスタッフ名と企業選択を取得
     var staffName = '';
     var selectedCompanies = [];
     for (var i = 0; i < items.length; i++) {
       var title = String(items[i].getItem().getTitle()).trim();
       var ans = items[i].getResponse();
+      // 全設問のタイトル・型・値をログ出力（デバッグ用）
+      Logger.log('[設問' + i + '] title="' + title + '" type=' + (Array.isArray(ans) ? 'array(' + ans.length + ')' : typeof ans) + ' value=' + JSON.stringify(ans));
       if (title === 'スタッフ名（フルネーム）') {
         staffName = String(ans).trim();
-      } else if (Array.isArray(ans) && ans.length > 0) {
-        selectedCompanies = selectedCompanies.concat(ans);
+      } else if (title === '【誘致に成功した企業】') {
+        if (Array.isArray(ans)) {
+          var nonEmpty = ans.filter(function(v) { return String(v).trim() !== ''; });
+          selectedCompanies = selectedCompanies.concat(nonEmpty);
+        }
       }
     }
     Logger.log('onYuchiFormSubmit: 回答者=' + staffName);
