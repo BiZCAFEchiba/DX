@@ -334,6 +334,29 @@
       .board-preview-panel { position: sticky; top: 20px; }
       .corner-content-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
+    /* ===== ルーム管理 ===== */
+    .room-date-input { border: 1.5px solid #d7e0ea; border-radius: 8px; padding: 10px 12px; font-size: 1rem; width: 100%; outline: none; }
+    .room-date-input:focus { border-color: #1a3a5c; }
+    .staff-room-item { background: #fff; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 6px rgba(0,0,0,.07); margin-bottom: 10px; }
+    .staff-room-item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+    .staff-room-item-time { font-weight: 700; color: #1a3a5c; font-size: 0.95rem; }
+    .staff-room-item-status { font-size: 0.78rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+    .room-status-pending { background: #fff3cd; color: #856404; }
+    .room-status-approved { background: #d4edda; color: #155724; }
+    .room-status-cancelled { background: #f8d7da; color: #721c24; }
+    .room-status-checked_in { background: #d1ecf1; color: #0c5460; }
+    .room-status-no_show { background: #f5c6cb; color: #491217; }
+    .staff-room-item-detail { font-size: 0.82rem; color: #555; margin-bottom: 8px; line-height: 1.6; }
+    .staff-room-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .staff-room-btn { border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+    .staff-room-btn.approve  { background: #28a745; color: #fff; }
+    .staff-room-btn.checkin  { background: #17a2b8; color: #fff; }
+    .staff-room-btn.cancel   { background: #dc3545; color: #fff; }
+    .staff-room-btn.noshow   { background: #6c757d; color: #fff; }
+    .staff-room-user-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #fff; border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.06); flex-wrap: wrap; gap: 8px; }
+    .staff-room-user-contact { font-weight: 600; color: #1a3a5c; font-size: 0.9rem; }
+    .staff-room-user-info { font-size: 0.8rem; color: #666; }
+    .checkin-mode-active { background: #1a3a5c !important; color: #fff !important; }
   </style>
 </head>
 <body>
@@ -356,6 +379,9 @@
   </button>
   <button class="tab-btn" id="tabMaintenance" onclick="switchTab('maintenance')">
     <span class="tab-icon">🔧</span>メンテ管理
+  </button>
+  <button class="tab-btn" id="tabStaffRoom" onclick="switchTab('room')">
+    <span class="tab-icon">🚪</span>ルーム管理
   </button>
 </nav>
 
@@ -650,6 +676,39 @@
     </div>
   </div>
 
+  <div class="tab-pane" id="paneStaffRoom">
+    <div class="container">
+      <div class="section-title">🚪 Web会議ルーム管理</div>
+
+      <!-- チェックインモード切替 -->
+      <div class="current-card" style="padding:16px;margin-bottom:16px;">
+        <div class="section-title" style="margin-bottom:8px;">チェックインモード</div>
+        <div style="font-size:0.82rem;color:#666;margin-bottom:12px;">「スタッフのみ」: スタッフが来室確認してチェックイン<br>「顧客・スタッフ両方」: 顧客がアプリから自分でチェックインできる</div>
+        <div style="display:flex;gap:10px;">
+          <button id="checkinModeStaffBtn" class="btn-secondary" style="flex:1;" onclick="setCheckinMode('staff')">スタッフのみ</button>
+          <button id="checkinModeBothBtn" class="btn-secondary" style="flex:1;" onclick="setCheckinMode('both')">顧客・スタッフ両方</button>
+        </div>
+        <div id="checkinModeMsg" style="font-size:0.82rem;color:#666;margin-top:8px;text-align:center;"></div>
+      </div>
+
+      <!-- 日付選択 -->
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+        <input type="date" id="staffRoomDate" class="room-date-input" style="flex:1;">
+        <button class="btn-primary" style="white-space:nowrap;" onclick="loadStaffRoomList()">予約一覧を表示</button>
+      </div>
+
+      <!-- 予約一覧 -->
+      <div id="staffRoomList"></div>
+
+      <!-- 利用者管理 -->
+      <div style="margin-top:24px;">
+        <div class="section-title" style="margin-bottom:8px;">利用者管理</div>
+        <button class="btn-secondary" style="width:100%;margin-bottom:12px;" onclick="loadRoomUserList()">利用者一覧を読み込む</button>
+        <div id="staffRoomUserList"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="tab-pane" id="paneMaintenance">
     <div class="container">
       <div class="section-title">顧客アプリ メンテナンス管理</div>
@@ -689,7 +748,8 @@
     calendar:   'カレンダー',
     qa:         'Q&A',
     board:      'お知らせ',
-    corner:     'なんでも掲示板'
+    corner:     'なんでも掲示板',
+    room:       'ルーム予約'
   };
 
   function applyStaffLabels() {
@@ -786,7 +846,7 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(pane) { pane.classList.remove('active'); });
-    var suffix = { congestion: 'Congestion', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance' }[name];
+    var suffix = { congestion: 'Congestion', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance', room: 'StaffRoom' }[name];
     document.getElementById('tab' + suffix).classList.add('active');
     document.getElementById('pane' + suffix).classList.add('active');
     if (name === 'qa' && !qaLoaded) { qaLoaded = true; loadQA(); }
@@ -798,6 +858,7 @@
     if (name === 'corner' && !cornerLoaded) { cornerLoaded = true; loadCornerQuestions(); }
     if (name === 'corner' && !cornerContentLoaded) { cornerContentLoaded = true; loadCornerContentAdmin(); }
     if (name === 'maintenance' && !maintenanceLoaded) { maintenanceLoaded = true; loadMaintenance(); }
+    if (name === 'room' && !staffRoomLoaded) { staffRoomLoaded = true; loadStaffRoom(); }
   }
 
   // ===== メンテナンス管理 =====
@@ -2847,6 +2908,198 @@
     if (theme.id) congestionParticipationOpenIds[theme.id] = true;
     theme.options.splice(optionIndex, 1);
     renderCongestionParticipationAdmin();
+  }
+
+  // ===== ルーム管理 =====
+  var staffRoomLoaded = false;
+  var currentCheckinMode = 'staff';
+
+  (function() {
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = ('0' + (today.getMonth() + 1)).slice(-2);
+    var dd = ('0' + today.getDate()).slice(-2);
+    var el = document.getElementById('staffRoomDate');
+    if (el) el.value = yyyy + '-' + mm + '-' + dd;
+  })();
+
+  function loadStaffRoom() {
+    loadCheckinMode();
+    loadStaffRoomList();
+  }
+
+  function loadCheckinMode() {
+    fetch(GAS_API_URL + '?page=calendar&action=roomCheckinMode')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        currentCheckinMode = data.mode || 'staff';
+        updateCheckinModeUI();
+      })
+      .catch(function() {});
+  }
+
+  function updateCheckinModeUI() {
+    var staffBtn = document.getElementById('checkinModeStaffBtn');
+    var bothBtn  = document.getElementById('checkinModeBothBtn');
+    var msg      = document.getElementById('checkinModeMsg');
+    if (staffBtn) staffBtn.className = 'btn-secondary' + (currentCheckinMode === 'staff' ? ' checkin-mode-active' : '');
+    if (bothBtn)  bothBtn.className  = 'btn-secondary' + (currentCheckinMode === 'both'  ? ' checkin-mode-active' : '');
+    if (msg) msg.textContent = currentCheckinMode === 'both' ? '現在: 顧客・スタッフ両方がチェックインできます' : '現在: スタッフのみがチェックインできます';
+  }
+
+  function setCheckinMode(mode) {
+    fetch(GAS_API_URL + '?page=calendar&action=roomCheckinMode&set=' + mode)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { currentCheckinMode = mode; updateCheckinModeUI(); }
+      })
+      .catch(function() {});
+  }
+
+  function loadStaffRoomList() {
+    var dateEl = document.getElementById('staffRoomDate');
+    var date = dateEl ? dateEl.value : '';
+    if (!date) return;
+    var listEl = document.getElementById('staffRoomList');
+    listEl.innerHTML = '<div style="color:#888;font-size:.85rem;padding:10px 0;">読み込み中...</div>';
+    fetch(GAS_API_URL + '?page=calendar&action=roomList&date=' + encodeURIComponent(date))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok || !data.reservations || !data.reservations.length) {
+          listEl.innerHTML = '<div style="color:#888;font-size:.85rem;padding:10px 0;">この日の予約はありません。</div>';
+          return;
+        }
+        renderStaffRoomList(data.reservations);
+      })
+      .catch(function() { listEl.innerHTML = '<div style="color:#c0392b;font-size:.85rem;">読み込みに失敗しました。</div>'; });
+  }
+
+  function renderStaffRoomList(reservations) {
+    var listEl = document.getElementById('staffRoomList');
+    listEl.innerHTML = '';
+    reservations.forEach(function(r) {
+      var statusLabel = { pending:'審査中', approved:'承認済み', cancelled:'キャンセル済', checked_in:'チェックイン済', no_show:'ノーショー' }[r.status] || r.status;
+      var statusClass = 'room-status-' + r.status;
+      var el = document.createElement('div');
+      el.className = 'staff-room-item';
+      var actionsHtml = '';
+      if (r.status === 'pending')  actionsHtml += '<button class="staff-room-btn approve" onclick="staffRoomApprove(\'' + r.id + '\')">承認</button>';
+      if (r.status === 'approved' || r.status === 'pending') actionsHtml += '<button class="staff-room-btn checkin" onclick="staffRoomCheckIn(\'' + r.id + '\')">チェックイン</button>';
+      if (r.status === 'approved' || r.status === 'pending') actionsHtml += '<button class="staff-room-btn cancel" onclick="staffRoomCancel(\'' + r.id + '\')">キャンセル</button>';
+      if (r.status === 'approved') actionsHtml += '<button class="staff-room-btn noshow" onclick="staffRoomNoShow(\'' + r.id + '\')">ノーショー</button>';
+      el.innerHTML = ''
+        + '<div class="staff-room-item-header">'
+        +   '<span class="staff-room-item-time">' + r.start + ' 〜 ' + r.end + '</span>'
+        +   '<span class="staff-room-item-status ' + statusClass + '">' + statusLabel + '</span>'
+        + '</div>'
+        + '<div class="staff-room-item-detail">'
+        +   escStaff(r.name) + '（' + escStaff(r.contact) + '）&nbsp;／&nbsp;'
+        +   r.people + '名&nbsp;／&nbsp;' + escStaff(r.purpose || '–')
+        +   (r.staffMemo ? '<br>📝 ' + escStaff(r.staffMemo) : '')
+        + '</div>'
+        + (actionsHtml ? '<div class="staff-room-actions">' + actionsHtml + '</div>' : '');
+      listEl.appendChild(el);
+    });
+  }
+
+  function staffRoomApprove(id) {
+    staffRoomUpdateStatus(id, 'approved', '');
+  }
+
+  function staffRoomCheckIn(id) {
+    fetch(GAS_API_URL + '?page=calendar&action=roomCheckIn&id=' + encodeURIComponent(id) + '&staff=1')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { showToast('チェックインしました。'); loadStaffRoomList(); }
+        else showToast('エラー: ' + data.error, true);
+      })
+      .catch(function() { showToast('通信エラー', true); });
+  }
+
+  function staffRoomCancel(id) {
+    var memo = prompt('キャンセル理由（任意）:') || '';
+    staffRoomUpdateStatus(id, 'cancelled', memo);
+  }
+
+  function staffRoomNoShow(id) {
+    if (!confirm('ノーショーとしてマークしますか？\n利用者のノーショー回数が加算されます。')) return;
+    staffRoomUpdateStatus(id, 'no_show', 'ノーショー確認');
+  }
+
+  function staffRoomUpdateStatus(id, status, memo) {
+    fetch(GAS_API_URL + '?page=calendar&action=roomStatusUpdate&id=' + encodeURIComponent(id) + '&status=' + encodeURIComponent(status) + '&memo=' + encodeURIComponent(memo))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { showToast('更新しました。'); loadStaffRoomList(); }
+        else showToast('エラー: ' + data.error, true);
+      })
+      .catch(function() { showToast('通信エラー', true); });
+  }
+
+  function loadRoomUserList() {
+    var listEl = document.getElementById('staffRoomUserList');
+    listEl.innerHTML = '<div style="color:#888;font-size:.85rem;">読み込み中...</div>';
+    fetch(GAS_API_URL + '?page=calendar&action=roomUserList')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok || !data.users || !data.users.length) {
+          listEl.innerHTML = '<div style="color:#888;font-size:.85rem;">利用者データがありません。</div>'; return;
+        }
+        renderRoomUserList(data.users);
+      })
+      .catch(function() { listEl.innerHTML = '<div style="color:#c0392b;font-size:.85rem;">読み込みに失敗しました。</div>'; });
+  }
+
+  function renderRoomUserList(users) {
+    var listEl = document.getElementById('staffRoomUserList');
+    listEl.innerHTML = '';
+    users.forEach(function(u) {
+      var el = document.createElement('div');
+      el.className = 'staff-room-user-item';
+      el.innerHTML = ''
+        + '<div>'
+        +   '<div class="staff-room-user-contact">' + escStaff(u.contact) + '</div>'
+        +   '<div class="staff-room-user-info">ノーショー: ' + (u.noShowCount || 0) + '回' + (u.restricted ? '　⚠️ 予約制限中' : '') + '</div>'
+        + '</div>'
+        + '<div style="display:flex;gap:6px;">'
+        +   (u.restricted
+              ? '<button class="staff-room-btn approve" onclick="roomUserUnrestrict(\'' + escStaff(u.contact) + '\')">制限解除</button>'
+              : '<button class="staff-room-btn cancel" onclick="roomUserRestrict(\'' + escStaff(u.contact) + '\')">制限</button>')
+        +   '<button class="staff-room-btn noshow" onclick="roomUserResetCount(\'' + escStaff(u.contact) + '\')">回数リセット</button>'
+        + '</div>';
+      listEl.appendChild(el);
+    });
+  }
+
+  function roomUserRestrict(contact) {
+    if (!confirm(contact + ' を予約制限しますか？')) return;
+    roomUserUpdate(contact, true, false);
+  }
+
+  function roomUserUnrestrict(contact) {
+    roomUserUpdate(contact, false, false);
+  }
+
+  function roomUserResetCount(contact) {
+    if (!confirm(contact + ' のノーショー回数をリセットしますか？')) return;
+    roomUserUpdate(contact, null, true);
+  }
+
+  function roomUserUpdate(contact, restricted, resetCount) {
+    var params = '?page=calendar&action=roomUserUpdate&contact=' + encodeURIComponent(contact);
+    if (restricted !== null) params += '&restricted=' + restricted;
+    if (resetCount) params += '&resetCount=true';
+    fetch(GAS_API_URL + params)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { showToast('更新しました。'); loadRoomUserList(); }
+        else showToast('エラー: ' + data.error, true);
+      })
+      .catch(function() { showToast('通信エラー', true); });
+  }
+
+  function escStaff(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 </script>
 </body>

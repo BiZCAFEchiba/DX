@@ -1039,7 +1039,57 @@
       .corner-worry-grid { grid-template-columns: 1fr; }
       .corner-mini-note { max-width: none; transform: rotate(0deg); }
       .corner-live-section { grid-template-columns: 1fr; }
+      .room-wrap { padding: 16px 12px 30px; }
     }
+
+    /* ===== ルーム予約 ===== */
+    .room-wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
+    .room-header-bar { }
+    .room-section-title { font-size: 1.1rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; }
+    .room-section-note { font-size: 0.8rem; color: #888; }
+    .room-card { background: #fff; border-radius: 14px; padding: 18px 16px; box-shadow: 0 2px 10px rgba(0,0,0,.07); display: flex; flex-direction: column; gap: 12px; }
+    .room-card-success { align-items: center; gap: 10px; }
+    .room-my-card { }
+    .room-card-label { font-size: 0.9rem; font-weight: 700; color: #1a3a5c; }
+    .room-date-input { border: 1.5px solid #d7e0ea; border-radius: 8px; padding: 10px 12px; font-size: 1rem; width: 100%; outline: none; }
+    .room-date-input:focus { border-color: #1a3a5c; }
+    .room-btn-primary { background: linear-gradient(135deg,#1a3a5c,#2a5f8f); color: #fff; border: none; border-radius: 10px; padding: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; width: 100%; }
+    .room-btn-primary:active { opacity: 0.8; }
+    .room-btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+    .room-btn-secondary { background: #e8f4fd; color: #1a3a5c; border: none; border-radius: 10px; padding: 11px; font-size: 0.9rem; font-weight: 700; cursor: pointer; width: 100%; }
+    .room-btn-ghost { background: none; color: #666; border: 1.5px solid #d7e0ea; border-radius: 10px; padding: 10px; font-size: 0.88rem; cursor: pointer; width: 100%; }
+    .room-slot-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .room-slot-btn { border: 1.5px solid #1a3a5c; border-radius: 8px; padding: 10px 6px; font-size: 0.85rem; font-weight: 600; background: #fff; color: #1a3a5c; cursor: pointer; text-align: center; }
+    .room-slot-btn.unavailable { border-color: #ddd; color: #bbb; cursor: not-allowed; background: #f7f7f7; }
+    .room-slot-btn.selected { background: #1a3a5c; color: #fff; }
+    .room-selected-slot { font-size: 1rem; font-weight: 700; color: #1a3a5c; text-align: center; padding: 10px; background: #eaf2fb; border-radius: 8px; }
+    .room-form-row { display: flex; flex-direction: column; gap: 4px; }
+    .room-form-label { font-size: 0.82rem; color: #555; font-weight: 600; }
+    .room-required { color: #e55; font-size: 0.78rem; }
+    .room-form-input { border: 1.5px solid #d7e0ea; border-radius: 8px; padding: 10px 12px; font-size: 0.95rem; outline: none; }
+    .room-form-input:focus { border-color: #1a3a5c; }
+    .room-duration-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+    .room-dur-btn { border: 1.5px solid #1a3a5c; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600; background: #fff; color: #1a3a5c; cursor: pointer; }
+    .room-dur-btn.selected { background: #1a3a5c; color: #fff; }
+    .room-msg { padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; }
+    .room-msg.error { background: #fdecea; color: #c0392b; }
+    .room-msg.success { background: #eafaf1; color: #1e8449; }
+    .room-success-title { font-size: 1.1rem; font-weight: 700; color: #1a3a5c; text-align: center; }
+    .room-success-note { font-size: 0.85rem; color: #666; text-align: center; line-height: 1.6; }
+    .room-success-detail { font-size: 0.85rem; color: #333; text-align: center; background: #f5f7fa; padding: 10px; border-radius: 8px; width: 100%; }
+    .room-my-item { background: #f5f7fa; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+    .room-my-item-header { display: flex; justify-content: space-between; align-items: center; }
+    .room-my-item-date { font-weight: 700; color: #1a3a5c; font-size: 0.95rem; }
+    .room-my-item-status { font-size: 0.78rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
+    .room-status-pending { background: #fff3cd; color: #856404; }
+    .room-status-approved { background: #d4edda; color: #155724; }
+    .room-status-cancelled { background: #f8d7da; color: #721c24; }
+    .room-status-checked_in { background: #d1ecf1; color: #0c5460; }
+    .room-status-no_show { background: #f5c6cb; color: #491217; }
+    .room-my-item-time { font-size: 0.85rem; color: #555; }
+    .room-my-item-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .room-checkin-btn { background: #28a745; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+    .room-cancel-btn { background: none; color: #888; border: 1px solid #ccc; border-radius: 8px; padding: 7px 12px; font-size: 0.82rem; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -1070,6 +1120,9 @@
     </button>
     <button class="tab-btn" id="tabBtnCorner" onclick="switchTab('corner')">
       <span class="tab-icon">🧷</span>コーナー
+    </button>
+    <button class="tab-btn" id="tabBtnRoom" onclick="switchTab('room')">
+      <span class="tab-icon">🚪</span>ルーム予約
     </button>
     <button class="tab-btn" id="tabBtnRecruit" onclick="window.open('https://recruit.shirucafe.com/','_blank')">
       <span class="tab-icon">✨</span>採用
@@ -1278,6 +1331,98 @@
       </div>
     </div>
 
+    <!-- ルーム予約パネル -->
+    <div class="tab-pane" id="paneRoom">
+      <div class="room-wrap">
+        <div class="room-header-bar">
+          <h2 class="room-section-title">🚪 Web会議ルーム予約</h2>
+          <p class="room-section-note">個室ルームを予約できます。利用は30分単位（最大2時間）です。</p>
+        </div>
+
+        <!-- 日付選択 -->
+        <div class="room-card">
+          <div class="room-card-label">📅 利用日を選択</div>
+          <input type="date" id="roomDateInput" class="room-date-input">
+          <button class="room-btn-primary" onclick="loadRoomSlots()">空き状況を確認</button>
+        </div>
+
+        <!-- スロット一覧 -->
+        <div id="roomSlotsSection" style="display:none;">
+          <div class="room-card">
+            <div class="room-card-label">⏰ 開始時刻を選択</div>
+            <div id="roomSlotList" class="room-slot-grid"></div>
+          </div>
+        </div>
+
+        <!-- 予約フォーム -->
+        <div id="roomFormSection" style="display:none;">
+          <div class="room-card">
+            <div class="room-card-label">📝 予約情報を入力</div>
+            <div class="room-selected-slot" id="roomSelectedSlotLabel"></div>
+            <div class="room-form-row">
+              <label class="room-form-label">利用時間</label>
+              <div class="room-duration-btns" id="roomDurationBtns"></div>
+            </div>
+            <div class="room-form-row">
+              <label class="room-form-label" for="roomName">お名前 <span class="room-required">必須</span></label>
+              <input class="room-form-input" id="roomName" type="text" placeholder="山田 太郎">
+            </div>
+            <div class="room-form-row">
+              <label class="room-form-label" for="roomContact">連絡先（電話番号） <span class="room-required">必須</span></label>
+              <input class="room-form-input" id="roomContact" type="tel" placeholder="090-0000-0000">
+            </div>
+            <div class="room-form-row">
+              <label class="room-form-label" for="roomPeople">利用人数</label>
+              <select class="room-form-input" id="roomPeople">
+                <option value="1">1名</option>
+                <option value="2">2名</option>
+                <option value="3">3名</option>
+                <option value="4">4名</option>
+                <option value="5">5名</option>
+                <option value="6">6名以上</option>
+              </select>
+            </div>
+            <div class="room-form-row">
+              <label class="room-form-label" for="roomPurpose">利用目的</label>
+              <select class="room-form-input" id="roomPurpose">
+                <option value="就活・OB訪問">就活・OB訪問</option>
+                <option value="Web面接">Web面接</option>
+                <option value="オンライン授業">オンライン授業</option>
+                <option value="グループワーク">グループワーク</option>
+                <option value="その他">その他</option>
+              </select>
+            </div>
+            <div id="roomFormMsg" class="room-msg" style="display:none;"></div>
+            <button class="room-btn-primary" onclick="submitRoomReservation()" id="roomSubmitBtn">予約を申し込む</button>
+            <button class="room-btn-ghost" onclick="cancelRoomForm()">選び直す</button>
+          </div>
+        </div>
+
+        <!-- 予約完了 -->
+        <div id="roomSuccessSection" style="display:none;">
+          <div class="room-card room-card-success">
+            <div style="font-size:2.5rem;text-align:center;">✅</div>
+            <div class="room-success-title">予約を申し込みました</div>
+            <div class="room-success-note">スタッフが内容を確認後、承認いたします。<br>当日は受付でお声がけください。</div>
+            <div id="roomSuccessDetail" class="room-success-detail"></div>
+            <button class="room-btn-ghost" onclick="resetRoomForm()">別の日程を予約する</button>
+          </div>
+        </div>
+
+        <!-- 自分の予約確認 -->
+        <div class="room-card room-my-card">
+          <div class="room-card-label">📋 予約確認・チェックイン</div>
+          <div class="room-form-row">
+            <label class="room-form-label" for="roomMyContact">連絡先（電話番号）</label>
+            <input class="room-form-input" id="roomMyContact" type="tel" placeholder="予約時に入力した連絡先">
+          </div>
+          <button class="room-btn-secondary" onclick="loadMyRoomReservations()">予約を確認する</button>
+          <div id="roomMyList" style="margin-top:14px;"></div>
+        </div>
+
+      </div>
+    </div>
+
   </div><!-- /.tab-content -->
 </div><!-- /.app-layout -->
 
@@ -1354,8 +1499,8 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
-    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner' }[name];
-    var paneId = { congestion: 'Congesion',  calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner' }[name];
+    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner', room: 'Room' }[name];
+    var paneId = { congestion: 'Congesion',  calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner', room: 'Room' }[name];
     
     var targetBtn = document.getElementById('tabBtn' + btnId);
     if(targetBtn) targetBtn.classList.add('active');
@@ -2746,6 +2891,276 @@ window.onDayClick = function(dateISO) {
     }
     wrap.className = '';
     wrap.innerHTML = renderParticipationSection(participation);
+  }
+
+  // ===== ルーム予約 =====
+  var roomCheckinMode = 'staff';
+  var roomSelectedDate = '';
+  var roomSelectedStart = '';
+  var roomSelectedEnd = '';
+  var roomSelectedDuration = 30;
+  var roomAvailableSlots = [];
+
+  (function() {
+    var today = new Date();
+    var yyyy = today.getFullYear();
+    var mm = ('0' + (today.getMonth() + 1)).slice(-2);
+    var dd = ('0' + today.getDate()).slice(-2);
+    var el = document.getElementById('roomDateInput');
+    if (el) {
+      el.value = yyyy + '-' + mm + '-' + dd;
+      el.min = yyyy + '-' + mm + '-' + dd;
+      var maxD = new Date(today.getTime() + 14 * 86400000);
+      el.max = maxD.getFullYear() + '-' + ('0'+(maxD.getMonth()+1)).slice(-2) + '-' + ('0'+maxD.getDate()).slice(-2);
+    }
+  })();
+
+  function loadRoomSlots() {
+    var dateEl = document.getElementById('roomDateInput');
+    roomSelectedDate = dateEl ? dateEl.value : '';
+    if (!roomSelectedDate) return;
+
+    var slotSection = document.getElementById('roomSlotsSection');
+    var slotList = document.getElementById('roomSlotList');
+    slotSection.style.display = 'block';
+    slotList.innerHTML = '<div style="color:#888;font-size:.85rem;">読み込み中...</div>';
+    document.getElementById('roomFormSection').style.display = 'none';
+    document.getElementById('roomSuccessSection').style.display = 'none';
+    roomSelectedStart = '';
+
+    fetch(GAS_API_URL + '?page=calendar&action=roomAvailability&date=' + encodeURIComponent(roomSelectedDate))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        roomCheckinMode = data.checkinMode || 'staff';
+        if (data.closed || !data.slots || !data.slots.length) {
+          slotList.innerHTML = '<div style="color:#888;font-size:.85rem;text-align:center;">この日は営業していないか、スロットがありません。</div>';
+          return;
+        }
+        roomAvailableSlots = data.slots;
+        renderRoomSlots(data.slots);
+      })
+      .catch(function() {
+        slotList.innerHTML = '<div style="color:#c0392b;font-size:.85rem;">読み込みに失敗しました。</div>';
+      });
+  }
+
+  function renderRoomSlots(slots) {
+    var slotList = document.getElementById('roomSlotList');
+    slotList.innerHTML = '';
+    if (!slots.length) {
+      slotList.innerHTML = '<div style="color:#888;font-size:.85rem;text-align:center;">利用可能なスロットがありません。</div>';
+      return;
+    }
+    slots.forEach(function(slot) {
+      var btn = document.createElement('button');
+      btn.className = 'room-slot-btn' + (slot.available ? '' : ' unavailable');
+      btn.textContent = slot.start;
+      btn.disabled = !slot.available;
+      if (slot.available) {
+        btn.onclick = function() { selectRoomSlot(slot.start); };
+      }
+      slotList.appendChild(btn);
+    });
+  }
+
+  function selectRoomSlot(startTime) {
+    roomSelectedStart = startTime;
+    document.querySelectorAll('.room-slot-btn').forEach(function(b) { b.classList.remove('selected'); });
+    document.querySelectorAll('.room-slot-btn').forEach(function(b) {
+      if (b.textContent === startTime) b.classList.add('selected');
+    });
+    roomSelectedDuration = 30;
+    renderRoomDurationBtns();
+    updateRoomFormHeader();
+    document.getElementById('roomFormSection').style.display = 'block';
+    document.getElementById('roomFormSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function renderRoomDurationBtns() {
+    var container = document.getElementById('roomDurationBtns');
+    container.innerHTML = '';
+    var startMin = roomTimeToMinClient(roomSelectedStart);
+    var maxDur = 120;
+    var slot30 = roomAvailableSlots;
+    [30, 60, 90, 120].forEach(function(dur) {
+      if (dur > maxDur) return;
+      var endMin = startMin + dur;
+      var endTime = roomMinToTimeClient(endMin);
+      // Check all 30-min slots in range are available
+      var ok = true;
+      for (var m = startMin; m < endMin; m += 30) {
+        var s = roomMinToTimeClient(m);
+        var found = slot30.find(function(sl) { return sl.start === s; });
+        if (!found || !found.available) { ok = false; break; }
+      }
+      if (!ok) return;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'room-dur-btn' + (dur === roomSelectedDuration ? ' selected' : '');
+      btn.textContent = (dur < 60 ? dur + '分' : (dur / 60) + '時間');
+      btn.onclick = function() {
+        roomSelectedDuration = dur;
+        renderRoomDurationBtns();
+        updateRoomFormHeader();
+      };
+      container.appendChild(btn);
+    });
+  }
+
+  function roomTimeToMinClient(hhmm) {
+    var p = String(hhmm).split(':');
+    return parseInt(p[0]) * 60 + parseInt(p[1]);
+  }
+
+  function roomMinToTimeClient(min) {
+    return ('0' + Math.floor(min / 60)).slice(-2) + ':' + ('0' + (min % 60)).slice(-2);
+  }
+
+  function updateRoomFormHeader() {
+    roomSelectedEnd = roomMinToTimeClient(roomTimeToMinClient(roomSelectedStart) + roomSelectedDuration);
+    var label = document.getElementById('roomSelectedSlotLabel');
+    if (label) label.textContent = roomSelectedDate + ' ' + roomSelectedStart + ' 〜 ' + roomSelectedEnd;
+  }
+
+  function cancelRoomForm() {
+    document.getElementById('roomFormSection').style.display = 'none';
+    roomSelectedStart = '';
+    document.querySelectorAll('.room-slot-btn').forEach(function(b) { b.classList.remove('selected'); });
+  }
+
+  function submitRoomReservation() {
+    var name    = (document.getElementById('roomName').value || '').trim();
+    var contact = (document.getElementById('roomContact').value || '').trim();
+    var people  = document.getElementById('roomPeople').value;
+    var purpose = document.getElementById('roomPurpose').value;
+    var msgEl   = document.getElementById('roomFormMsg');
+
+    msgEl.style.display = 'none';
+    if (!name) { showRoomMsg('お名前を入力してください。', 'error'); return; }
+    if (!contact) { showRoomMsg('連絡先を入力してください。', 'error'); return; }
+    if (!roomSelectedDate || !roomSelectedStart || !roomSelectedEnd) {
+      showRoomMsg('時間を選択してください。', 'error'); return;
+    }
+
+    var btn = document.getElementById('roomSubmitBtn');
+    btn.disabled = true; btn.textContent = '送信中...';
+
+    var url = GAS_API_URL
+      + '?page=calendar&action=roomReserve'
+      + '&date=' + encodeURIComponent(roomSelectedDate)
+      + '&start=' + encodeURIComponent(roomSelectedStart)
+      + '&end=' + encodeURIComponent(roomSelectedEnd)
+      + '&name=' + encodeURIComponent(name)
+      + '&contact=' + encodeURIComponent(contact)
+      + '&people=' + encodeURIComponent(people)
+      + '&purpose=' + encodeURIComponent(purpose);
+
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) {
+          var errMsgs = {
+            missing_params: '入力内容を確認してください。',
+            date_out_of_range: '指定の日付は予約できません（本日から14日以内）。',
+            invalid_time: '時刻の指定が正しくありません。',
+            too_long: '最大2時間まで予約できます。',
+            time_conflict: 'この時間帯はすでに予約が入っています。別の時間を選択してください。',
+            reservation_restricted: '予約の制限がかかっています。スタッフにお問い合わせください。'
+          };
+          showRoomMsg(errMsgs[data.error] || ('エラー: ' + data.error), 'error');
+          return;
+        }
+        // 成功
+        document.getElementById('roomFormSection').style.display = 'none';
+        var detail = document.getElementById('roomSuccessDetail');
+        detail.textContent = roomSelectedDate + ' ' + roomSelectedStart + ' 〜 ' + roomSelectedEnd + '（' + roomSelectedDuration + '分）';
+        document.getElementById('roomSuccessSection').style.display = 'block';
+        document.getElementById('roomSuccessSection').scrollIntoView({ behavior: 'smooth' });
+      })
+      .catch(function() { showRoomMsg('通信エラーが発生しました。', 'error'); })
+      .finally(function() { btn.disabled = false; btn.textContent = '予約を申し込む'; });
+  }
+
+  function showRoomMsg(text, type) {
+    var msgEl = document.getElementById('roomFormMsg');
+    msgEl.textContent = text;
+    msgEl.className = 'room-msg ' + type;
+    msgEl.style.display = 'block';
+  }
+
+  function resetRoomForm() {
+    document.getElementById('roomSuccessSection').style.display = 'none';
+    document.getElementById('roomSlotsSection').style.display = 'none';
+    roomSelectedDate = '';
+    roomSelectedStart = '';
+    roomSelectedEnd = '';
+    var el = document.getElementById('roomDateInput');
+    if (el) el.value = '';
+  }
+
+  function loadMyRoomReservations() {
+    var contact = (document.getElementById('roomMyContact').value || '').trim();
+    if (!contact) { alert('連絡先を入力してください。'); return; }
+    var listEl = document.getElementById('roomMyList');
+    listEl.innerHTML = '<div style="color:#888;font-size:.85rem;">読み込み中...</div>';
+    fetch(GAS_API_URL + '?page=calendar&action=roomMyReservations&contact=' + encodeURIComponent(contact))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok || !data.reservations || !data.reservations.length) {
+          listEl.innerHTML = '<div style="color:#888;font-size:.85rem;">予約が見つかりませんでした。</div>'; return;
+        }
+        listEl.innerHTML = '';
+        data.reservations.forEach(function(r) {
+          var item = document.createElement('div');
+          item.className = 'room-my-item';
+          var statusLabel = { pending:'審査中', approved:'承認済み', cancelled:'キャンセル済', checked_in:'チェックイン済', no_show:'ノーショー' }[r.status] || r.status;
+          var statusClass = 'room-status-' + r.status;
+          var actionsHtml = '';
+          if ((r.status === 'approved' || r.status === 'pending') && roomCheckinMode === 'both') {
+            actionsHtml += '<button class="room-checkin-btn" onclick="doRoomCheckIn(\'' + r.id + '\',\'' + contact + '\')">チェックイン</button>';
+          }
+          if (r.status === 'pending' || r.status === 'approved') {
+            actionsHtml += '<button class="room-cancel-btn" onclick="doRoomCancel(\'' + r.id + '\',\'' + contact + '\')">キャンセル</button>';
+          }
+          item.innerHTML = ''
+            + '<div class="room-my-item-header">'
+            +   '<span class="room-my-item-date">' + r.date + '&nbsp;&nbsp;' + r.start + ' 〜 ' + r.end + '</span>'
+            +   '<span class="room-my-item-status ' + statusClass + '">' + statusLabel + '</span>'
+            + '</div>'
+            + '<div class="room-my-item-time">利用目的: ' + (r.purpose || '–') + ' / ' + r.people + '名</div>'
+            + (actionsHtml ? '<div class="room-my-item-actions">' + actionsHtml + '</div>' : '');
+          listEl.appendChild(item);
+        });
+      })
+      .catch(function() { listEl.innerHTML = '<div style="color:#c0392b;font-size:.85rem;">読み込みに失敗しました。</div>'; });
+  }
+
+  function doRoomCheckIn(id, contact) {
+    if (!confirm('チェックインします。よろしいですか？')) return;
+    fetch(GAS_API_URL + '?page=calendar&action=roomCheckIn&id=' + encodeURIComponent(id) + '&contact=' + encodeURIComponent(contact))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { alert('チェックインしました！'); loadMyRoomReservations(); }
+        else {
+          var msgs = { not_today:'本日の予約ではありません。', checkin_too_early:'チェックイン可能時間は開始10分前からです。', checkin_too_late:'チェックイン時間が過ぎています。スタッフにお声がけください。' };
+          alert(msgs[data.error] || ('チェックインできませんでした: ' + data.error));
+        }
+      })
+      .catch(function() { alert('通信エラーが発生しました。'); });
+  }
+
+  function doRoomCancel(id, contact) {
+    if (!confirm('この予約をキャンセルしますか？\n当日のキャンセルはできません。')) return;
+    fetch(GAS_API_URL + '?page=calendar&action=roomCancel&id=' + encodeURIComponent(id) + '&contact=' + encodeURIComponent(contact))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { alert('キャンセルしました。'); loadMyRoomReservations(); }
+        else {
+          var msgs = { cannot_cancel_today:'当日のキャンセルはできません。スタッフにお声がけください。', unauthorized:'連絡先が一致しません。' };
+          alert(msgs[data.error] || ('キャンセルできませんでした: ' + data.error));
+        }
+      })
+      .catch(function() { alert('通信エラーが発生しました。'); });
   }
 </script>
 

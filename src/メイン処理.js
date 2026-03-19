@@ -327,6 +327,74 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true, tab: mtTab, enabled: mtEnabled }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // ルーム予約: 空き状況取得
+    if (param.action === 'roomAvailability') {
+      var roomAvail = getRoomAvailability_(param.date || '');
+      return ContentService.createTextOutput(JSON.stringify(roomAvail))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: 予約作成
+    if (param.action === 'roomReserve') {
+      var roomReserveResult = reserveRoom_(param);
+      return ContentService.createTextOutput(JSON.stringify(roomReserveResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: キャンセル
+    if (param.action === 'roomCancel') {
+      var roomCancelResult = cancelRoom_(param.id || '', param.contact || '');
+      return ContentService.createTextOutput(JSON.stringify(roomCancelResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: チェックイン
+    if (param.action === 'roomCheckIn') {
+      var roomCheckInResult = checkInRoom_(param.id || '', param.contact || '', param.staff === '1');
+      return ContentService.createTextOutput(JSON.stringify(roomCheckInResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: 一覧取得（スタッフ用）
+    if (param.action === 'roomList') {
+      var roomListResult = getRoomList_(param.date || '');
+      return ContentService.createTextOutput(JSON.stringify(roomListResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: ステータス更新（スタッフ用）
+    if (param.action === 'roomStatusUpdate') {
+      var roomStatusResult = updateRoomStatus_(param.id || '', param.status || '', param.memo || '');
+      return ContentService.createTextOutput(JSON.stringify(roomStatusResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: チェックインモード取得/設定
+    if (param.action === 'roomCheckinMode') {
+      if (param.set) {
+        var roomCheckinSetResult = setRoomCheckinMode_(param.set);
+        return ContentService.createTextOutput(JSON.stringify(roomCheckinSetResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, mode: getRoomCheckinMode_() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: 自分の予約一覧（顧客用）
+    if (param.action === 'roomMyReservations') {
+      var roomMyResult = getMyRoomReservations_(param.contact || '');
+      return ContentService.createTextOutput(JSON.stringify(roomMyResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: 利用者一覧（スタッフ用）
+    if (param.action === 'roomUserList') {
+      var roomUserListResult = getRoomUserList_();
+      return ContentService.createTextOutput(JSON.stringify(roomUserListResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: 利用者更新（スタッフ用）
+    if (param.action === 'roomUserUpdate') {
+      var roomUserUpdateResult = updateRoomUser_(
+        param.contact || '',
+        param.restricted === 'true',
+        param.resetCount === 'true'
+      );
+      return ContentService.createTextOutput(JSON.stringify(roomUserUpdateResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (param.action) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,
