@@ -2598,11 +2598,12 @@ window.onDayClick = function(dateISO) {
 
   // ===== メンテナンスオーバーレイ =====
   var maintenanceStatus = {};
+  var isPreviewMode = new URLSearchParams(window.location.search).get('preview') === '1';
 
   function applyMaintenanceOverlay(tabName) {
     var overlay = document.getElementById('maintenanceOverlay');
     if (!overlay) return;
-    if (maintenanceStatus[tabName]) {
+    if (!isPreviewMode && maintenanceStatus[tabName]) {
       var tabContent = document.querySelector('.tab-content');
       if (tabContent) {
         var rect = tabContent.getBoundingClientRect();
