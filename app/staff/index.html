@@ -683,19 +683,30 @@
       <!-- 知るパスID発行 -->
       <div class="current-card" style="padding:16px;margin-bottom:16px;">
         <div class="section-title" style="margin-bottom:8px;">🎫 知るパスID発行</div>
-        <div style="font-size:0.82rem;color:#666;margin-bottom:12px;">知るパスを渡す際にIDを発行して、カードに書いてください。有効期限は発行日から14日間です。</div>
+        <div style="font-size:0.82rem;color:#666;margin-bottom:10px;">知るパスを渡す際にIDを発行して、カードに書いてください。</div>
+
+        <!-- 有効日数設定 -->
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;padding:10px 12px;background:#f5f7fa;border-radius:8px;">
+          <span style="font-size:0.82rem;color:#555;white-space:nowrap;">有効日数:</span>
+          <input type="number" id="shiruPassValidDays" class="room-date-input" min="1" max="365" style="width:80px;text-align:center;">
+          <span style="font-size:0.82rem;color:#555;white-space:nowrap;">日間</span>
+          <button class="btn-secondary" style="padding:8px 14px;font-size:0.82rem;white-space:nowrap;" onclick="saveShiruPassValidDays()">保存</button>
+          <div id="shiruPassDaysMsg" style="font-size:0.78rem;color:#666;flex:1;"></div>
+        </div>
+
+        <!-- ID発行 -->
         <div style="display:flex;gap:8px;margin-bottom:10px;">
           <input type="text" id="shiruPassNote" class="room-date-input" placeholder="メモ（スタッフ名など）" style="flex:1;">
           <button class="btn-primary" style="white-space:nowrap;" onclick="issueShiruPass()">ID発行</button>
         </div>
         <div id="shiruPassResult" style="display:none;">
-          <div style="background:#eaf2fb;border-radius:10px;padding:14px;text-align:center;">
+          <div style="background:#eaf2fb;border-radius:10px;padding:14px;text-align:center;margin-bottom:10px;">
             <div style="font-size:0.78rem;color:#666;margin-bottom:4px;">発行されたID（カードに記入してください）</div>
             <div id="shiruPassIdDisplay" style="font-size:2rem;font-weight:900;letter-spacing:0.25em;color:#1a3a5c;font-family:monospace;"></div>
             <div id="shiruPassExpiryDisplay" style="font-size:0.78rem;color:#888;margin-top:4px;"></div>
           </div>
         </div>
-        <div style="margin-top:10px;">
+        <div style="margin-top:4px;">
           <button class="btn-secondary" style="width:100%;font-size:0.82rem;" onclick="loadShiruPassList()">発行済みID一覧を見る</button>
           <div id="shiruPassList" style="margin-top:10px;"></div>
         </div>
@@ -2947,6 +2958,7 @@
   function loadStaffRoom() {
     loadCheckinMode();
     loadStaffRoomList();
+    loadShiruPassValidDays();
   }
 
   function loadCheckinMode() {
@@ -3057,6 +3069,18 @@
       .catch(function() { showToast('通信エラー', true); });
   }
 
+  function renewShiruPass(id, btn) {
+    if (!confirm(id + ' の有効期限を今日から再計算してリセットしますか？')) return;
+    btn.disabled = true; btn.textContent = '更新中...';
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassRenew&id=' + encodeURIComponent(id))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { showToast(id + ' を更新しました（' + data.expiry + ' まで）'); loadShiruPassList(); }
+        else { showToast('エラー: ' + data.error, true); btn.disabled = false; btn.textContent = '更新'; }
+      })
+      .catch(function() { showToast('通信エラー', true); btn.disabled = false; btn.textContent = '更新'; });
+  }
+
   function loadRoomUserList() {
     var listEl = document.getElementById('staffRoomUserList');
     listEl.innerHTML = '<div style="color:#888;font-size:.85rem;">読み込み中...</div>';
@@ -3124,6 +3148,31 @@
   }
 
   // ===== 知るパスID管理 =====
+  function loadShiruPassValidDays() {
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassValidDays')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          var el = document.getElementById('shiruPassValidDays');
+          if (el) el.value = data.days;
+        }
+      })
+      .catch(function() {});
+  }
+
+  function saveShiruPassValidDays() {
+    var days = document.getElementById('shiruPassValidDays').value;
+    var msg = document.getElementById('shiruPassDaysMsg');
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassValidDays&set=' + encodeURIComponent(days))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        msg.textContent = data.ok ? ('保存しました（' + data.days + '日）') : ('エラー: ' + data.error);
+        msg.style.color = data.ok ? '#28a745' : '#c0392b';
+        setTimeout(function() { msg.textContent = ''; }, 3000);
+      })
+      .catch(function() { msg.textContent = '通信エラー'; msg.style.color = '#c0392b'; });
+  }
+
   function issueShiruPass() {
     var note = (document.getElementById('shiruPassNote').value || '').trim();
     fetch(GAS_API_URL + '?page=calendar&action=shiruPassIssue&note=' + encodeURIComponent(note))
@@ -3148,15 +3197,20 @@
           listEl.innerHTML = '<div style="color:#888;font-size:.82rem;">発行済みIDはありません。</div>'; return;
         }
         listEl.innerHTML = data.passes.map(function(p) {
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:' + (p.expired ? '#f5f7fa' : '#fff') + ';border-radius:8px;margin-bottom:6px;border:1px solid #e0e7ef;">'
-            + '<div>'
-            +   '<span style="font-family:monospace;font-weight:700;font-size:1rem;color:' + (p.expired ? '#aaa' : '#1a3a5c') + ';">' + escStaff(p.id) + '</span>'
-            +   '<span style="margin-left:10px;font-size:0.75rem;color:#888;">' + escStaff(p.issuedAt) + ' 発行</span>'
-            +   (p.note ? '<span style="margin-left:6px;font-size:0.75rem;color:#999;">(' + escStaff(p.note) + ')</span>' : '')
+          return '<div style="padding:8px 10px;background:' + (p.expired ? '#f5f7fa' : '#fff') + ';border-radius:8px;margin-bottom:6px;border:1px solid #e0e7ef;">'
+            + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
+            +   '<div>'
+            +     '<span style="font-family:monospace;font-weight:700;font-size:1rem;color:' + (p.expired ? '#aaa' : '#1a3a5c') + ';">' + escStaff(p.id) + '</span>'
+            +     '<span style="margin-left:10px;font-size:0.75rem;color:#888;">' + escStaff(p.issuedAt) + ' 発行</span>'
+            +     (p.note ? '<span style="margin-left:6px;font-size:0.75rem;color:#999;">(' + escStaff(p.note) + ')</span>' : '')
+            +   '</div>'
+            +   '<div style="display:flex;align-items:center;gap:6px;">'
+            +     '<span style="font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:' + (p.expired ? '#f8d7da' : '#d4edda') + ';color:' + (p.expired ? '#721c24' : '#155724') + ';">'
+            +       (p.expired ? '期限切れ' : p.expiry + 'まで')
+            +     '</span>'
+            +     '<button style="border:none;background:#e8f4fd;color:#1a3a5c;border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;" onclick="renewShiruPass(\'' + escStaff(p.id) + '\',this)">更新</button>'
+            +   '</div>'
             + '</div>'
-            + '<span style="font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:' + (p.expired ? '#f8d7da' : '#d4edda') + ';color:' + (p.expired ? '#721c24' : '#155724') + ';">'
-            +   (p.expired ? '期限切れ' : p.expiry + 'まで')
-            + '</span>'
             + '</div>';
         }).join('');
       })

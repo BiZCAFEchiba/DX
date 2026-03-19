@@ -11,7 +11,7 @@ var ROOM_CHECKIN_BEFORE_MIN = 10;  // 開始N分前からチェックイン可
 var ROOM_MAX_DAYS_AHEAD     = 14;
 var ROOM_WARNING_THRESHOLD  = 2;   // ノーショーN回でスタッフ通知
 var ROOM_RESTRICT_THRESHOLD = 3;   // ノーショーN回で予約制限
-var SHIRU_PASS_VALID_DAYS   = 14;  // 知るパスID有効期間（日）
+var SHIRU_PASS_VALID_DAYS_DEFAULT = 14; // 知るパスID有効期間デフォルト（日）
 
 // ===== ヘルパー =====
 
@@ -154,11 +154,40 @@ function generateShiruPassId_() {
   return id;
 }
 
+function getShiruPassValidDays_() {
+  var v = parseInt(PropertiesService.getScriptProperties().getProperty('SHIRU_PASS_VALID_DAYS') || '');
+  return isNaN(v) || v <= 0 ? SHIRU_PASS_VALID_DAYS_DEFAULT : v;
+}
+
+function setShiruPassValidDays_(days) {
+  var d = parseInt(days);
+  if (isNaN(d) || d <= 0) return { ok: false, error: 'invalid_days' };
+  PropertiesService.getScriptProperties().setProperty('SHIRU_PASS_VALID_DAYS', String(d));
+  return { ok: true, days: d };
+}
+
+function renewShiruPassId_(id) {
+  if (!id) return { ok: false, error: 'missing_id' };
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var now = new Date();
+  var days = getShiruPassValidDays_();
+  var newExpiry = new Date(now.getTime() + days * 86400000);
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
+      sheet.getRange(i + 1, 3).setValue(newExpiry); // C列: 有効期限
+      return { ok: true, id: String(data[i][0]), expiry: Utilities.formatDate(newExpiry, TIMEZONE, 'yyyy-MM-dd') };
+    }
+  }
+  return { ok: false, error: 'not_found' };
+}
+
 function issueShiruPassId_(note) {
   var sheet = getShiruPassSheet_();
   var data = sheet.getDataRange().getValues();
   var now = new Date();
-  var expiry = new Date(now.getTime() + SHIRU_PASS_VALID_DAYS * 86400000);
+  var days = getShiruPassValidDays_();
+  var expiry = new Date(now.getTime() + days * 86400000);
 
   // ID重複チェック（既存IDと被らないように再生成）
   var existingIds = data.slice(1).map(function(r) { return String(r[0]); });
@@ -171,7 +200,7 @@ function issueShiruPassId_(note) {
 
   var expiryStr = Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd');
   sheet.appendRow([id, now, expiry, note || '']);
-  return { ok: true, id: id, expiry: expiryStr };
+  return { ok: true, id: id, expiry: expiryStr, days: days };
 }
 
 function validateShiruPassId_(id) {

@@ -413,6 +413,22 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(listResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 知るパすID更新（スタッフ用）
+    if (param.action === 'shiruPassRenew') {
+      var renewResult = renewShiruPassId_(param.id || '');
+      return ContentService.createTextOutput(JSON.stringify(renewResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 知るパスID有効日数 取得/設定（スタッフ用）
+    if (param.action === 'shiruPassValidDays') {
+      if (param.set) {
+        var setDaysResult = setShiruPassValidDays_(param.set);
+        return ContentService.createTextOutput(JSON.stringify(setDaysResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, days: getShiruPassValidDays_() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (param.action) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,
