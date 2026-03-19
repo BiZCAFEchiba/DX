@@ -512,6 +512,15 @@ function triggerRoomNoShowCheck() {
 
 // ===== 過去予約行削除（タイムトリガー: 毎日深夜） =====
 
+// GASエディターから手動実行してトリガーを登録する
+function setupRoomCleanupTrigger() {
+  ScriptApp.getProjectTriggers().forEach(function(t) {
+    if (t.getHandlerFunction() === 'cleanupPastRoomReservations') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('cleanupPastRoomReservations').timeBased().atHour(3).everyDays(1).create();
+  Logger.log('cleanupPastRoomReservations トリガーを登録しました（毎日3時）');
+}
+
 function cleanupPastRoomReservations() {
   var sheet = getRoomSheet_();
   var data = sheet.getDataRange().getValues();
