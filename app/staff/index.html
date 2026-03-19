@@ -654,9 +654,12 @@
     <div class="container">
       <div class="section-title">顧客アプリ メンテナンス管理</div>
       <div class="corner-inline-help" style="margin-bottom:16px;">ONにすると、顧客アプリの該当タブにメンテナンス中の案内が表示されます。</div>
+      <div style="display:flex;gap:10px;margin-bottom:20px;">
+        <button class="btn-primary" style="flex:1;padding:14px;" onclick="setAllMaintenance(true)">🔧 全タブ メンテON</button>
+        <button class="btn-secondary" style="flex:1;padding:14px;" onclick="setAllMaintenance(false)">✅ 全タブ 解除</button>
+      </div>
       <div id="maintenanceList"></div>
-      <button class="update-btn" id="maintenanceSaveBtn" style="margin-top:20px;" onclick="saveMaintenanceSettings()">保存する</button>
-      <div id="maintenanceMsg" style="text-align:center;margin-top:10px;font-size:0.85rem;color:#666;"></div>
+      <div id="maintenanceMsg" style="text-align:center;margin-top:12px;font-size:0.85rem;color:#666;min-height:1.2em;"></div>
     </div>
   </div>
 </div>
@@ -788,6 +791,7 @@
 
   // ===== メンテナンス管理 =====
   var maintenanceLoaded = false;
+  var maintenanceData = {};
   var MAINTENANCE_TABS = [
     { id: 'congestion', label: '混雑状況' },
     { id: 'calendar',   label: 'カレンダー' },
@@ -801,45 +805,56 @@
     list.textContent = '読み込み中...';
     fetch(GAS_API_URL + '?page=calendar&action=maintenanceGet')
       .then(function(r) { return r.json(); })
-      .then(function(data) { renderMaintenanceList(data); })
+      .then(function(data) { maintenanceData = data; renderMaintenanceList(); })
       .catch(function() { list.textContent = '取得に失敗しました。'; });
   }
 
-  function renderMaintenanceList(data) {
+  function renderMaintenanceList() {
     var wrap = document.getElementById('maintenanceList');
     wrap.innerHTML = MAINTENANCE_TABS.map(function(tab) {
-      var checked = data[tab.id] ? ' checked' : '';
-      return '<label style="display:flex;align-items:center;gap:14px;padding:16px 0;border-bottom:1px solid #eee;font-size:1rem;cursor:pointer;">'
-        + '<input type="checkbox" id="mt_' + tab.id + '"' + checked + ' style="width:20px;height:20px;cursor:pointer;">'
-        + '<span>' + tab.label + '</span>'
-        + (data[tab.id] ? '<span style="font-size:0.8rem;color:#e53935;font-weight:700;">メンテ中</span>' : '')
-        + '</label>';
+      var on = maintenanceData[tab.id];
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid #eee;">'
+        + '<span style="font-size:1rem;font-weight:600;">' + tab.label + '</span>'
+        + '<button onclick="toggleMaintenance(\'' + tab.id + '\')" style="'
+        + 'padding:10px 24px;border:none;border-radius:24px;font-size:0.95rem;font-weight:700;cursor:pointer;min-width:100px;'
+        + (on ? 'background:#e53935;color:#fff;' : 'background:#e0e7ef;color:#666;')
+        + '">' + (on ? '🔧 メンテ中' : '通常') + '</button>'
+        + '</div>';
     }).join('');
   }
 
-  function saveMaintenanceSettings() {
-    var btn = document.getElementById('maintenanceSaveBtn');
+  function toggleMaintenance(tabId) {
+    var newVal = !maintenanceData[tabId];
+    setMaintenanceForTab(tabId, newVal);
+  }
+
+  function setAllMaintenance(enabled) {
     var msg = document.getElementById('maintenanceMsg');
-    btn.disabled = true;
     msg.textContent = '保存中...';
     var promises = MAINTENANCE_TABS.map(function(tab) {
-      var el = document.getElementById('mt_' + tab.id);
-      var enabled = el ? el.checked : false;
       return fetch(GAS_API_URL + '?page=calendar&action=maintenanceSet&tab=' + tab.id + '&enabled=' + enabled)
         .then(function(r) { return r.json(); });
     });
     Promise.all(promises)
       .then(function(results) {
-        var newData = {};
-        results.forEach(function(r) { if (r.ok) newData[r.tab] = r.enabled; });
-        renderMaintenanceList(newData);
-        msg.textContent = '保存しました。';
-        btn.disabled = false;
+        results.forEach(function(r) { if (r.ok) maintenanceData[r.tab] = r.enabled; });
+        renderMaintenanceList();
+        msg.textContent = enabled ? '全タブ メンテONにしました。' : '全タブ解除しました。';
       })
-      .catch(function() {
-        msg.textContent = '保存に失敗しました。';
-        btn.disabled = false;
-      });
+      .catch(function() { msg.textContent = '保存に失敗しました。'; });
+  }
+
+  function setMaintenanceForTab(tabId, enabled) {
+    var msg = document.getElementById('maintenanceMsg');
+    msg.textContent = '保存中...';
+    fetch(GAS_API_URL + '?page=calendar&action=maintenanceSet&tab=' + tabId + '&enabled=' + enabled)
+      .then(function(r) { return r.json(); })
+      .then(function(r) {
+        if (r.ok) maintenanceData[r.tab] = r.enabled;
+        renderMaintenanceList();
+        msg.textContent = '保存しました。';
+      })
+      .catch(function() { msg.textContent = '保存に失敗しました。'; });
   }
 
   applyStaffLabels();
