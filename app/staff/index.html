@@ -659,6 +659,7 @@
         <button class="btn-secondary" style="flex:1;padding:14px;" onclick="setAllMaintenance(false)">✅ 全タブ 解除</button>
       </div>
       <div id="maintenanceList"></div>
+      <button class="update-btn" id="maintenanceSaveBtn" onclick="saveMaintenanceSettings()">保存する</button>
       <div id="maintenanceMsg" style="text-align:center;margin-top:12px;font-size:0.85rem;color:#666;min-height:1.2em;"></div>
     </div>
   </div>
@@ -824,37 +825,35 @@
   }
 
   function toggleMaintenance(tabId) {
-    var newVal = !maintenanceData[tabId];
-    setMaintenanceForTab(tabId, newVal);
+    maintenanceData[tabId] = !maintenanceData[tabId];
+    document.getElementById('maintenanceMsg').textContent = '';
+    renderMaintenanceList();
   }
 
   function setAllMaintenance(enabled) {
+    MAINTENANCE_TABS.forEach(function(tab) { maintenanceData[tab.id] = enabled; });
+    document.getElementById('maintenanceMsg').textContent = '';
+    renderMaintenanceList();
+  }
+
+  function saveMaintenanceSettings() {
+    var btn = document.getElementById('maintenanceSaveBtn');
     var msg = document.getElementById('maintenanceMsg');
+    btn.disabled = true;
     msg.textContent = '保存中...';
     var promises = MAINTENANCE_TABS.map(function(tab) {
-      return fetch(GAS_API_URL + '?page=calendar&action=maintenanceSet&tab=' + tab.id + '&enabled=' + enabled)
+      return fetch(GAS_API_URL + '?page=calendar&action=maintenanceSet&tab=' + tab.id + '&enabled=' + !!maintenanceData[tab.id])
         .then(function(r) { return r.json(); });
     });
     Promise.all(promises)
-      .then(function(results) {
-        results.forEach(function(r) { if (r.ok) maintenanceData[r.tab] = r.enabled; });
-        renderMaintenanceList();
-        msg.textContent = enabled ? '全タブ メンテONにしました。' : '全タブ解除しました。';
-      })
-      .catch(function() { msg.textContent = '保存に失敗しました。'; });
-  }
-
-  function setMaintenanceForTab(tabId, enabled) {
-    var msg = document.getElementById('maintenanceMsg');
-    msg.textContent = '保存中...';
-    fetch(GAS_API_URL + '?page=calendar&action=maintenanceSet&tab=' + tabId + '&enabled=' + enabled)
-      .then(function(r) { return r.json(); })
-      .then(function(r) {
-        if (r.ok) maintenanceData[r.tab] = r.enabled;
-        renderMaintenanceList();
+      .then(function() {
         msg.textContent = '保存しました。';
+        btn.disabled = false;
       })
-      .catch(function() { msg.textContent = '保存に失敗しました。'; });
+      .catch(function() {
+        msg.textContent = '保存に失敗しました。';
+        btn.disabled = false;
+      });
   }
 
   applyStaffLabels();
