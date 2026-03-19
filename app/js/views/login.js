@@ -11,7 +11,7 @@ var LoginView = (function () {
     main.innerHTML =
       '<div class="login-screen">' +
         '<div class="login-logo">\u2615</div>' +
-        '<div class="login-title">BizCAFE</div>' +
+        '<div class="login-title">BiZCAFE</div>' +
         '<div class="login-subtitle">\u30B7\u30D5\u30C8\u30EA\u30DE\u30A4\u30F3\u30C9</div>' +
         '<div class="card" style="width:100%;max-width:320px;">' +
           '<div class="form-label" style="text-align:center;margin-bottom:12px;">PIN\u30B3\u30FC\u30C9\u3092\u5165\u529B</div>' +

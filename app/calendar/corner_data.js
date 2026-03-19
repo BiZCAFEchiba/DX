@@ -60,7 +60,7 @@ window.CORNER_CONTENT = {
         entries: [
           {
             id: 'worry-other-1',
-            question: 'BizCAFEはどんなときに使うのがおすすめですか?',
+            question: 'BiZCAFEはどんなときに使うのがおすすめですか?',
             answer: '一人で集中したいときにも、スタッフと気軽に話したいときにも使いやすい場所です。',
             published: true,
             sortOrder: 10
@@ -101,7 +101,7 @@ window.CORNER_CONTENT = {
     columns: [
       {
         id: 'column-1',
-        title: 'BizCAFEスタッフが考える、就活の最初の一歩',
+        title: 'BiZCAFEスタッフが考える、就活の最初の一歩',
         body: 'まずは完璧を目指さず、気になることを言葉にしてみるだけでも前に進みます。',
         published: true,
         sortOrder: 10
