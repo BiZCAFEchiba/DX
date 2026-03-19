@@ -1373,21 +1373,6 @@
               <input class="room-form-input" id="roomName" type="text" placeholder="山田 太郎">
             </div>
             <div class="room-form-row">
-              <label class="room-form-label" for="roomContact">連絡先（電話番号） <span class="room-required">必須</span></label>
-              <input class="room-form-input" id="roomContact" type="tel" placeholder="090-0000-0000">
-            </div>
-            <div class="room-form-row">
-              <label class="room-form-label" for="roomPeople">利用人数</label>
-              <select class="room-form-input" id="roomPeople">
-                <option value="1">1名</option>
-                <option value="2">2名</option>
-                <option value="3">3名</option>
-                <option value="4">4名</option>
-                <option value="5">5名</option>
-                <option value="6">6名以上</option>
-              </select>
-            </div>
-            <div class="room-form-row">
               <label class="room-form-label" for="roomPurpose">利用目的</label>
               <select class="room-form-input" id="roomPurpose">
                 <option value="就活・OB訪問">就活・OB訪問</option>
@@ -1407,8 +1392,8 @@
         <div id="roomSuccessSection" style="display:none;">
           <div class="room-card room-card-success">
             <div style="font-size:2.5rem;text-align:center;">✅</div>
-            <div class="room-success-title">予約を申し込みました</div>
-            <div class="room-success-note">スタッフが内容を確認後、承認いたします。<br>当日は受付でお声がけください。</div>
+            <div class="room-success-title">予約が完了しました</div>
+            <div class="room-success-note">当日は受付でお声がけください。</div>
             <div id="roomSuccessDetail" class="room-success-detail"></div>
             <button class="room-btn-ghost" onclick="resetRoomForm()">別の日程を予約する</button>
           </div>
@@ -3067,15 +3052,12 @@ window.onDayClick = function(dateISO) {
   function submitRoomReservation() {
     var shiruPassId = (document.getElementById('roomShiruPassId').value || '').trim().toUpperCase();
     var name    = (document.getElementById('roomName').value || '').trim();
-    var contact = (document.getElementById('roomContact').value || '').trim();
-    var people  = document.getElementById('roomPeople').value;
     var purpose = document.getElementById('roomPurpose').value;
     var msgEl   = document.getElementById('roomFormMsg');
 
     msgEl.style.display = 'none';
     if (!shiruPassId) { showRoomMsg('知るパスIDを入力してください。', 'error'); return; }
     if (!name) { showRoomMsg('お名前を入力してください。', 'error'); return; }
-    if (!contact) { showRoomMsg('連絡先を入力してください。', 'error'); return; }
     if (!roomSelectedDate || !roomSelectedStart || !roomSelectedEnd) {
       showRoomMsg('時間を選択してください。', 'error'); return;
     }
@@ -3089,8 +3071,6 @@ window.onDayClick = function(dateISO) {
       + '&start=' + encodeURIComponent(roomSelectedStart)
       + '&end=' + encodeURIComponent(roomSelectedEnd)
       + '&name=' + encodeURIComponent(name)
-      + '&contact=' + encodeURIComponent(contact)
-      + '&people=' + encodeURIComponent(people)
       + '&purpose=' + encodeURIComponent(purpose)
       + '&shiruPassId=' + encodeURIComponent(shiruPassId);
 

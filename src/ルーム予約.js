@@ -243,7 +243,7 @@ function getShiruPassList_() {
 // ===== 予約申請 =====
 
 function reserveRoom_(p) {
-  if (!p.date || !p.start || !p.end || !p.name || !p.contact) return { ok: false, error: 'missing_params' };
+  if (!p.date || !p.start || !p.end || !p.name) return { ok: false, error: 'missing_params' };
 
   // 知るパスIDの検証
   var passResult = validateShiruPassId_(p.shiruPassId || '');
@@ -262,12 +262,9 @@ function reserveRoom_(p) {
   if (eMin - sMin > 120)       return { ok: false, error: 'too_long' };
   if ((eMin - sMin) % 15 !== 0) return { ok: false, error: 'invalid_slot' };
 
-  var userInfo = getRoomUserInfo_(p.contact);
-  if (userInfo.restricted) return { ok: false, error: 'reservation_restricted', noShowCount: userInfo.noShowCount };
-
   var conflict = readAllRoomReservations_().some(function(r) {
     return r.date === p.date &&
-           (r.status === 'approved' || r.status === 'pending' || r.status === 'checked_in') &&
+           (r.status === 'approved' || r.status === 'checked_in') &&
            roomTimesOverlap_(p.start, p.end, r.start, r.end);
   });
   if (conflict) return { ok: false, error: 'time_conflict' };
@@ -275,11 +272,11 @@ function reserveRoom_(p) {
   var id = generateRoomId_(p.date);
   getRoomSheet_().appendRow([
     id, now, p.date, p.start, p.end,
-    parseInt(p.people || 1), p.purpose || '', p.name, p.contact,
-    'pending', '', now, ''
+    1, p.purpose || '', p.name, '',
+    'approved', '', now, ''
   ]);
 
-  return { ok: true, id: id, noShowWarning: userInfo.noShowCount > 0, noShowCount: userInfo.noShowCount };
+  return { ok: true, id: id };
 }
 
 // ===== キャンセル（顧客用） =====
