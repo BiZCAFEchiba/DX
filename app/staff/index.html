@@ -683,11 +683,20 @@
   var cornerAllItems = [];
   var cornerContentData = null;
 
+  // 顧客アプリのタブ表示名（ここを変えれば全体に反映される）
+  var CUSTOMER_TAB_LABELS = {
+    congestion: '混雑状況',
+    calendar:   'カレンダー',
+    qa:         'Q&A',
+    board:      'お知らせ',
+    corner:     'なんでも掲示板'
+  };
+
   function applyStaffLabels() {
     var boardTab = document.getElementById('tabBoard');
     var cornerTab = document.getElementById('tabCorner');
-    if (boardTab) boardTab.innerHTML = '<span class="tab-icon">📣</span>お知らせ';
-    if (cornerTab) cornerTab.innerHTML = '<span class="tab-icon">📋</span>なんでも掲示板';
+    if (boardTab) boardTab.innerHTML = '<span class="tab-icon">📣</span>' + CUSTOMER_TAB_LABELS.board;
+    if (cornerTab) cornerTab.innerHTML = '<span class="tab-icon">📋</span>' + CUSTOMER_TAB_LABELS.corner;
 
     var boardTitles = document.querySelectorAll('.board-section-title');
     if (boardTitles[0]) boardTitles[0].textContent = 'お知らせ記事一覧';
@@ -794,13 +803,9 @@
   // ===== メンテナンス管理 =====
   var maintenanceLoaded = false;
   var maintenanceData = {};
-  var MAINTENANCE_TABS = [
-    { id: 'congestion', label: '混雑状況' },
-    { id: 'calendar',   label: 'カレンダー' },
-    { id: 'qa',         label: 'Q&A' },
-    { id: 'board',      label: 'お知らせ' },
-    { id: 'corner',     label: 'なんでも掲示板' }
-  ];
+  var MAINTENANCE_TABS = Object.keys(CUSTOMER_TAB_LABELS).map(function(id) {
+    return { id: id, label: CUSTOMER_TAB_LABELS[id] };
+  });
 
   function loadMaintenance() {
     var list = document.getElementById('maintenanceList');
