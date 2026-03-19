@@ -1287,7 +1287,7 @@
 
   // ===== スプラッシュ =====
   var splashHideAt = Date.now() + 1500;
-  var splashPending = 2; // 今月 + 来月 の2つが揃ったら消す
+  var splashPending = 3; // 今月 + 来月 + メンテナンス取得 の3つが揃ったら消す
   function checkSplashReady() {
     splashPending--;
     if (splashPending > 0) return;
@@ -2621,15 +2621,16 @@ window.onDayClick = function(dateISO) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       maintenanceStatus = data;
-      // 現在アクティブなタブに適用
+      // スプラッシュが消える前にオーバーレイを適用
       var activeBtn = document.querySelector('.tab-btn.active');
       if (activeBtn) {
         var tabMap = { tabBtnCongestion: 'congestion', tabBtnCalendar: 'calendar', tabBtnQA: 'qa', tabBtnBoard: 'board', tabBtnCorner: 'corner' };
         var currentTab = tabMap[activeBtn.id];
         if (currentTab) applyMaintenanceOverlay(currentTab);
       }
+      checkSplashReady();
     })
-    .catch(function() {});
+    .catch(function() { checkSplashReady(); });
 
   var originalVoteCornerParticipation = voteCornerParticipation;
   voteCornerParticipation = function(themeId, optionId) {
