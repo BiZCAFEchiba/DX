@@ -131,6 +131,12 @@ function doGet(e) {
       var props = PropertiesService.getScriptProperties();
       var level = parseInt(props.getProperty('CONGESTION_LEVEL') || '0');
       var updatedAt = props.getProperty('CONGESTION_UPDATED_AT') || '';
+      // 日付が変わっていたら未確認（0）にリセット
+      var todayStr = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+      if (updatedAt && updatedAt.slice(0, 10) !== todayStr) {
+        level = 0;
+        props.setProperty('CONGESTION_LEVEL', '0');
+      }
       return ContentService.createTextOutput(JSON.stringify({ level: level, updatedAt: updatedAt }))
         .setMimeType(ContentService.MimeType.JSON);
     }
