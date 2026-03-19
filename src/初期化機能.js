@@ -796,6 +796,8 @@ function updateTriggersFromSettings_() {
   ScriptApp.newTrigger('dailyMeetupUpdate').timeBased().atHour(meetupHour).everyDays(1).create();
   // 過去Meetup行削除（毎日0時）
   ScriptApp.newTrigger('cleanupPastMeetups').timeBased().atHour(0).everyDays(1).create();
+  // 過去ルーム予約行削除（毎日3時）
+  ScriptApp.newTrigger('cleanupPastRoomReservations').timeBased().atHour(3).everyDays(1).create();
   // 週次Meetupカルーセル共有（毎週日曜・Meetup告知Bot）
   ScriptApp.newTrigger('weeklyMeetupCarousel').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(meetupShareHour).create();
 

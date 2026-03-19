@@ -509,3 +509,27 @@ function triggerRoomNoShowCheck() {
   });
   if (targets.length) Logger.log('ノーショー判定: ' + targets.length + '件');
 }
+
+// ===== 過去予約行削除（タイムトリガー: 毎日深夜） =====
+
+function cleanupPastRoomReservations() {
+  var sheet = getRoomSheet_();
+  var data = sheet.getDataRange().getValues();
+  var now = new Date();
+  var nowStr = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd HH:mm');
+
+  // 下から削除してインデックスずれを防ぐ
+  for (var i = data.length - 1; i >= 1; i--) {
+    if (!data[i][0]) continue;
+    var dateVal = data[i][2];
+    var endVal  = data[i][4];
+    var dateStr = dateVal instanceof Date ? Utilities.formatDate(dateVal, TIMEZONE, 'yyyy-MM-dd') : String(dateVal || '');
+    var endStr  = endVal  instanceof Date ? Utilities.formatDate(endVal,  TIMEZONE, 'HH:mm')      : String(endVal  || '');
+    if (!dateStr || !endStr) continue;
+    var endDtStr = dateStr + ' ' + endStr;
+    if (endDtStr < nowStr) {
+      sheet.deleteRow(i + 1);
+    }
+  }
+  Logger.log('cleanupPastRoomReservations 完了');
+}
