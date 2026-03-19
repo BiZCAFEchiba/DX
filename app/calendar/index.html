@@ -1670,8 +1670,8 @@
   });
   document.getElementById('meetupClose').addEventListener('click', function() { closeMeetupPanel(); });
 
-  var CACHE_VERSION = 'v7';
-  var CACHE_TTL = 60 * 60 * 1000;
+  var CACHE_VERSION = 'v8';
+  var CACHE_TTL = 10 * 60 * 1000; // 10分
   function getCacheKey() { return 'bizcafe_cal_' + CACHE_VERSION + '_' + currentYear + '_' + currentMonth; }
   function loadFromCache() {
     try {
