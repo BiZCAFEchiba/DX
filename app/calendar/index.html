@@ -1058,7 +1058,7 @@
     .room-btn-primary:disabled { background: #aaa; cursor: not-allowed; }
     .room-btn-secondary { background: #e8f4fd; color: #1a3a5c; border: none; border-radius: 10px; padding: 11px; font-size: 0.9rem; font-weight: 700; cursor: pointer; width: 100%; }
     .room-btn-ghost { background: none; color: #666; border: 1.5px solid #d7e0ea; border-radius: 10px; padding: 10px; font-size: 0.88rem; cursor: pointer; width: 100%; }
-    .room-slot-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+    .room-slot-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
     .room-slot-btn { border: 1.5px solid #1a3a5c; border-radius: 8px; padding: 10px 6px; font-size: 0.85rem; font-weight: 600; background: #fff; color: #1a3a5c; cursor: pointer; text-align: center; }
     .room-slot-btn.unavailable { border-color: #ddd; color: #bbb; cursor: not-allowed; background: #f7f7f7; }
     .room-slot-btn.selected { background: #1a3a5c; color: #fff; }
@@ -2986,9 +2986,9 @@ window.onDayClick = function(dateISO) {
       if (dur > maxDur) return;
       var endMin = startMin + dur;
       var endTime = roomMinToTimeClient(endMin);
-      // Check all 30-min slots in range are available
+      // Check all 15-min slots in range are available
       var ok = true;
-      for (var m = startMin; m < endMin; m += 30) {
+      for (var m = startMin; m < endMin; m += 15) {
         var s = roomMinToTimeClient(m);
         var found = slot30.find(function(sl) { return sl.start === s; });
         if (!found || !found.available) { ok = false; break; }

@@ -92,8 +92,8 @@ function getRoomSlots_(dateStr) {
     var slots = [];
     var sMin = roomTimeToMin_(hours.start);
     var eMin = roomTimeToMin_(hours.end);
-    for (var m = sMin; m + 30 <= eMin; m += 30) {
-      slots.push({ start: roomMinToTime_(m), end: roomMinToTime_(m + 30) });
+    for (var m = sMin; m + 15 <= eMin; m += 15) {
+      slots.push({ start: roomMinToTime_(m), end: roomMinToTime_(m + 15) });
     }
     return slots;
   } catch(e) { return []; }
@@ -142,7 +142,7 @@ function reserveRoom_(p) {
   var sMin = roomTimeToMin_(p.start), eMin = roomTimeToMin_(p.end);
   if (eMin <= sMin)            return { ok: false, error: 'invalid_time' };
   if (eMin - sMin > 120)       return { ok: false, error: 'too_long' };
-  if ((eMin - sMin) % 30 !== 0) return { ok: false, error: 'invalid_slot' };
+  if ((eMin - sMin) % 15 !== 0) return { ok: false, error: 'invalid_slot' };
 
   var userInfo = getRoomUserInfo_(p.contact);
   if (userInfo.restricted) return { ok: false, error: 'reservation_restricted', noShowCount: userInfo.noShowCount };
