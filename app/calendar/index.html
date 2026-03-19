@@ -1396,22 +1396,18 @@
             <div class="room-success-note">当日は受付でお声がけください。</div>
             <div id="roomSuccessDetail" class="room-success-detail"></div>
             <div style="width:100%;background:#fff8e1;border-radius:8px;padding:10px 14px;text-align:center;">
-              <div style="font-size:0.75rem;color:#888;margin-bottom:4px;">📌 予約IDをメモしておくとキャンセルに使えます</div>
+              <div style="font-size:0.75rem;color:#888;margin-bottom:4px;">📌 この端末からキャンセルできます（予約ID）</div>
               <div id="roomSuccessId" style="font-family:monospace;font-size:0.9rem;font-weight:700;color:#1a3a5c;word-break:break-all;"></div>
             </div>
             <button class="room-btn-ghost" onclick="resetRoomForm()">別の日程を予約する</button>
           </div>
         </div>
 
-        <!-- キャンセル -->
-        <div class="room-my-card">
-          <div class="room-card-label">❌ 予約をキャンセルする</div>
-          <div class="room-form-row">
-            <label class="room-form-label" for="roomCancelId">予約ID</label>
-            <input class="room-form-input" id="roomCancelId" type="text" placeholder="予約完了時に表示された予約ID" style="font-family:monospace;">
-          </div>
-          <button class="room-btn-secondary" onclick="cancelMyReservation()" style="background:#fdecea;color:#c0392b;">キャンセルする</button>
-          <div id="roomCancelMsg" style="font-size:0.82rem;min-height:1em;"></div>
+        <!-- 自分の予約一覧・キャンセル -->
+        <div class="room-my-card" id="roomMyReservationsCard" style="display:none;">
+          <div class="room-card-label">📋 この端末の予約一覧</div>
+          <div id="roomMyReservationsList"></div>
+          <div id="roomCancelMsg" style="font-size:0.82rem;min-height:1em;margin-top:4px;"></div>
         </div>
 
       </div>
@@ -2732,6 +2728,9 @@ window.onDayClick = function(dateISO) {
         renderCongestionParticipation();
       }
     }
+    if (name === 'room') {
+      renderMyReservationsCard();
+    }
     applyMaintenanceOverlay(name);
   };
 
@@ -3104,6 +3103,11 @@ window.onDayClick = function(dateISO) {
         if (idEl) idEl.textContent = data.id || '';
         document.getElementById('roomSuccessSection').style.display = 'block';
         document.getElementById('roomSuccessSection').scrollIntoView({ behavior: 'smooth' });
+        // ローカルストレージに保存してキャンセル一覧を更新
+        if (data.id) {
+          saveRoomReservationLocal(data.id, roomSelectedDate, roomSelectedStart, roomSelectedEnd, name, purpose);
+          renderMyReservationsCard();
+        }
       })
       .catch(function() { showRoomMsg('通信エラーが発生しました。', 'error'); })
       .finally(function() { btn.disabled = false; btn.textContent = '予約を申し込む'; });
@@ -3126,56 +3130,76 @@ window.onDayClick = function(dateISO) {
     if (el) el.value = '';
   }
 
-  function loadMyRoomReservations() {
-    var contact = (document.getElementById('roomMyContact').value || '').trim();
-    if (!contact) { alert('連絡先を入力してください。'); return; }
-    var listEl = document.getElementById('roomMyList');
-    listEl.innerHTML = '<div style="color:#888;font-size:.85rem;">読み込み中...</div>';
-    fetch(GAS_API_URL + '?page=calendar&action=roomMyReservations&contact=' + encodeURIComponent(contact))
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (!data.ok || !data.reservations || !data.reservations.length) {
-          listEl.innerHTML = '<div style="color:#888;font-size:.85rem;">予約が見つかりませんでした。</div>'; return;
-        }
-        listEl.innerHTML = '';
-        data.reservations.forEach(function(r) {
-          var item = document.createElement('div');
-          item.className = 'room-my-item';
-          var statusLabel = { pending:'審査中', approved:'承認済み', cancelled:'キャンセル済', checked_in:'チェックイン済', no_show:'ノーショー' }[r.status] || r.status;
-          var statusClass = 'room-status-' + r.status;
-          var actionsHtml = '';
-          if ((r.status === 'approved' || r.status === 'pending') && roomCheckinMode === 'both') {
-            actionsHtml += '<button class="room-checkin-btn" onclick="doRoomCheckIn(\'' + r.id + '\',\'' + contact + '\')">チェックイン</button>';
-          }
-          if (r.status === 'pending' || r.status === 'approved') {
-            actionsHtml += '<button class="room-cancel-btn" onclick="doRoomCancel(\'' + r.id + '\',\'' + contact + '\')">キャンセル</button>';
-          }
-          item.innerHTML = ''
-            + '<div class="room-my-item-header">'
-            +   '<span class="room-my-item-date">' + r.date + '&nbsp;&nbsp;' + r.start + ' 〜 ' + r.end + '</span>'
-            +   '<span class="room-my-item-status ' + statusClass + '">' + statusLabel + '</span>'
-            + '</div>'
-            + '<div class="room-my-item-time">利用目的: ' + (r.purpose || '–') + ' / ' + r.people + '名</div>'
-            + (actionsHtml ? '<div class="room-my-item-actions">' + actionsHtml + '</div>' : '');
-          listEl.appendChild(item);
-        });
-      })
-      .catch(function() { listEl.innerHTML = '<div style="color:#c0392b;font-size:.85rem;">読み込みに失敗しました。</div>'; });
+// ===== ローカルストレージ予約管理 =====
+  var LS_KEY = 'bizcafe_room_reservations';
+
+  function saveRoomReservationLocal(id, date, start, end, name, purpose) {
+    var list = loadRoomReservationsLocal();
+    list.push({ id: id, date: date, start: start, end: end, name: name, purpose: purpose, bookedAt: Date.now() });
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
   }
 
-  function cancelMyReservation() {
-    var id = (document.getElementById('roomCancelId').value || '').trim();
+  function loadRoomReservationsLocal() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      var list = raw ? JSON.parse(raw) : [];
+      // 過去の予約を除外（当日より前）
+      var today = new Date();
+      today.setHours(0, 0, 0, 0);
+      var filtered = list.filter(function(r) {
+        var d = new Date(r.date);
+        return d >= today;
+      });
+      if (filtered.length !== list.length) {
+        localStorage.setItem(LS_KEY, JSON.stringify(filtered));
+      }
+      return filtered;
+    } catch(e) { return []; }
+  }
+
+  function removeRoomReservationLocal(id) {
+    var list = loadRoomReservationsLocal().filter(function(r) { return r.id !== id; });
+    localStorage.setItem(LS_KEY, JSON.stringify(list));
+  }
+
+  function renderMyReservationsCard() {
+    var list = loadRoomReservationsLocal();
+    var card = document.getElementById('roomMyReservationsCard');
+    var listEl = document.getElementById('roomMyReservationsList');
+    var msgEl = document.getElementById('roomCancelMsg');
+    if (!card || !listEl) return;
+    msgEl.textContent = '';
+    if (!list.length) {
+      card.style.display = 'none';
+      return;
+    }
+    card.style.display = 'block';
+    listEl.innerHTML = '';
+    list.forEach(function(r) {
+      var item = document.createElement('div');
+      item.style.cssText = 'padding:10px 0;border-bottom:1px solid #e8ecf0;';
+      var safeId = r.id.replace(/'/g, "\\'");
+      item.innerHTML = ''
+        + '<div style="font-size:0.88rem;font-weight:700;color:#1a3a5c;">' + r.date + '&nbsp;&nbsp;' + r.start + ' 〜 ' + r.end + '</div>'
+        + '<div style="font-size:0.80rem;color:#555;margin:2px 0 6px;">' + r.name + '　' + (r.purpose || '') + '</div>'
+        + '<div style="font-size:0.75rem;color:#999;margin-bottom:6px;">予約ID: ' + r.id + '</div>'
+        + '<button class="room-cancel-btn" style="font-size:0.8rem;padding:4px 14px;" onclick="cancelMyReservation(\'' + safeId + '\')">キャンセル</button>';
+      listEl.appendChild(item);
+    });
+  }
+
+  function cancelMyReservation(id) {
     var msgEl = document.getElementById('roomCancelMsg');
     msgEl.textContent = '';
-    if (!id) { msgEl.textContent = '予約IDを入力してください。'; msgEl.style.color = '#c0392b'; return; }
-    if (!confirm('予約ID: ' + id + '\nこの予約をキャンセルしますか？')) return;
+    if (!confirm('この予約をキャンセルしますか？\n予約ID: ' + id)) return;
     fetch(GAS_API_URL + '?page=calendar&action=roomCancel&id=' + encodeURIComponent(id))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (data.ok) {
+          removeRoomReservationLocal(id);
+          renderMyReservationsCard();
           msgEl.textContent = 'キャンセルしました。';
           msgEl.style.color = '#28a745';
-          document.getElementById('roomCancelId').value = '';
         } else {
           var msgs = {
             not_found: '予約IDが見つかりません。',
