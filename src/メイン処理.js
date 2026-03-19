@@ -299,7 +299,8 @@ function doGet(e) {
       var mtTabs = ['congestion', 'calendar', 'qa', 'board', 'corner'];
       var mtResult = {};
       mtTabs.forEach(function(tab) {
-        mtResult[tab] = props.getProperty('MAINTENANCE_' + tab) === 'true';
+        // 未設定（新規タブ）はデフォルトでメンテ中（true）扱い
+        mtResult[tab] = props.getProperty('MAINTENANCE_' + tab) !== 'false';
       });
       return ContentService.createTextOutput(JSON.stringify(mtResult))
         .setMimeType(ContentService.MimeType.JSON);
@@ -1447,4 +1448,23 @@ function menuRefreshStaff() {
     list += '・' + name + ' → ' + STAFF_MAPPING[name] + '\n';
   }
   ui.alert('スタッフ更新完了', staffNames.length + '名のスタッフを読み込みました。\n\n' + list, ui.ButtonSet.OK);
+}
+
+/**
+ * 既存タブのメンテナンス状態を初期化（未設定タブを明示的にfalseに設定）
+ * 新しいデフォルト動作（未設定=メンテ中）導入前の既存タブを安全化するため
+ * 初回のみ手動実行してください: メイン処理.gs の initMaintenanceProperties
+ */
+function initMaintenanceProperties() {
+  var props = PropertiesService.getScriptProperties();
+  var existingTabs = ['congestion', 'calendar', 'qa', 'board', 'corner'];
+  existingTabs.forEach(function(tab) {
+    if (props.getProperty('MAINTENANCE_' + tab) === null) {
+      props.setProperty('MAINTENANCE_' + tab, 'false');
+      Logger.log('初期化: MAINTENANCE_' + tab + ' = false');
+    } else {
+      Logger.log('スキップ（設定済み）: MAINTENANCE_' + tab + ' = ' + props.getProperty('MAINTENANCE_' + tab));
+    }
+  });
+  Logger.log('メンテナンス初期化完了');
 }
