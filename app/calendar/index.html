@@ -1077,13 +1077,7 @@
   </nav>
 
   <!-- コンテンツ -->
-  <div class="tab-content" style="position:relative;">
-    <!-- メンテナンスオーバーレイ -->
-    <div id="maintenanceOverlay" style="display:none;position:absolute;inset:0;z-index:100;background:#f5f7fa;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px 24px;text-align:center;">
-      <div style="font-size:3rem;">🔧</div>
-      <div style="font-size:1.2rem;font-weight:700;color:#1a3a5c;">メンテナンス中</div>
-      <div style="font-size:0.9rem;color:#666;max-width:280px;line-height:1.6;">ただいまこのページはメンテナンス中です。<br>しばらくお待ちください。</div>
-    </div>
+  <div class="tab-content">
 
 
     <!-- 混雑状況パネル -->
@@ -2609,6 +2603,14 @@ window.onDayClick = function(dateISO) {
     var overlay = document.getElementById('maintenanceOverlay');
     if (!overlay) return;
     if (maintenanceStatus[tabName]) {
+      var tabContent = document.querySelector('.tab-content');
+      if (tabContent) {
+        var rect = tabContent.getBoundingClientRect();
+        overlay.style.top    = rect.top + 'px';
+        overlay.style.left   = rect.left + 'px';
+        overlay.style.width  = rect.width + 'px';
+        overlay.style.height = (window.innerHeight - rect.top) + 'px';
+      }
       overlay.style.display = 'flex';
     } else {
       overlay.style.display = 'none';
@@ -2739,5 +2741,12 @@ window.onDayClick = function(dateISO) {
     wrap.innerHTML = renderParticipationSection(participation);
   }
 </script>
+
+<!-- メンテナンスオーバーレイ（position:fixed でコンテンツエリアを覆う） -->
+<div id="maintenanceOverlay" style="display:none;position:fixed;z-index:500;background:#f5f7fa;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px 24px;text-align:center;">
+  <div style="font-size:3rem;">🔧</div>
+  <div style="font-size:1.2rem;font-weight:700;color:#1a3a5c;">メンテナンス中</div>
+  <div style="font-size:0.9rem;color:#666;max-width:280px;line-height:1.6;">ただいまこのページはメンテナンス中です。<br>しばらくお待ちください。</div>
+</div>
 </body>
 </html>
