@@ -3,6 +3,7 @@
 // ============================================================
 
 var BOARD_PROP_KEY = 'BOARD_DATA';
+var ARTICLE_VIEW_COUNTS_PROP_KEY = 'ARTICLE_VIEW_COUNTS';
 var BOARD_IMAGE_FOLDER_ID = typeof DRIVE_FOLDER_ID !== 'undefined' ? DRIVE_FOLDER_ID : '';
 
 function getBoardList_(options) {
@@ -22,16 +23,20 @@ function getBoardList_(options) {
   });
 
   if (limit > 0) items = items.slice(0, limit);
-  return items.map(normalizeBoardItemForResponse_);
+  var viewCounts = loadArticleViewCounts_();
+  return items.map(function(item) {
+    return normalizeBoardItemForResponse_(item, viewCounts);
+  });
 }
 
 function getBoardItem_(id, includeUnpublished) {
   if (!id) return null;
   var items = loadBoardItems_();
+  var viewCounts = loadArticleViewCounts_();
   for (var i = 0; i < items.length; i++) {
     if (items[i].id === id) {
       if (!includeUnpublished && items[i].published !== true) return null;
-      return normalizeBoardItemForResponse_(items[i]);
+      return normalizeBoardItemForResponse_(items[i], viewCounts);
     }
   }
   return null;
@@ -111,12 +116,13 @@ function normalizeBoardItemForSave_(item) {
   };
 }
 
-function normalizeBoardItemForResponse_(item) {
+function normalizeBoardItemForResponse_(item, viewCounts) {
   var normalized = normalizeBoardItemForSave_(item);
   normalized.thumbnailUrl = normalized.thumbnailUrl || normalized.imageUrl;
   normalized.displayDate = normalized.date ? normalized.date.replace(/-/g, '/') : '';
   normalized.summary = normalized.summary || buildBoardSummary_(normalized.body);
   normalized.detailLink = 'articles/template.html?id=' + encodeURIComponent(normalized.id);
+  normalized.viewCount = Number((viewCounts && viewCounts[normalized.id]) || 0);
   return normalized;
 }
 
@@ -182,4 +188,35 @@ function sanitizeBoardFileName_(name) {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
     .slice(0, 60) || 'board-image';
+}
+
+function loadArticleViewCounts_() {
+  var raw = PropertiesService.getScriptProperties().getProperty(ARTICLE_VIEW_COUNTS_PROP_KEY) || '{}';
+  try {
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    var next = {};
+    Object.keys(parsed).forEach(function(key) {
+      next[String(key)] = Number(parsed[key] || 0);
+    });
+    return next;
+  } catch (err) {
+    return {};
+  }
+}
+
+function saveArticleViewCounts_(counts) {
+  PropertiesService.getScriptProperties().setProperty(
+    ARTICLE_VIEW_COUNTS_PROP_KEY,
+    JSON.stringify(counts || {})
+  );
+}
+
+function incrementArticleViewCount_(articleId) {
+  var id = String(articleId || '').trim();
+  if (!id) return { ok: false, error: 'article_id_required' };
+  var counts = loadArticleViewCounts_();
+  counts[id] = Number(counts[id] || 0) + 1;
+  saveArticleViewCounts_(counts);
+  return { ok: true, articleId: id, count: counts[id] };
 }

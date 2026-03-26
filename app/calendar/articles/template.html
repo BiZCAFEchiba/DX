@@ -104,7 +104,13 @@
   } else {
     fetch(GAS_API_URL + '?page=calendar&action=boardDetail&id=' + encodeURIComponent(articleId))
       .then(function(r) { return r.json(); })
-      .then(function(item) { renderArticle(item); })
+      .then(function(item) {
+        renderArticle(item);
+        if (item && item.id) {
+          fetch(GAS_API_URL + '?page=calendar&action=articleViewCountIncrement&articleId=' + encodeURIComponent(item.id))
+            .catch(function() {});
+        }
+      })
       .catch(function() { renderArticle({ ok: false }); });
   }
 </script>

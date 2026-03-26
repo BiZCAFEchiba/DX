@@ -183,6 +183,10 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(boardItem || { ok: false, error: 'not_found' }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    if (param.action === 'articleViewCountIncrement') {
+      return ContentService.createTextOutput(JSON.stringify(incrementArticleViewCount_(param.articleId || '')))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // 掲示板保存
     if (param.action === 'boardSave') {
       var saveResult = saveBoardItem_({

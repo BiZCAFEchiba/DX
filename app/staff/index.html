@@ -2219,6 +2219,7 @@
         + '<div class="board-meta">'
         + '<span class="board-badge">' + esc(item.category || '未分類') + '</span>'
         + '<span>' + esc(item.displayDate || item.date || '') + '</span>'
+        + '<span class="board-badge">PV ' + esc(String(Number(item.viewCount || 0))) + '</span>'
         + (item.showInUpdates ? '<span class="board-badge">更新一覧</span>' : '')
         + (item.showInArticles ? '<span class="board-badge">画像一覧</span>' : '')
         + '</div>'
