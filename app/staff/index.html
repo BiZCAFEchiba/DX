@@ -3314,6 +3314,14 @@
     if (!wrap) return;
     var card = wrap.parentNode;
     if (!card || document.getElementById('counterGraphWrap')) return;
+    if (!document.getElementById('counterTotalTitle')) {
+      var totalTitle = document.createElement('div');
+      totalTitle.id = 'counterTotalTitle';
+      totalTitle.className = 'form-title';
+      totalTitle.style.marginTop = '10px';
+      totalTitle.textContent = '通算閲覧回数';
+      card.insertBefore(totalTitle, document.getElementById('counterMeta'));
+    }
     var graphWrap = document.createElement('div');
     graphWrap.id = 'counterGraphWrap';
     graphWrap.style.marginTop = '16px';

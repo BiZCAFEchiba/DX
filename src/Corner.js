@@ -173,6 +173,14 @@ function voteCornerParticipation_(themeId, optionId) {
   };
 }
 
+function resetCornerPageViews_() {
+  var state = loadCornerPageViewState_();
+  state.counts = getDefaultCornerPageViewCounts_();
+  state.lastResetAt = getCornerNowIso_();
+  saveCornerPageViewState_(state);
+  return state;
+}
+
 function loadCornerPageViewState_() {
   var defaults = {
     counts: getDefaultCornerPageViewCounts_(),
