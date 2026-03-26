@@ -3386,11 +3386,11 @@
   }
 
   function selectCounterGraphKey(key) {
+    counterGraphMultiMode = false;
     selectedCounterGraphKey = key;
-    if (!counterGraphMultiMode) {
-      selectedCounterGraphKeys = [key];
-    }
+    selectedCounterGraphKeys = [];
     renderCounterGraphFilters();
+    hideCounterGraphPointDetail();
     renderCounterGraph(window.__pageViewStatsData || {});
   }
 
@@ -3400,10 +3400,12 @@
       if (selectedCounterGraphKeys.indexOf(selectedCounterGraphKey) === -1) {
         selectedCounterGraphKeys = [selectedCounterGraphKey];
       }
-    } else if (selectedCounterGraphKeys.length) {
-      selectedCounterGraphKey = selectedCounterGraphKeys[0];
+    } else {
+      selectedCounterGraphKey = selectedCounterGraphKeys.length ? selectedCounterGraphKeys[0] : selectedCounterGraphKey;
+      selectedCounterGraphKeys = [];
     }
     renderCounterGraphFilters();
+    hideCounterGraphPointDetail();
     renderCounterGraph(window.__pageViewStatsData || {});
   }
 
@@ -3417,7 +3419,36 @@
     if (!next.length) next = [selectedCounterGraphKey];
     selectedCounterGraphKeys = next;
     renderCounterGraphFilters();
+    hideCounterGraphPointDetail();
     renderCounterGraph(window.__pageViewStatsData || {});
+  }
+
+  function showCounterGraphPointDetail(evt, dateKey, tabLabel, value) {
+    var wrap = document.getElementById('counterGraph');
+    if (!wrap) return;
+    wrap.style.position = 'relative';
+    var tooltip = document.getElementById('counterGraphTooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'counterGraphTooltip';
+      tooltip.style.cssText = 'position:absolute;min-width:140px;max-width:220px;padding:10px 12px;background:#fff;border:1px solid #d8e0e8;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,0.12);font-size:.82rem;color:#1f2937;z-index:5;pointer-events:none;';
+      wrap.appendChild(tooltip);
+    }
+    tooltip.innerHTML = ''
+      + '<div style="font-weight:700;color:#1a3a5c;margin-bottom:4px;">' + esc(dateKey) + '</div>'
+      + (counterGraphMultiMode ? '<div style="margin-bottom:2px;color:#4b5c70;">タブ: ' + esc(tabLabel) + '</div>' : '')
+      + '<div>閲覧回数: <strong>' + esc(String(value)) + '</strong></div>';
+    var rect = wrap.getBoundingClientRect();
+    var x = (evt && typeof evt.clientX === 'number' ? evt.clientX - rect.left : rect.width / 2) + 12;
+    var y = (evt && typeof evt.clientY === 'number' ? evt.clientY - rect.top : 24) - 12;
+    tooltip.style.left = Math.max(8, Math.min(x, rect.width - 170)) + 'px';
+    tooltip.style.top = Math.max(8, y) + 'px';
+    tooltip.style.display = 'block';
+  }
+
+  function hideCounterGraphPointDetail() {
+    var tooltip = document.getElementById('counterGraphTooltip');
+    if (tooltip) tooltip.style.display = 'none';
   }
 
   function formatCounterDateKey(date) {
@@ -3543,7 +3574,10 @@
 
     var circles = seriesData.map(function(series) {
       return series.values.map(function(value, index) {
-        return '<circle cx="' + pointX(index) + '" cy="' + pointY(value) + '" r="4" fill="#fff" stroke="' + series.color + '" stroke-width="2"></circle>';
+        var label = String(series.label || '').replace(/'/g, '&#39;');
+        return '<circle cx="' + pointX(index) + '" cy="' + pointY(value) + '" r="4" fill="#fff" stroke="' + series.color + '" stroke-width="2"'
+          + ' onmouseenter="showCounterGraphPointDetail(event,\'' + dates[index] + '\',\'' + label + '\',' + value + ')"'
+          + ' onclick="showCounterGraphPointDetail(event,\'' + dates[index] + '\',\'' + label + '\',' + value + ');event.stopPropagation();"></circle>';
       }).join('');
     }).join('');
 
@@ -3620,6 +3654,7 @@
 
   var originalSwitchTabWithCounter = switchTab;
   switchTab = function(name) {
+    hideCounterGraphPointDetail();
     originalSwitchTabWithCounter(name);
     if (name === 'corner') loadCornerSettingsAdmin();
     if (name === 'counter') {
@@ -3627,6 +3662,15 @@
       renderCounterGraphFilters();
     }
   };
+
+  if (!window.__counterGraphOutsideClickBound) {
+    window.__counterGraphOutsideClickBound = true;
+    document.addEventListener('click', function(event) {
+      var graphWrap = document.getElementById('counterGraphWrap');
+      if (!graphWrap || graphWrap.contains(event.target)) return;
+      hideCounterGraphPointDetail();
+    });
+  }
 </script>
 </body>
 </html>
