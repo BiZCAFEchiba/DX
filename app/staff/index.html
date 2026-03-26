@@ -3248,6 +3248,8 @@
 <script>
   var cornerSettingsState = { freeBoardVisible: true };
   var selectedCounterGraphKey = 'congestion';
+  var counterGraphStartDate = '';
+  var counterGraphEndDate = '';
   var COUNTER_GRAPH_LABELS = {
     congestion: '混雑状況',
     calendar: 'カレンダー',
@@ -3317,9 +3319,19 @@
     graphWrap.style.marginTop = '16px';
     graphWrap.innerHTML = ''
       + '<div class="form-title" style="margin-bottom:10px;">日別推移</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px;">'
+      + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">開始日'
+      + '<input type="date" id="counterGraphStart" onchange="updateCounterGraphRange()" style="border:1px solid #d0d7e2;border-radius:8px;padding:8px 10px;font-size:.9rem;">'
+      + '</label>'
+      + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">終了日'
+      + '<input type="date" id="counterGraphEnd" onchange="updateCounterGraphRange()" style="border:1px solid #d0d7e2;border-radius:8px;padding:8px 10px;font-size:.9rem;">'
+      + '</label>'
+      + '</div>'
       + '<div id="counterGraphFilters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>'
       + '<div id="counterGraph" class="readonly-box">データを読み込み中...</div>';
     card.appendChild(graphWrap);
+    ensureCounterGraphRangeDefaults();
+    syncCounterGraphRangeInputs();
   }
 
   function renderCounterGraphFilters() {
@@ -3340,14 +3352,69 @@
     renderCounterGraph(window.__pageViewStatsData || {});
   }
 
+  function formatCounterDateKey(date) {
+    return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+  }
+
+  function ensureCounterGraphRangeDefaults() {
+    if (counterGraphStartDate && counterGraphEndDate) return;
+    var end = new Date();
+    end.setHours(0, 0, 0, 0);
+    var start = new Date(end);
+    start.setDate(start.getDate() - 13);
+    counterGraphStartDate = formatCounterDateKey(start);
+    counterGraphEndDate = formatCounterDateKey(end);
+  }
+
+  function syncCounterGraphRangeInputs() {
+    var startInput = document.getElementById('counterGraphStart');
+    var endInput = document.getElementById('counterGraphEnd');
+    if (startInput) startInput.value = counterGraphStartDate;
+    if (endInput) endInput.value = counterGraphEndDate;
+  }
+
+  function updateCounterGraphRange() {
+    var startInput = document.getElementById('counterGraphStart');
+    var endInput = document.getElementById('counterGraphEnd');
+    ensureCounterGraphRangeDefaults();
+    if (startInput && startInput.value) counterGraphStartDate = startInput.value;
+    if (endInput && endInput.value) counterGraphEndDate = endInput.value;
+    if (counterGraphStartDate > counterGraphEndDate) {
+      counterGraphEndDate = counterGraphStartDate;
+      if (endInput) endInput.value = counterGraphEndDate;
+    }
+    renderCounterGraph(window.__pageViewStatsData || {});
+  }
+
+  function buildCounterDateKeys(startKey, endKey) {
+    var keys = [];
+    if (!startKey || !endKey) return keys;
+    var start = new Date(startKey + 'T00:00:00');
+    var end = new Date(endKey + 'T00:00:00');
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return keys;
+    for (var cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+      keys.push(formatCounterDateKey(cursor));
+    }
+    return keys;
+  }
+
+  function getCounterTickStep(length) {
+    if (length <= 14) return 1;
+    if (length <= 30) return 3;
+    if (length <= 60) return 6;
+    return 7;
+  }
+
   function renderCounterGraph(data) {
     var wrap = document.getElementById('counterGraph');
     if (!wrap) return;
+    ensureCounterGraphRangeDefaults();
+    syncCounterGraphRangeInputs();
     var dailyCounts = data && data.dailyCounts ? data.dailyCounts : {};
     var seriesMap = dailyCounts[selectedCounterGraphKey] || {};
-    var dates = Object.keys(seriesMap).sort();
+    var dates = buildCounterDateKeys(counterGraphStartDate, counterGraphEndDate);
     if (!dates.length) {
-      wrap.innerHTML = '<div style="color:#667085;font-size:.88rem;">まだ日別データがありません。</div>';
+      wrap.innerHTML = '<div style="color:#667085;font-size:.88rem;">日付範囲を指定してください。</div>';
       return;
     }
 
@@ -3372,7 +3439,9 @@
       return '<line x1="' + paddingLeft + '" y1="' + y + '" x2="' + (width - paddingRight) + '" y2="' + y + '" stroke="#d8e0e8" stroke-width="1" />';
     }).join('');
 
+    var tickStep = getCounterTickStep(dates.length);
     var xLabels = dates.map(function(dateKey, index) {
+      if (index % tickStep !== 0 && index !== dates.length - 1) return '';
       var x = dates.length === 1 ? paddingLeft + innerWidth / 2 : paddingLeft + (innerWidth * index / (dates.length - 1));
       var label = dateKey.slice(5).replace('-', '/');
       return '<text x="' + x + '" y="' + (height - 10) + '" text-anchor="middle" font-size="11" fill="#667085">' + label + '</text>';
@@ -3385,6 +3454,7 @@
 
     wrap.innerHTML = ''
       + '<div style="font-size:.88rem;font-weight:700;color:#1a3a5c;margin-bottom:8px;">' + esc(COUNTER_GRAPH_LABELS[selectedCounterGraphKey]) + ' の日別訪問回数</div>'
+      + '<div style="font-size:.8rem;color:#667085;margin-bottom:8px;">' + esc(counterGraphStartDate) + ' 〜 ' + esc(counterGraphEndDate) + '</div>'
       + '<svg viewBox="0 0 ' + width + ' ' + height + '" style="width:100%;height:auto;display:block;">'
       + gridLines
       + '<polyline fill="none" stroke="#1a3a5c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="' + points + '"></polyline>'
@@ -3401,6 +3471,8 @@
   var originalLoadPageViewStats = loadPageViewStats;
   loadPageViewStats = function() {
     ensureCounterGraphUI();
+    ensureCounterGraphRangeDefaults();
+    syncCounterGraphRangeInputs();
     renderCounterGraphFilters();
     var wrap = document.getElementById('counterStats');
     var meta = document.getElementById('counterMeta');
