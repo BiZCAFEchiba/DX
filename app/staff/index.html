@@ -3248,6 +3248,8 @@
 <script>
   var cornerSettingsState = { freeBoardVisible: true };
   var selectedCounterGraphKey = 'congestion';
+  var counterGraphMultiMode = false;
+  var selectedCounterGraphKeys = ['congestion'];
   var counterGraphStartDate = '';
   var counterGraphEndDate = '';
   var COUNTER_GRAPH_LABELS = {
@@ -3257,6 +3259,14 @@
     notices: 'お知らせ',
     free_board: 'なんでも掲示板',
     recruit: '採用'
+  };
+  var COUNTER_GRAPH_COLORS = {
+    congestion: '#1a3a5c',
+    calendar: '#2f7d32',
+    qa: '#c05a00',
+    notices: '#7b3fe4',
+    free_board: '#00838f',
+    recruit: '#d64545'
   };
 
   function ensureCornerVisibilityControl() {
@@ -3345,17 +3355,67 @@
   function renderCounterGraphFilters() {
     var wrap = document.getElementById('counterGraphFilters');
     if (!wrap) return;
-    wrap.innerHTML = Object.keys(COUNTER_GRAPH_LABELS).map(function(key) {
+    var singleButtons = Object.keys(COUNTER_GRAPH_LABELS).map(function(key) {
       var active = key === selectedCounterGraphKey;
       return '<button type="button" onclick="selectCounterGraphKey(\'' + key + '\')" style="'
         + 'border:none;border-radius:999px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;'
         + (active ? 'background:#1a3a5c;color:#fff;' : 'background:#eaf0f7;color:#1a3a5c;')
         + '">' + esc(COUNTER_GRAPH_LABELS[key]) + '</button>';
     }).join('');
+
+    var multiButton = '<button type="button" onclick="toggleCounterGraphMultiMode()" style="'
+      + 'border:1px solid #b8c6d8;border-radius:999px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;'
+      + (counterGraphMultiMode ? 'background:#eef4fb;color:#1a3a5c;' : 'background:#fff;color:#4b5c70;')
+      + '">複数表示</button>';
+
+    var multiChoices = '';
+    if (counterGraphMultiMode) {
+      multiChoices = '<div style="display:flex;flex-wrap:wrap;gap:10px;width:100%;margin-top:8px;">'
+        + Object.keys(COUNTER_GRAPH_LABELS).map(function(key) {
+            var checked = selectedCounterGraphKeys.indexOf(key) !== -1;
+            return '<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #d8e0e8;border-radius:999px;background:#fff;font-size:.82rem;color:#1a3a5c;">'
+              + '<input type="checkbox" ' + (checked ? 'checked ' : '') + 'onchange="toggleCounterGraphSeries(\'' + key + '\', this.checked)">'
+              + '<span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:' + COUNTER_GRAPH_COLORS[key] + ';"></span>'
+              + '<span>' + esc(COUNTER_GRAPH_LABELS[key]) + '</span>'
+              + '</label>';
+          }).join('')
+        + '</div>';
+    }
+
+    wrap.innerHTML = singleButtons + multiButton + multiChoices;
   }
 
   function selectCounterGraphKey(key) {
     selectedCounterGraphKey = key;
+    if (!counterGraphMultiMode) {
+      selectedCounterGraphKeys = [key];
+    }
+    renderCounterGraphFilters();
+    renderCounterGraph(window.__pageViewStatsData || {});
+  }
+
+  function toggleCounterGraphMultiMode() {
+    counterGraphMultiMode = !counterGraphMultiMode;
+    if (counterGraphMultiMode) {
+      if (selectedCounterGraphKeys.indexOf(selectedCounterGraphKey) === -1) {
+        selectedCounterGraphKeys = [selectedCounterGraphKey];
+      }
+    } else if (selectedCounterGraphKeys.length) {
+      selectedCounterGraphKey = selectedCounterGraphKeys[0];
+    }
+    renderCounterGraphFilters();
+    renderCounterGraph(window.__pageViewStatsData || {});
+  }
+
+  function toggleCounterGraphSeries(key, checked) {
+    var next = selectedCounterGraphKeys.slice();
+    if (checked) {
+      if (next.indexOf(key) === -1) next.push(key);
+    } else {
+      next = next.filter(function(item) { return item !== key; });
+    }
+    if (!next.length) next = [selectedCounterGraphKey];
+    selectedCounterGraphKeys = next;
     renderCounterGraphFilters();
     renderCounterGraph(window.__pageViewStatsData || {});
   }
@@ -3425,9 +3485,22 @@
       wrap.innerHTML = '<div style="color:#667085;font-size:.88rem;">日付範囲を指定してください。</div>';
       return;
     }
-
-    var values = dates.map(function(dateKey) { return Number(seriesMap[dateKey] || 0); });
-    var maxValue = Math.max.apply(null, values.concat([1]));
+    var seriesKeys = counterGraphMultiMode ? selectedCounterGraphKeys.slice() : [selectedCounterGraphKey];
+    if (!seriesKeys.length) seriesKeys = [selectedCounterGraphKey];
+    var seriesData = seriesKeys.map(function(key) {
+      return {
+        key: key,
+        label: COUNTER_GRAPH_LABELS[key],
+        color: COUNTER_GRAPH_COLORS[key] || '#1a3a5c',
+        values: dates.map(function(dateKey) {
+          var pageSeries = dailyCounts[key] || {};
+          return Number(pageSeries[dateKey] || 0);
+        })
+      };
+    });
+    var allValues = [];
+    seriesData.forEach(function(series) { allValues = allValues.concat(series.values); });
+    var maxValue = Math.max.apply(null, allValues.concat([1]));
     var width = 640;
     var height = 220;
     var paddingLeft = 42;
@@ -3436,11 +3509,12 @@
     var paddingBottom = 34;
     var innerWidth = width - paddingLeft - paddingRight;
     var innerHeight = height - paddingTop - paddingBottom;
-    var points = values.map(function(value, index) {
-      var x = dates.length === 1 ? paddingLeft + innerWidth / 2 : paddingLeft + (innerWidth * index / (dates.length - 1));
-      var y = paddingTop + innerHeight - (innerHeight * value / maxValue);
-      return x.toFixed(2) + ',' + y.toFixed(2);
-    }).join(' ');
+    function pointX(index) {
+      return dates.length === 1 ? paddingLeft + innerWidth / 2 : paddingLeft + (innerWidth * index / (dates.length - 1));
+    }
+    function pointY(value) {
+      return paddingTop + innerHeight - (innerHeight * value / maxValue);
+    }
 
     var gridLines = [0, 0.5, 1].map(function(ratio) {
       var y = paddingTop + (innerHeight * ratio);
@@ -3460,17 +3534,41 @@
       return '<text x="' + (paddingLeft - 8) + '" y="' + y + '" text-anchor="end" font-size="11" fill="#667085">' + value + '</text>';
     }).join('');
 
+    var polylines = seriesData.map(function(series) {
+      var points = series.values.map(function(value, index) {
+        return pointX(index).toFixed(2) + ',' + pointY(value).toFixed(2);
+      }).join(' ');
+      return '<polyline fill="none" stroke="' + series.color + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="' + points + '"></polyline>';
+    }).join('');
+
+    var circles = seriesData.map(function(series) {
+      return series.values.map(function(value, index) {
+        return '<circle cx="' + pointX(index) + '" cy="' + pointY(value) + '" r="4" fill="#fff" stroke="' + series.color + '" stroke-width="2"></circle>';
+      }).join('');
+    }).join('');
+
+    var legend = '';
+    if (seriesData.length > 1) {
+      legend = '<div style="display:flex;flex-wrap:wrap;gap:10px 14px;margin-bottom:10px;">'
+        + seriesData.map(function(series) {
+            return '<div style="display:flex;align-items:center;gap:6px;font-size:.82rem;color:#4b5c70;">'
+              + '<span style="display:inline-block;width:12px;height:12px;border-radius:999px;background:' + series.color + ';"></span>'
+              + '<span>' + esc(series.label) + '</span>'
+              + '</div>';
+          }).join('')
+        + '</div>';
+    }
+
     wrap.innerHTML = ''
-      + '<div style="font-size:.88rem;font-weight:700;color:#1a3a5c;margin-bottom:8px;">' + esc(COUNTER_GRAPH_LABELS[selectedCounterGraphKey]) + ' の日別訪問回数</div>'
+      + '<div style="font-size:.88rem;font-weight:700;color:#1a3a5c;margin-bottom:8px;">'
+      + (seriesData.length > 1 ? '選択中タブの日別訪問回数' : esc(COUNTER_GRAPH_LABELS[selectedCounterGraphKey]) + ' の日別訪問回数')
+      + '</div>'
       + '<div style="font-size:.8rem;color:#667085;margin-bottom:8px;">' + esc(counterGraphStartDate) + ' 〜 ' + esc(counterGraphEndDate) + '</div>'
+      + legend
       + '<svg viewBox="0 0 ' + width + ' ' + height + '" style="width:100%;height:auto;display:block;">'
       + gridLines
-      + '<polyline fill="none" stroke="#1a3a5c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="' + points + '"></polyline>'
-      + values.map(function(value, index) {
-          var x = dates.length === 1 ? paddingLeft + innerWidth / 2 : paddingLeft + (innerWidth * index / (dates.length - 1));
-          var y = paddingTop + innerHeight - (innerHeight * value / maxValue);
-          return '<circle cx="' + x + '" cy="' + y + '" r="4" fill="#fff" stroke="#1a3a5c" stroke-width="2"></circle>';
-        }).join('')
+      + polylines
+      + circles
       + xLabels
       + yLabels
       + '</svg>';
