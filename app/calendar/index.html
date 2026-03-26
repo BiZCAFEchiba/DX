@@ -3229,5 +3229,37 @@ window.onDayClick = function(dateISO) {
   <div style="font-size:1.2rem;font-weight:700;color:#1a3a5c;">メンテナンス中</div>
   <div style="font-size:0.9rem;color:#666;max-width:280px;line-height:1.6;">ただいまこのページはメンテナンス中です。<br>しばらくお待ちください。</div>
 </div>
+<script>
+  var cornerSettingsData = { freeBoardVisible: true };
+
+  function applyCornerVisibilitySettings() {
+    var cornerTab = document.getElementById('tabBtnCorner');
+    var cornerPane = document.getElementById('paneCorner');
+    var visible = !cornerSettingsData || cornerSettingsData.freeBoardVisible !== false;
+    if (cornerTab) cornerTab.style.display = visible ? '' : 'none';
+    if (cornerPane) cornerPane.style.display = visible ? '' : 'none';
+    if (!visible && location.hash.indexOf('#corner') === 0) {
+      history.replaceState(null, '', location.pathname + location.search);
+      switchTab('congestion');
+    }
+  }
+
+  function loadCornerSettings() {
+    fetch(GAS_API_URL + '?page=calendar&action=cornerSettingsGet')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        cornerSettingsData = data && typeof data === 'object'
+          ? { freeBoardVisible: data.freeBoardVisible !== false }
+          : { freeBoardVisible: true };
+        applyCornerVisibilitySettings();
+      })
+      .catch(function() {
+        cornerSettingsData = { freeBoardVisible: true };
+        applyCornerVisibilitySettings();
+      });
+  }
+
+  loadCornerSettings();
+</script>
 </body>
 </html>

@@ -3245,5 +3245,210 @@
     }).join('');
   }
 </script>
+<script>
+  var cornerSettingsState = { freeBoardVisible: true };
+  var selectedCounterGraphKey = 'congestion';
+  var COUNTER_GRAPH_LABELS = {
+    congestion: '混雑状況',
+    calendar: 'カレンダー',
+    qa: 'Q&A',
+    notices: 'お知らせ',
+    free_board: 'なんでも掲示板',
+    recruit: '採用'
+  };
+
+  function ensureCornerVisibilityControl() {
+    var stack = document.querySelector('#paneCorner .corner-manage-stack');
+    if (!stack || document.getElementById('cornerVisibilityCard')) return;
+    var card = document.createElement('section');
+    card.className = 'corner-content-card';
+    card.id = 'cornerVisibilityCard';
+    card.innerHTML = ''
+      + '<div class="form-title">お客さんページ表示設定</div>'
+      + '<div class="corner-inline-help">「なんでも掲示板」タブを customer 側に表示するかを切り替えます。</div>'
+      + '<label style="display:flex;align-items:center;gap:10px;margin:14px 0 10px;font-size:.95rem;font-weight:600;color:#1a3a5c;">'
+      + '<input type="checkbox" id="cornerVisibleToggle" style="width:18px;height:18px;">'
+      + '<span>お客さんページに表示する</span>'
+      + '</label>'
+      + '<div class="form-btns"><button class="btn-secondary" type="button" onclick="saveCornerVisibilitySetting()">設定を保存</button></div>';
+    stack.insertBefore(card, stack.firstChild);
+  }
+
+  function loadCornerSettingsAdmin() {
+    ensureCornerVisibilityControl();
+    fetch(GAS_API_URL + '?page=calendar&action=cornerSettingsGet')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        cornerSettingsState = data && typeof data === 'object'
+          ? { freeBoardVisible: data.freeBoardVisible !== false }
+          : { freeBoardVisible: true };
+        var toggle = document.getElementById('cornerVisibleToggle');
+        if (toggle) toggle.checked = cornerSettingsState.freeBoardVisible !== false;
+      })
+      .catch(function() {});
+  }
+
+  function saveCornerVisibilitySetting() {
+    var toggle = document.getElementById('cornerVisibleToggle');
+    if (!toggle) return;
+    fetch(
+      GAS_API_URL
+      + '?page=calendar&action=cornerSettingsSave'
+      + '&freeBoardVisible=' + encodeURIComponent(toggle.checked ? 'true' : 'false')
+    )
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        cornerSettingsState = result && typeof result === 'object'
+          ? { freeBoardVisible: result.freeBoardVisible !== false }
+          : { freeBoardVisible: true };
+        toggle.checked = cornerSettingsState.freeBoardVisible !== false;
+        showToast('なんでも掲示板の表示設定を保存しました');
+      })
+      .catch(function() { showToast('表示設定の保存に失敗しました', true); });
+  }
+
+  function ensureCounterGraphUI() {
+    var wrap = document.getElementById('counterStats');
+    if (!wrap) return;
+    var card = wrap.parentNode;
+    if (!card || document.getElementById('counterGraphWrap')) return;
+    var graphWrap = document.createElement('div');
+    graphWrap.id = 'counterGraphWrap';
+    graphWrap.style.marginTop = '16px';
+    graphWrap.innerHTML = ''
+      + '<div class="form-title" style="margin-bottom:10px;">日別推移</div>'
+      + '<div id="counterGraphFilters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>'
+      + '<div id="counterGraph" class="readonly-box">データを読み込み中...</div>';
+    card.appendChild(graphWrap);
+  }
+
+  function renderCounterGraphFilters() {
+    var wrap = document.getElementById('counterGraphFilters');
+    if (!wrap) return;
+    wrap.innerHTML = Object.keys(COUNTER_GRAPH_LABELS).map(function(key) {
+      var active = key === selectedCounterGraphKey;
+      return '<button type="button" onclick="selectCounterGraphKey(\'' + key + '\')" style="'
+        + 'border:none;border-radius:999px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;'
+        + (active ? 'background:#1a3a5c;color:#fff;' : 'background:#eaf0f7;color:#1a3a5c;')
+        + '">' + esc(COUNTER_GRAPH_LABELS[key]) + '</button>';
+    }).join('');
+  }
+
+  function selectCounterGraphKey(key) {
+    selectedCounterGraphKey = key;
+    renderCounterGraphFilters();
+    renderCounterGraph(window.__pageViewStatsData || {});
+  }
+
+  function renderCounterGraph(data) {
+    var wrap = document.getElementById('counterGraph');
+    if (!wrap) return;
+    var dailyCounts = data && data.dailyCounts ? data.dailyCounts : {};
+    var seriesMap = dailyCounts[selectedCounterGraphKey] || {};
+    var dates = Object.keys(seriesMap).sort();
+    if (!dates.length) {
+      wrap.innerHTML = '<div style="color:#667085;font-size:.88rem;">まだ日別データがありません。</div>';
+      return;
+    }
+
+    var values = dates.map(function(dateKey) { return Number(seriesMap[dateKey] || 0); });
+    var maxValue = Math.max.apply(null, values.concat([1]));
+    var width = 640;
+    var height = 220;
+    var paddingLeft = 42;
+    var paddingRight = 14;
+    var paddingTop = 18;
+    var paddingBottom = 34;
+    var innerWidth = width - paddingLeft - paddingRight;
+    var innerHeight = height - paddingTop - paddingBottom;
+    var points = values.map(function(value, index) {
+      var x = dates.length === 1 ? paddingLeft + innerWidth / 2 : paddingLeft + (innerWidth * index / (dates.length - 1));
+      var y = paddingTop + innerHeight - (innerHeight * value / maxValue);
+      return x.toFixed(2) + ',' + y.toFixed(2);
+    }).join(' ');
+
+    var gridLines = [0, 0.5, 1].map(function(ratio) {
+      var y = paddingTop + (innerHeight * ratio);
+      return '<line x1="' + paddingLeft + '" y1="' + y + '" x2="' + (width - paddingRight) + '" y2="' + y + '" stroke="#d8e0e8" stroke-width="1" />';
+    }).join('');
+
+    var xLabels = dates.map(function(dateKey, index) {
+      var x = dates.length === 1 ? paddingLeft + innerWidth / 2 : paddingLeft + (innerWidth * index / (dates.length - 1));
+      var label = dateKey.slice(5).replace('-', '/');
+      return '<text x="' + x + '" y="' + (height - 10) + '" text-anchor="middle" font-size="11" fill="#667085">' + label + '</text>';
+    }).join('');
+
+    var yLabels = [maxValue, Math.floor(maxValue / 2), 0].map(function(value, index) {
+      var y = index === 0 ? paddingTop + 4 : (index === 1 ? paddingTop + innerHeight / 2 + 4 : paddingTop + innerHeight + 4);
+      return '<text x="' + (paddingLeft - 8) + '" y="' + y + '" text-anchor="end" font-size="11" fill="#667085">' + value + '</text>';
+    }).join('');
+
+    wrap.innerHTML = ''
+      + '<div style="font-size:.88rem;font-weight:700;color:#1a3a5c;margin-bottom:8px;">' + esc(COUNTER_GRAPH_LABELS[selectedCounterGraphKey]) + ' の日別訪問回数</div>'
+      + '<svg viewBox="0 0 ' + width + ' ' + height + '" style="width:100%;height:auto;display:block;">'
+      + gridLines
+      + '<polyline fill="none" stroke="#1a3a5c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="' + points + '"></polyline>'
+      + values.map(function(value, index) {
+          var x = dates.length === 1 ? paddingLeft + innerWidth / 2 : paddingLeft + (innerWidth * index / (dates.length - 1));
+          var y = paddingTop + innerHeight - (innerHeight * value / maxValue);
+          return '<circle cx="' + x + '" cy="' + y + '" r="4" fill="#fff" stroke="#1a3a5c" stroke-width="2"></circle>';
+        }).join('')
+      + xLabels
+      + yLabels
+      + '</svg>';
+  }
+
+  var originalLoadPageViewStats = loadPageViewStats;
+  loadPageViewStats = function() {
+    ensureCounterGraphUI();
+    renderCounterGraphFilters();
+    var wrap = document.getElementById('counterStats');
+    var meta = document.getElementById('counterMeta');
+    if (!wrap) return;
+    wrap.textContent = '読み込み中...';
+    if (meta) meta.textContent = '最終リセット: 読み込み中...';
+    fetch(GAS_API_URL + '?page=calendar&action=pageViewGet')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        window.__pageViewStatsData = data || {};
+        renderPageViewStats(window.__pageViewStatsData);
+      })
+      .catch(function() {
+        wrap.textContent = '読み込みに失敗しました';
+        if (meta) meta.textContent = '最終リセット: 取得できませんでした';
+        renderCounterGraph({});
+      });
+  };
+
+  var originalRenderPageViewStats = renderPageViewStats;
+  renderPageViewStats = function(data) {
+    originalRenderPageViewStats(data);
+    renderCounterGraph(window.__pageViewStatsData || data || {});
+  };
+
+  var originalResetPageViewStats = resetPageViewStats;
+  resetPageViewStats = function() {
+    if (!confirm('カウンタをリセットします。よろしいですか？')) return;
+    fetch(GAS_API_URL + '?page=calendar&action=pageViewReset')
+      .then(function(r) { return r.json(); })
+      .then(function(result) {
+        if (!result || result.ok === false) throw new Error('reset_failed');
+        window.__pageViewStatsData = result;
+        renderPageViewStats(result);
+        showToast('カウンタをリセットしました');
+      })
+      .catch(function() { showToast('カウンタのリセットに失敗しました', true); });
+  };
+
+  var originalSwitchTabWithCounter = switchTab;
+  switchTab = function(name) {
+    originalSwitchTabWithCounter(name);
+    if (name === 'corner') loadCornerSettingsAdmin();
+    if (name === 'counter') {
+      ensureCounterGraphUI();
+      renderCounterGraphFilters();
+    }
+  };
+</script>
 </body>
 </html>

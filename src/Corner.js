@@ -187,6 +187,225 @@ function getDefaultCornerPageViewCounts_() {
 function loadCornerPageViewState_() {
   var defaults = {
     counts: getDefaultCornerPageViewCounts_(),
+    dailyCounts: {},
+    lastResetAt: ''
+  };
+  var raw = PropertiesService.getScriptProperties().getProperty(CORNER_PAGE_VIEWS_PROP_KEY);
+  if (!raw) return defaults;
+  try {
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return defaults;
+    if (!parsed.counts) {
+      Object.keys(getDefaultCornerPageViewCounts_()).forEach(function(key) {
+        defaults.counts[key] = Number(parsed[key] || 0);
+      });
+      defaults.lastResetAt = sanitizeCornerText_(parsed.lastResetAt || '');
+      return defaults;
+    }
+    Object.keys(getDefaultCornerPageViewCounts_()).forEach(function(key) {
+      defaults.counts[key] = Number(parsed.counts[key] || 0);
+    });
+    defaults.lastResetAt = sanitizeCornerText_(parsed.lastResetAt || '');
+    var dailyCounts = parsed.dailyCounts && typeof parsed.dailyCounts === 'object' ? parsed.dailyCounts : {};
+    Object.keys(dailyCounts).forEach(function(pageKey) {
+      var pageCounts = dailyCounts[pageKey];
+      if (!pageCounts || typeof pageCounts !== 'object') return;
+      defaults.dailyCounts[pageKey] = {};
+      Object.keys(pageCounts).forEach(function(dayKey) {
+        defaults.dailyCounts[pageKey][dayKey] = Number(pageCounts[dayKey] || 0);
+      });
+    });
+    return defaults;
+  } catch (err) {
+    return defaults;
+  }
+}
+
+function saveCornerPageViewState_(state) {
+  PropertiesService.getScriptProperties().setProperty(
+    CORNER_PAGE_VIEWS_PROP_KEY,
+    JSON.stringify({
+      counts: state && state.counts ? state.counts : getDefaultCornerPageViewCounts_(),
+      dailyCounts: state && state.dailyCounts ? state.dailyCounts : {},
+      lastResetAt: state && state.lastResetAt ? state.lastResetAt : ''
+    })
+  );
+}
+
+function trackCornerPageView_(pageKey) {
+  var key = sanitizeCornerText_(pageKey);
+  if (!key) return { ok: false, error: 'page_key_required' };
+  var state = loadCornerPageViewState_();
+  state.counts[key] = Number(state.counts[key] || 0) + 1;
+  var dayKey = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+  state.dailyCounts[key] = state.dailyCounts[key] || {};
+  state.dailyCounts[key][dayKey] = Number(state.dailyCounts[key][dayKey] || 0) + 1;
+  saveCornerPageViewState_(state);
+  return { ok: true, pageKey: key, count: state.counts[key], dayCount: state.dailyCounts[key][dayKey] };
+}
+
+function getCornerPageViews_() {
+  return loadCornerPageViewState_();
+}
+
+function resetCornerPageViews_() {
+  var state = {
+    counts: getDefaultCornerPageViewCounts_(),
+    dailyCounts: {},
+    lastResetAt: getCornerNowIso_()
+  };
+  saveCornerPageViewState_(state);
+  return state;
+}
+
+var CORNER_SETTINGS_PROP_KEY = 'CORNER_SETTINGS';
+
+function getDefaultCornerSettings_() {
+  return {
+    freeBoardVisible: true
+  };
+}
+
+function loadCornerSettings_() {
+  var defaults = getDefaultCornerSettings_();
+  var raw = PropertiesService.getScriptProperties().getProperty(CORNER_SETTINGS_PROP_KEY);
+  if (!raw) return defaults;
+  try {
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return defaults;
+    return {
+      freeBoardVisible: parsed.freeBoardVisible !== false
+    };
+  } catch (err) {
+    return defaults;
+  }
+}
+
+function saveCornerSettings_(settings) {
+  var next = getDefaultCornerSettings_();
+  if (settings && typeof settings === 'object') {
+    next.freeBoardVisible = settings.freeBoardVisible !== false;
+  }
+  PropertiesService.getScriptProperties().setProperty(
+    CORNER_SETTINGS_PROP_KEY,
+    JSON.stringify(next)
+  );
+  return next;
+}
+
+function getCornerSettings_() {
+  return loadCornerSettings_();
+}
+
+function saveCornerSettingsValue_(payload) {
+  var current = loadCornerSettings_();
+  if (payload && Object.prototype.hasOwnProperty.call(payload, 'freeBoardVisible')) {
+    current.freeBoardVisible = payload.freeBoardVisible !== false;
+  }
+  return saveCornerSettings_(current);
+}
+
+function getDefaultCornerPageViewCounts_() {
+  return {
+    congestion: 0,
+    calendar: 0,
+    qa: 0,
+    notices: 0,
+    free_board: 0,
+    recruit: 0
+  };
+}
+
+function loadCornerPageViewState_() {
+  var defaults = {
+    counts: getDefaultCornerPageViewCounts_(),
+    dailyCounts: {},
+    lastResetAt: ''
+  };
+  var raw = PropertiesService.getScriptProperties().getProperty(CORNER_PAGE_VIEWS_PROP_KEY);
+  if (!raw) return defaults;
+  try {
+    var parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return defaults;
+
+    if (!parsed.counts) {
+      Object.keys(getDefaultCornerPageViewCounts_()).forEach(function(key) {
+        defaults.counts[key] = Number(parsed[key] || 0);
+      });
+      defaults.lastResetAt = sanitizeCornerText_(parsed.lastResetAt || '');
+      return defaults;
+    }
+
+    Object.keys(getDefaultCornerPageViewCounts_()).forEach(function(key) {
+      defaults.counts[key] = Number(parsed.counts[key] || 0);
+    });
+    defaults.lastResetAt = sanitizeCornerText_(parsed.lastResetAt || '');
+    var dailyCounts = parsed.dailyCounts && typeof parsed.dailyCounts === 'object' ? parsed.dailyCounts : {};
+    Object.keys(dailyCounts).forEach(function(pageKey) {
+      var pageCounts = dailyCounts[pageKey];
+      if (!pageCounts || typeof pageCounts !== 'object') return;
+      defaults.dailyCounts[pageKey] = {};
+      Object.keys(pageCounts).forEach(function(dayKey) {
+        defaults.dailyCounts[pageKey][dayKey] = Number(pageCounts[dayKey] || 0);
+      });
+    });
+    return defaults;
+  } catch (err) {
+    return defaults;
+  }
+}
+
+function saveCornerPageViewState_(state) {
+  PropertiesService.getScriptProperties().setProperty(
+    CORNER_PAGE_VIEWS_PROP_KEY,
+    JSON.stringify({
+      counts: state && state.counts ? state.counts : getDefaultCornerPageViewCounts_(),
+      dailyCounts: state && state.dailyCounts ? state.dailyCounts : {},
+      lastResetAt: state && state.lastResetAt ? state.lastResetAt : ''
+    })
+  );
+}
+
+function trackCornerPageView_(pageKey) {
+  var key = sanitizeCornerText_(pageKey);
+  if (!key) return { ok: false, error: 'page_key_required' };
+  var state = loadCornerPageViewState_();
+  state.counts[key] = Number(state.counts[key] || 0) + 1;
+  var dayKey = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+  state.dailyCounts[key] = state.dailyCounts[key] || {};
+  state.dailyCounts[key][dayKey] = Number(state.dailyCounts[key][dayKey] || 0) + 1;
+  saveCornerPageViewState_(state);
+  return { ok: true, pageKey: key, count: state.counts[key], dayCount: state.dailyCounts[key][dayKey] };
+}
+
+function getCornerPageViews_() {
+  return loadCornerPageViewState_();
+}
+
+function resetCornerPageViews_() {
+  var state = {
+    counts: getDefaultCornerPageViewCounts_(),
+    dailyCounts: {},
+    lastResetAt: getCornerNowIso_()
+  };
+  saveCornerPageViewState_(state);
+  return state;
+}
+
+function getDefaultCornerPageViewCounts_() {
+  return {
+    congestion: 0,
+    calendar: 0,
+    qa: 0,
+    notices: 0,
+    free_board: 0,
+    recruit: 0
+  };
+}
+
+function loadCornerPageViewState_() {
+  var defaults = {
+    counts: getDefaultCornerPageViewCounts_(),
     lastResetAt: ''
   };
   var raw = PropertiesService.getScriptProperties().getProperty(CORNER_PAGE_VIEWS_PROP_KEY);

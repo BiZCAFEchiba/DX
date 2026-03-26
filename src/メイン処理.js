@@ -274,6 +274,16 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(pageViewTrackResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    if (param.action === 'cornerSettingsGet') {
+      return ContentService.createTextOutput(JSON.stringify(getCornerSettings_()))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    if (param.action === 'cornerSettingsSave') {
+      return ContentService.createTextOutput(JSON.stringify(saveCornerSettingsValue_({
+        freeBoardVisible: param.freeBoardVisible === 'true'
+      })))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // staff 側閲覧数確認
     if (param.action === 'pageViewGet') {
       return ContentService.createTextOutput(JSON.stringify(getCornerPageViews_()))
