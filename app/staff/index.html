@@ -3252,8 +3252,8 @@
 <script>
   var cornerSettingsState = { freeBoardVisible: true };
   var selectedCounterGraphKey = 'congestion';
-  var counterGraphMultiMode = false;
-  var selectedCounterGraphKeys = ['congestion'];
+  var counterGraphMultiMode = true;
+  var selectedCounterGraphKeys = Object.keys({ congestion:1, calendar:1, qa:1, notices:1, free_board:1, recruit:1, candy:1 });
   var counterGraphStartDate = '';
   var counterGraphEndDate = '';
   var COUNTER_GRAPH_LABELS = {
@@ -3364,34 +3364,16 @@
   function renderCounterGraphFilters() {
     var wrap = document.getElementById('counterGraphFilters');
     if (!wrap) return;
-    var singleButtons = Object.keys(COUNTER_GRAPH_LABELS).map(function(key) {
-      var active = key === selectedCounterGraphKey;
-      return '<button type="button" onclick="selectCounterGraphKey(\'' + key + '\')" style="'
-        + 'border:none;border-radius:999px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;'
-        + (active ? 'background:#1a3a5c;color:#fff;' : 'background:#eaf0f7;color:#1a3a5c;')
-        + '">' + esc(COUNTER_GRAPH_LABELS[key]) + '</button>';
-    }).join('');
-
-    var multiButton = '<button type="button" onclick="toggleCounterGraphMultiMode()" style="'
-      + 'border:1px solid #b8c6d8;border-radius:999px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;'
-      + (counterGraphMultiMode ? 'background:#eef4fb;color:#1a3a5c;' : 'background:#fff;color:#4b5c70;')
-      + '">複数表示</button>';
-
-    var multiChoices = '';
-    if (counterGraphMultiMode) {
-      multiChoices = '<div style="display:flex;flex-wrap:wrap;gap:10px;width:100%;margin-top:8px;">'
-        + Object.keys(COUNTER_GRAPH_LABELS).map(function(key) {
-            var checked = selectedCounterGraphKeys.indexOf(key) !== -1;
-            return '<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #d8e0e8;border-radius:999px;background:#fff;font-size:.82rem;color:#1a3a5c;">'
-              + '<input type="checkbox" ' + (checked ? 'checked ' : '') + 'onchange="toggleCounterGraphSeries(\'' + key + '\', this.checked)">'
-              + '<span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:' + COUNTER_GRAPH_COLORS[key] + ';"></span>'
-              + '<span>' + esc(COUNTER_GRAPH_LABELS[key]) + '</span>'
-              + '</label>';
-          }).join('')
-        + '</div>';
-    }
-
-    wrap.innerHTML = singleButtons + multiButton + multiChoices;
+    wrap.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:10px;">'
+      + Object.keys(COUNTER_GRAPH_LABELS).map(function(key) {
+          var checked = selectedCounterGraphKeys.indexOf(key) !== -1;
+          return '<label style="display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid #d8e0e8;border-radius:999px;background:#fff;font-size:.82rem;color:#1a3a5c;cursor:pointer;">'
+            + '<input type="checkbox" ' + (checked ? 'checked ' : '') + 'onchange="toggleCounterGraphSeries(\'' + key + '\', this.checked)">'
+            + '<span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:' + COUNTER_GRAPH_COLORS[key] + ';"></span>'
+            + '<span>' + esc(COUNTER_GRAPH_LABELS[key]) + '</span>'
+            + '</label>';
+        }).join('')
+      + '</div>';
   }
 
   function selectCounterGraphKey(key) {
