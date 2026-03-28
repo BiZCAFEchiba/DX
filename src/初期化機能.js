@@ -117,7 +117,8 @@ function onOpen() {
     .addItem('PDF解析 → シート取込（手動）', 'menuParsePdf')
     .addSeparator()
     .addItem('スタッフ更新', 'menuRefreshStaff')
-    .addItem('受信ID取得', 'requestNameRegistration')
+    .addItem('受信ID取得（未登録者のみ）', 'requestNameRegistration')
+    .addItem('スタッフC列チェックボックス設定', 'setupStaffCheckboxColumn')
     .addSeparator()
     .addItem('既存シフトをカレンダー同期', 'menuSyncCalendarFromSheet')
     .addSeparator()
@@ -125,10 +126,20 @@ function onOpen() {
     .addToUi();
 
   ui.createMenu('Meetup管理')
+    .addItem('🤖 AI検索（アピール＋業界）', 'menuFillAppealPoints')
+    .addSeparator()
     .addItem('Meetup企業フォーム 選択肢を更新', 'menuSyncMeetupForm')
     .addItem('Meetup企業フォーム 送信トリガー設定', 'setupMeetupFormTrigger')
     .addItem('トリガー設定（設定シートから）', 'setupTriggers')
     .addToUi();
+}
+
+/**
+ * AIアピール＋業界を未入力企業に一括生成する（メニューから手動実行用）
+ */
+function menuFillAppealPoints() {
+  fillAppealPointsWithGemini();
+  SpreadsheetApp.getUi().alert('AI検索完了。「企業IDマスター」シートのAIアピール・業界列を確認してください。');
 }
 
 /**
@@ -553,8 +564,39 @@ function ensureSheet_(ss, sheetName, headers) {
 
     if (sheetName === SHEET_STAFF) {
       sheet.appendRow(['サンプル太郎', 'user_id_placeholder', true, new Date()]);
+      applyStaffCheckboxColumn_(sheet);
     }
   }
+}
+
+/**
+ * スタッフシートのC列（有効フラグ）にチェックボックス形式を適用する
+ * データ行（2行目以降）をチェックボックスに設定する
+ */
+function setupStaffCheckboxColumn() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_STAFF);
+  if (!sheet) {
+    Logger.log('スタッフシートが見つかりません');
+    return;
+  }
+  applyStaffCheckboxColumn_(sheet);
+  Logger.log('スタッフシートC列にチェックボックスを適用しました');
+}
+
+/**
+ * 指定されたスタッフシートのC列にチェックボックスを適用する（内部関数）
+ * @param {Sheet} sheet
+ */
+function applyStaffCheckboxColumn_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return; // データ行がない場合はスキップ
+
+  const checkboxRule = SpreadsheetApp.newDataValidation()
+    .requireCheckbox()
+    .build();
+  // C列の2行目〜最終行にチェックボックスを適用
+  sheet.getRange(2, 3, lastRow - 1, 1).setDataValidation(checkboxRule);
 }
 
 /**
@@ -599,6 +641,44 @@ function addMeetupNotificationSetting_() {
     Logger.log('Meetup重複通知設定を10行目に追加しました');
   } catch (e) {
     Logger.log('Meetup設定追加エラー: ' + e.message);
+  }
+}
+
+/**
+ * 設定シートに「満席を非表示」チェックボックスを追加する（手動1回実行）
+ * 既に存在する場合はスキップ
+ */
+function addMeetupHideSoldOutSetting() {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_SETTINGS);
+    if (!sheet) { Logger.log('設定シートが見つかりません'); return; }
+
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === '満席を非表示') {
+        sheet.getRange(i + 1, 2).setDataValidation(
+          SpreadsheetApp.newDataValidation().requireCheckbox().build()
+        );
+        Logger.log('満席を非表示: 既存設定を確認しました（' + (i + 1) + '行目）');
+        SpreadsheetApp.getUi().alert('既に設定済みです（' + (i + 1) + '行目）。');
+        return;
+      }
+    }
+
+    var newRow = sheet.getLastRow() + 1;
+    sheet.getRange(newRow, 1, 1, 3).setValues([[
+      '満席を非表示',
+      true,
+      '週次Meetup共有で満席（残席0）のセッションを非表示にする（チェック=ON）'
+    ]]);
+    sheet.getRange(newRow, 2).setDataValidation(
+      SpreadsheetApp.newDataValidation().requireCheckbox().build()
+    );
+    Logger.log('満席を非表示設定を' + newRow + '行目に追加しました');
+    SpreadsheetApp.getUi().alert('完了', '設定シートの' + newRow + '行目に「満席を非表示」チェックボックスを追加しました。', SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (e) {
+    Logger.log('満席を非表示設定追加エラー: ' + e.message);
   }
 }
 

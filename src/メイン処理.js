@@ -67,6 +67,15 @@ function doGet(e) {
     JSON.stringify({ page: param.page || '', action: param.action || '', id: param.id || '' })
   );
 
+  // --- 閲覧数ダッシュボード（スタッフ用） ---
+  if (param.page === 'analytics') {
+    var analyticsTemplate = HtmlService.createTemplateFromFile('閲覧数ダッシュボード');
+    analyticsTemplate.appUrl = ScriptApp.getService().getUrl();
+    return analyticsTemplate.evaluate()
+      .setTitle('閲覧数ダッシュボード | BizCAFE')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   // --- 誘致フォーム ---
   if (param.page === 'yuchi') {
     var template = HtmlService.createTemplateFromFile('誘致フォーム');
@@ -557,6 +566,11 @@ function triggerShiftReminder() {
   };
   var success = sendLineWorksReminder(shiftData, tomorrowParams);
 
+  // --- Step 3.5: Meetupアラート送信（対面・貸切） ---
+  if (success) {
+    sendMeetupAlertAfterReminder_(nextBusinessDay, shiftData);
+  }
+
   // --- Step 4: 送信ログを記録 ---
   writeLogToSheets_(targetISO, shiftData.length, 'auto',
     success ? 'success' : 'error',
@@ -568,6 +582,126 @@ function triggerShiftReminder() {
   }
 
   Logger.log('=== リマインド送信 完了 ===');
+}
+
+/**
+ * シフトリマインド送信後に、翌営業日の対面・貸切Meetupアラートを送信する
+ * @param {Date}  targetDate - 翌営業日
+ * @param {Array} shiftData  - getShiftsFromSheets_ の戻り値
+ */
+function sendMeetupAlertAfterReminder_(targetDate, shiftData) {
+  var dayMeetups = getMeetupsForDay_(targetDate);
+  if (!dayMeetups || dayMeetups.length === 0) return;
+
+  var inPersonMeetups = dayMeetups.filter(function(m) { return m.kind && m.kind.indexOf('対面') !== -1; });
+  var kasshikiMeetups = dayMeetups.filter(function(m) { return m.kind && m.kind.indexOf('貸切') !== -1; });
+
+  if (inPersonMeetups.length === 0 && kasshikiMeetups.length === 0) return;
+
+  var mappings = loadStaffMappingFromSheets_();
+  var sendMap = mappings ? mappings.send : {};
+  var token = getLineWorksAccessToken();
+  if (!token) {
+    Logger.log('sendMeetupAlertAfterReminder_: トークン取得失敗');
+    return;
+  }
+  var url = LINEWORKS_API_BASE + '/bots/' + LINEWORKS_BOT_ID + '/channels/' + LINEWORKS_CHANNEL_ID + '/messages';
+
+  /**
+   * メンション付きチャンネルメッセージを送信するヘルパー
+   */
+  function sendChannelMention(text, mentionedList) {
+    var body = { content: { type: 'text', text: text } };
+    if (mentionedList && mentionedList.length > 0) {
+      body.content.mentionedList = mentionedList;
+    }
+    try {
+      var res = UrlFetchApp.fetch(url, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { 'Authorization': 'Bearer ' + token },
+        payload: JSON.stringify(body),
+        muteHttpExceptions: true
+      });
+      var code = res.getResponseCode();
+      Logger.log('Meetupアラート送信: ' + code + ' ' + text.substring(0, 30));
+      return code === 200 || code === 201;
+    } catch (e) {
+      Logger.log('Meetupアラート送信エラー: ' + e.message);
+      return false;
+    }
+  }
+
+  // ② 対面Meetup: 企業ごとに、時間が重複するスタッフにメンション
+  inPersonMeetups.forEach(function(meetup) {
+    var overlapping = shiftData.filter(function(staff) {
+      return findOverlappingMeetups_(staff.start, staff.end, [meetup]).length > 0;
+    });
+    if (overlapping.length === 0) return;
+
+    var text = '🔴 対面Meetup対応をお願いします！\n';
+    text += '【' + meetup.company + '】' + meetup.time + '\n';
+    var mentioned = [];
+    overlapping.forEach(function(staff) {
+      var id = sendMap[staff.name];
+      if (id) {
+        text += '<m userId="' + id + '">';
+        mentioned.push(id);
+      } else {
+        text += staff.name + ' ';
+      }
+    });
+    text += '\n企業対応よろしくお願いします🙏';
+    sendChannelMention(text, mentioned);
+  });
+
+  // ② 席確保リマインド: 本日シフトの最終スタッフ（退勤が最も遅い人）に翌日の対面Meetup席確保を依頼
+  var todayISO = formatDateToISO_(new Date());
+  var todayShifts = getShiftsFromSheets_(todayISO);
+  if (todayShifts && todayShifts.length > 0 && inPersonMeetups.length > 0) {
+    var lastStaff = todayShifts.reduce(function(prev, curr) {
+      return curr.end > prev.end ? curr : prev;
+    }, todayShifts[0]);
+
+    var seatText = '🪑 席確保のお願い\n';
+    var targetDisplay = Utilities.formatDate(targetDate, TIMEZONE, 'M月d日(E)');
+    seatText += targetDisplay + 'の対面Meetupの席確保をお願いします🙏\n\n';
+    inPersonMeetups.forEach(function(m) {
+      seatText += '・【' + m.company + '】' + m.time + '\n';
+    });
+    var lastId = sendMap[lastStaff.name];
+    var mentioned = [];
+    if (lastId) {
+      seatText += '\n' + '<m userId="' + lastId + '">';
+      mentioned.push(lastId);
+    } else {
+      seatText += '\n' + lastStaff.name;
+    }
+    sendChannelMention(seatText, mentioned);
+  }
+
+  // ③ 貸切Meetup: イベントごとに、時間が重複するスタッフにメンション
+  kasshikiMeetups.forEach(function(meetup) {
+    var overlapping = shiftData.filter(function(staff) {
+      return findOverlappingMeetups_(staff.start, staff.end, [meetup]).length > 0;
+    });
+    if (overlapping.length === 0) return;
+
+    var text = '🟡 貸切対応をお願いします！\n';
+    text += '【' + meetup.company + '】' + meetup.time + '\n';
+    var mentioned = [];
+    overlapping.forEach(function(staff) {
+      var id = sendMap[staff.name];
+      if (id) {
+        text += '<m userId="' + id + '">';
+        mentioned.push(id);
+      } else {
+        text += staff.name + ' ';
+      }
+    });
+    text += '\n貸切対応よろしくお願いします🙏';
+    sendChannelMention(text, mentioned);
+  });
 }
 
 /**
@@ -776,23 +910,39 @@ function isAcknowledged_(dateStr, userId) {
 }
 
 /**
- * 全スタッフに個別でID登録依頼メッセージを送信する（管理者がGASエディタから手動実行）
+ * 受信IDが未登録のスタッフのみに個別でID登録依頼メッセージを送信する（管理者がGASエディタから手動実行）
+ * F列（受信用ID）が空のスタッフのみを対象とする
  */
 function requestNameRegistration() {
-  const mappings = loadStaffMappingFromSheets_();
-  if (!mappings) {
-    Logger.log('スタッフ情報の読み込み失敗');
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_STAFF);
+  if (!sheet) {
+    Logger.log('スタッフシートが見つかりません');
     return;
   }
 
-  const sendMap = mappings.send; // { 名前: 送信用ID }
+  const data = sheet.getDataRange().getValues();
   let successCount = 0;
   let failCount = 0;
+  let skipCount = 0;
 
-  for (const name in sendMap) {
-    const userId = sendMap[name];
+  for (let i = 1; i < data.length; i++) {
+    const row = data[i];
+    const name = row[0] ? String(row[0]).trim() : '';
+    const sendId = row[1] ? String(row[1]).trim() : '';
+    const recvId = row[5] ? String(row[5]).trim() : ''; // F列: 受信用ID
+
+    if (!name || !sendId) continue;
+
+    // 受信IDがすでに登録済みの場合はスキップ
+    if (recvId) {
+      Logger.log('スキップ（受信ID登録済み）: ' + name);
+      skipCount++;
+      continue;
+    }
+
     const message = name + ' さん\n\nシフト確認システムの登録をお願いします。\nこのメッセージにご自身のフルネームをスペースなしで返信してください。\n\n例）' + name + '\n\n※1回送るだけで登録完了です。';
-    const success = sendLineWorksMessage(userId, message);
+    const success = sendLineWorksMessage(sendId, message);
     if (success) {
       Logger.log('送信成功: ' + name);
       successCount++;
@@ -803,7 +953,7 @@ function requestNameRegistration() {
     Utilities.sleep(500); // API制限対策
   }
 
-  Logger.log('登録依頼完了: 成功=' + successCount + '名 / 失敗=' + failCount + '名');
+  Logger.log('登録依頼完了: 送信成功=' + successCount + '名 / 送信失敗=' + failCount + '名 / スキップ（登録済み）=' + skipCount + '名');
 }
 
 /**
