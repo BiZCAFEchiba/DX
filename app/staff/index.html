@@ -357,35 +357,6 @@
     .staff-room-user-contact { font-weight: 600; color: #1a3a5c; font-size: 0.9rem; }
     .staff-room-user-info { font-size: 0.8rem; color: #666; }
     .checkin-mode-active { background: #1a3a5c !important; color: #fff !important; }
-    /* ===== ミーティング ===== */
-    .mtg-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); margin-bottom: 16px; overflow: hidden; }
-    .mtg-header { padding: 14px 16px 10px; border-bottom: 1px solid #edf2f7; }
-    .mtg-date-row { display: flex; align-items: center; gap: 10px; }
-    .mtg-date { font-size: 1rem; font-weight: 800; color: #1a3a5c; }
-    .mtg-time { font-size: 0.85rem; color: #555; }
-    .mtg-buffer { font-size: 0.75rem; color: #e07b00; font-weight: 600; margin-top: 3px; }
-    .mtg-note { font-size: 0.8rem; color: #888; margin-top: 2px; }
-    .mtg-attendance-section { padding: 12px 16px; }
-    .mtg-attendance-title { font-size: 0.8rem; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
-    .mtg-attendance-summary { margin-bottom: 12px; }
-    .mtg-att-group { margin-bottom: 6px; font-size: 0.82rem; line-height: 1.6; }
-    .mtg-att-group strong { color: #1a3a5c; }
-    .mtg-form { background: #f8fafc; border: 1.5px solid #e0e7ef; border-radius: 10px; padding: 12px; }
-    .mtg-form-title { font-size: 0.78rem; font-weight: 700; color: #555; margin-bottom: 10px; }
-    .mtg-name-select { width: 100%; border: 1.5px solid #d0d9e4; border-radius: 8px; padding: 10px; font-size: 0.9rem; background: #fff; margin-bottom: 10px; }
-    .mtg-status-btns { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
-    .mtg-status-btn { flex: 1; min-width: 80px; padding: 10px 6px; border: 2px solid #d0d9e4; border-radius: 10px; background: #fff; font-size: 0.82rem; font-weight: 700; cursor: pointer; text-align: center; color: #555; }
-    .mtg-status-btn.selected-attend { border-color: #1a7f4e; background: #e6f4ed; color: #1a7f4e; }
-    .mtg-status-btn.selected-online { border-color: #1a5fbf; background: #e6eeff; color: #1a5fbf; }
-    .mtg-status-btn.selected-absent { border-color: #c62828; background: #fce4e4; color: #c62828; }
-    .mtg-reason-wrap { margin-bottom: 10px; }
-    .mtg-reason-input { width: 100%; border: 1.5px solid #d0d9e4; border-radius: 8px; padding: 9px 12px; font-size: 0.88rem; font-family: inherit; }
-    .mtg-submit-btn { width: 100%; padding: 12px; background: #1a3a5c; color: #fff; border: none; border-radius: 10px; font-size: 0.92rem; font-weight: 700; cursor: pointer; }
-    .mtg-submit-btn:disabled { background: #b0bec5; }
-    .mtg-saved-badge { display: inline-block; font-size: 0.78rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; margin-top: 4px; }
-    .badge-attend { background: #e6f4ed; color: #1a7f4e; }
-    .badge-online { background: #e6eeff; color: #1a5fbf; }
-    .badge-absent { background: #fce4e4; color: #c62828; }
   </style>
 </head>
 <body>
@@ -411,9 +382,6 @@
   </button>
   <button class="tab-btn" id="tabStaffRoom" onclick="switchTab('room')">
     <span class="tab-icon">🚪</span>ルーム管理
-  </button>
-  <button class="tab-btn" id="tabMeeting" onclick="switchTab('meeting')">
-    <span class="tab-icon">🏢</span>ミーティング
   </button>
 </nav>
 
@@ -769,13 +737,6 @@
     </div>
   </div>
 
-  <div class="tab-pane" id="paneMeeting">
-    <div class="container">
-      <div class="section-title" style="margin-bottom:6px;">店舗ミーティング</div>
-      <p style="font-size:0.8rem;color:#666;margin-bottom:16px;line-height:1.5;">ミーティングへの参加状況を登録できます。後から変更することもできます。</p>
-      <div id="meetingPaneList"><div class="empty-state">読み込み中...</div></div>
-    </div>
-  </div>
 
   <div class="tab-pane" id="paneMaintenance">
     <div class="container">
@@ -914,7 +875,7 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(pane) { pane.classList.remove('active'); });
-    var suffix = { congestion: 'Congestion', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance', room: 'StaffRoom', meeting: 'Meeting' }[name];
+    var suffix = { congestion: 'Congestion', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance', room: 'StaffRoom' }[name];
     document.getElementById('tab' + suffix).classList.add('active');
     document.getElementById('pane' + suffix).classList.add('active');
     if (name === 'qa' && !qaLoaded) { qaLoaded = true; loadQA(); }
@@ -927,7 +888,6 @@
     if (name === 'corner' && !cornerContentLoaded) { cornerContentLoaded = true; loadCornerContentAdmin(); }
     if (name === 'maintenance' && !maintenanceLoaded) { maintenanceLoaded = true; loadMaintenance(); }
     if (name === 'room' && !staffRoomLoaded) { staffRoomLoaded = true; loadStaffRoom(); }
-    if (name === 'meeting' && !meetingPaneLoaded) { meetingPaneLoaded = true; loadMeetingPane(); }
   }
 
   // ===== メンテナンス管理 =====
@@ -3714,227 +3674,6 @@
     });
   }
 
-  // ===== 店舗ミーティング =====
-  var meetingPaneLoaded = false;
-  var meetingData = [];       // meetings list
-  var staffNames = [];        // for name select
-  var attendanceCache = {};   // { 'YYYY-MM-DD': [...] }
-  var selectedStatuses = {};  // { 'YYYY-MM-DD': status }
-
-  function loadMeetingPane() {
-    var wrap = document.getElementById('meetingPaneList');
-    wrap.innerHTML = '<div class="empty-state">読み込み中...</div>';
-    Promise.all([
-      fetch(GAS_API_URL + '?page=calendar&action=getMeetings').then(function(r) { return r.json(); }),
-      fetch(GAS_API_URL + '?page=calendar&action=getStaffList').then(function(r) { return r.json(); })
-    ]).then(function(results) {
-      meetingData = (results[0].rows || []).sort(function(a, b) { return a.date < b.date ? -1 : 1; });
-      staffNames  = results[1].names || [];
-      renderMeetingPane();
-    }).catch(function() {
-      wrap.innerHTML = '<div class="empty-state">読み込みに失敗しました</div>';
-    });
-  }
-
-  function renderMeetingPane() {
-    var wrap = document.getElementById('meetingPaneList');
-    if (meetingData.length === 0) {
-      wrap.innerHTML = '<div class="empty-state">ミーティングの予定はありません</div>';
-      return;
-    }
-    wrap.innerHTML = '';
-    meetingData.forEach(function(m, idx) {
-      var card = document.createElement('div');
-      card.className = 'mtg-card';
-      card.id = 'mtg-card-' + idx;
-      card.innerHTML = buildMtgCardHtml(m, idx);
-      wrap.appendChild(card);
-      // 参加状況を非同期で取得・表示
-      loadAttendanceForMeeting(m.date, idx);
-    });
-  }
-
-  function buildMtgCardHtml(m, idx) {
-    var d = new Date(m.date + 'T00:00:00+09:00');
-    var dow = ['日','月','火','水','木','金','土'][d.getDay()];
-    var dateLabel = (d.getMonth() + 1) + '月' + d.getDate() + '日（' + dow + '）';
-    var bufStart = mtgAddMin(m.startTime, -60);
-    var bufEnd   = mtgAddMin(m.endTime, 60);
-    var isPast = new Date(m.date + 'T23:59:59+09:00') < new Date();
-
-    var html = '<div class="mtg-header">'
-      + '<div class="mtg-date-row">'
-      + '<span class="mtg-date">🏢 ' + esc(dateLabel) + '</span>'
-      + (isPast ? '<span style="font-size:0.72rem;color:#999;margin-left:auto;">終了</span>' : '')
-      + '</div>'
-      + '<div class="mtg-time">⏰ ' + esc(m.startTime) + ' 〜 ' + esc(m.endTime) + '</div>'
-      + '<div class="mtg-buffer">🔒 貸切: ' + bufStart + ' 〜 ' + bufEnd + '</div>'
-      + (m.note ? '<div class="mtg-note">📝 ' + esc(m.note) + '</div>' : '')
-      + '</div>'
-      + '<div class="mtg-attendance-section">'
-      + '<div class="mtg-attendance-title">参加状況</div>'
-      + '<div class="mtg-attendance-summary" id="att-summary-' + idx + '"><span style="color:#999;font-size:0.82rem;">読み込み中...</span></div>'
-      + '<div class="mtg-form">'
-      + '<div class="mtg-form-title">あなたの参加を登録</div>'
-      + '<select class="mtg-name-select" id="mtg-name-' + idx + '" onchange="onMtgNameChange(' + idx + ')">'
-      + '<option value="">-- 名前を選択 --</option>'
-      + staffNames.map(function(n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('')
-      + '</select>'
-      + '<div class="mtg-status-btns">'
-      + '<button class="mtg-status-btn" id="mtg-btn-attend-' + idx + '" onclick="selectMtgStatus(' + idx + ',\'対面参加\')">👥 対面参加</button>'
-      + '<button class="mtg-status-btn" id="mtg-btn-online-' + idx + '" onclick="selectMtgStatus(' + idx + ',\'オンライン参加\')">💻 オンライン</button>'
-      + '<button class="mtg-status-btn" id="mtg-btn-absent-' + idx + '" onclick="selectMtgStatus(' + idx + ',\'不参加\')">❌ 不参加</button>'
-      + '</div>'
-      + '<div class="mtg-reason-wrap" id="mtg-reason-wrap-' + idx + '" style="display:none;">'
-      + '<input class="mtg-reason-input" type="text" id="mtg-reason-' + idx + '" placeholder="不参加の理由（必須）">'
-      + '</div>'
-      + '<button class="mtg-submit-btn" id="mtg-submit-' + idx + '" onclick="submitMtgAttendance(' + idx + ',\'' + m.date + '\')" disabled>登録する</button>'
-      + '<div id="mtg-msg-' + idx + '" style="margin-top:8px;font-size:0.82rem;min-height:1em;"></div>'
-      + '</div>'
-      + '</div>';
-    return html;
-  }
-
-  function loadAttendanceForMeeting(date, idx) {
-    fetch(GAS_API_URL + '?page=calendar&action=getMeetingAttendance&date=' + date)
-      .then(function(r) { return r.json(); })
-      .then(function(res) {
-        attendanceCache[date] = res.attendances || [];
-        renderAttendanceSummary(date, idx);
-        // 自分の選択済みステータスを復元（名前が既に選ばれている場合）
-        restoreMyStatus(date, idx);
-      })
-      .catch(function() {});
-  }
-
-  function renderAttendanceSummary(date, idx) {
-    var atts = attendanceCache[date] || [];
-    var wrap = document.getElementById('att-summary-' + idx);
-    if (!wrap) return;
-    if (atts.length === 0) {
-      wrap.innerHTML = '<span style="color:#999;font-size:0.82rem;">まだ登録がありません</span>';
-      return;
-    }
-    var inPerson = atts.filter(function(a) { return a.status === '対面参加'; });
-    var online   = atts.filter(function(a) { return a.status === 'オンライン参加'; });
-    var absent   = atts.filter(function(a) { return a.status === '不参加'; });
-    var html = '';
-    if (inPerson.length) html += '<div class="mtg-att-group"><strong>👥 対面:</strong> ' + inPerson.map(function(a) { return esc(a.staffName); }).join('、') + '</div>';
-    if (online.length)   html += '<div class="mtg-att-group"><strong>💻 オンライン:</strong> ' + online.map(function(a) { return esc(a.staffName); }).join('、') + '</div>';
-    if (absent.length)   html += '<div class="mtg-att-group"><strong>❌ 不参加:</strong> ' + absent.map(function(a) { return esc(a.staffName) + (a.reason ? '（' + esc(a.reason) + '）' : ''); }).join('、') + '</div>';
-    wrap.innerHTML = html;
-  }
-
-  function restoreMyStatus(date, idx) {
-    var nameEl = document.getElementById('mtg-name-' + idx);
-    if (!nameEl || !nameEl.value) return;
-    var name = nameEl.value;
-    var atts = attendanceCache[date] || [];
-    var mine = atts.find(function(a) { return a.staffName === name; });
-    if (mine) {
-      selectMtgStatus(idx, mine.status, true);
-      if (mine.status === '不参加') {
-        document.getElementById('mtg-reason-' + idx).value = mine.reason || '';
-      }
-    }
-  }
-
-  function onMtgNameChange(idx) {
-    var nameEl = document.getElementById('mtg-name-' + idx);
-    var submitBtn = document.getElementById('mtg-submit-' + idx);
-    if (!nameEl.value) { submitBtn.disabled = true; return; }
-    // 既存の登録を確認
-    var date = meetingData[idx] ? meetingData[idx].date : '';
-    var atts = attendanceCache[date] || [];
-    var mine = atts.find(function(a) { return a.staffName === nameEl.value; });
-    if (mine) {
-      selectMtgStatus(idx, mine.status, true);
-      if (mine.status === '不参加') {
-        document.getElementById('mtg-reason-' + idx).value = mine.reason || '';
-      }
-      document.getElementById('mtg-msg-' + idx).innerHTML
-        = '<span style="color:#1a7f4e;">✅ 登録済みです。変更して再登録できます。</span>';
-    } else {
-      // クリア
-      ['attend','online','absent'].forEach(function(k) {
-        var b = document.getElementById('mtg-btn-' + k + '-' + idx);
-        if (b) b.className = 'mtg-status-btn';
-      });
-      document.getElementById('mtg-reason-wrap-' + idx).style.display = 'none';
-      document.getElementById('mtg-msg-' + idx).textContent = '';
-    }
-    submitBtn.disabled = !selectedStatuses[idx] && !mine;
-  }
-
-  function selectMtgStatus(idx, status, silent) {
-    selectedStatuses[idx] = status;
-    var map = { '対面参加': 'attend', 'オンライン参加': 'online', '不参加': 'absent' };
-    var classMap = { '対面参加': 'selected-attend', 'オンライン参加': 'selected-online', '不参加': 'selected-absent' };
-    ['attend','online','absent'].forEach(function(k) {
-      var b = document.getElementById('mtg-btn-' + k + '-' + idx);
-      if (!b) return;
-      b.className = 'mtg-status-btn';
-    });
-    var key = map[status];
-    if (key) {
-      var btn = document.getElementById('mtg-btn-' + key + '-' + idx);
-      if (btn) btn.className = 'mtg-status-btn ' + classMap[status];
-    }
-    var reasonWrap = document.getElementById('mtg-reason-wrap-' + idx);
-    if (reasonWrap) reasonWrap.style.display = status === '不参加' ? 'block' : 'none';
-    var submitBtn = document.getElementById('mtg-submit-' + idx);
-    var nameEl = document.getElementById('mtg-name-' + idx);
-    if (submitBtn && nameEl && nameEl.value) submitBtn.disabled = false;
-  }
-
-  function submitMtgAttendance(idx, date) {
-    var nameEl   = document.getElementById('mtg-name-'   + idx);
-    var reasonEl = document.getElementById('mtg-reason-' + idx);
-    var msgEl    = document.getElementById('mtg-msg-'    + idx);
-    var submitBtn = document.getElementById('mtg-submit-' + idx);
-    var name   = nameEl ? nameEl.value : '';
-    var status = selectedStatuses[idx] || '';
-    var reason = reasonEl ? reasonEl.value.trim() : '';
-    if (!name)   { msgEl.innerHTML = '<span style="color:#c62828;">名前を選択してください</span>'; return; }
-    if (!status) { msgEl.innerHTML = '<span style="color:#c62828;">参加区分を選択してください</span>'; return; }
-    if (status === '不参加' && !reason) { msgEl.innerHTML = '<span style="color:#c62828;">不参加の理由を入力してください</span>'; return; }
-
-    submitBtn.disabled = true;
-    msgEl.innerHTML = '<span style="color:#666;">登録中...</span>';
-
-    fetch(GAS_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ page: 'calendar', action: 'attendanceSave', meetingDate: date, staffName: name, status: status, reason: reason })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(res) {
-      if (res.ok) {
-        msgEl.innerHTML = '<span style="color:#1a7f4e;">✅ ' + esc(status) + ' で登録しました</span>';
-        // キャッシュ更新
-        var atts = attendanceCache[date] || [];
-        var existing = atts.findIndex(function(a) { return a.staffName === name; });
-        if (existing >= 0) { atts[existing] = { staffName: name, status: status, reason: reason }; }
-        else atts.push({ staffName: name, status: status, reason: reason });
-        attendanceCache[date] = atts;
-        renderAttendanceSummary(date, idx);
-      } else {
-        msgEl.innerHTML = '<span style="color:#c62828;">❌ ' + esc(res.error || 'エラー') + '</span>';
-      }
-      submitBtn.disabled = false;
-    })
-    .catch(function() {
-      msgEl.innerHTML = '<span style="color:#c62828;">❌ 通信エラー</span>';
-      submitBtn.disabled = false;
-    });
-  }
-
-  function mtgAddMin(timeStr, minutes) {
-    var p = String(timeStr).split(':');
-    var total = parseInt(p[0]) * 60 + parseInt(p[1]) + minutes;
-    total = Math.max(0, total);
-    return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
-  }
 </script>
 </body>
 </html>
