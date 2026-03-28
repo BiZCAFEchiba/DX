@@ -4,17 +4,42 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BiZCAFE 千葉大学店</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="BiZCAFE">
+  <meta name="theme-color" content="#1a3a5c">
+  <link rel="apple-touch-icon" href="/bizcafe-splash.png">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     /* ===== スプラッシュ ===== */
     #splash {
       position: fixed; inset: 0; z-index: 99999;
-      overflow: hidden; background: #f0ece4;
+      overflow: hidden; background: #1a3a5c;
       transition: opacity 0.5s ease, visibility 0.5s ease;
     }
     #splash.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
     #splash img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    #splash-loading {
+      position: absolute; bottom: 64px; left: 0; right: 0;
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+      z-index: 1;
+    }
+    #splash-spinner {
+      width: 42px; height: 42px;
+      border: 3.5px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: splashSpin 0.85s linear infinite;
+    }
+    @keyframes splashSpin { to { transform: rotate(360deg); } }
+    #splash-percent {
+      color: #fff; font-size: 1.1rem; font-weight: 700;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+      letter-spacing: 0.1em;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
 
     /* ===== 読み込みトースト ===== */
     #loadingToast {
@@ -239,6 +264,7 @@
     }
     .meetup-loading { text-align: center; padding: 32px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 12px; }
     .spinner { width: 32px; height: 32px; border: 3px solid #dde6f0; border-top-color: #1a3a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     /* ===== 掲示板 ===== */
     .board-wrap { max-width: 840px; margin: 0 auto; padding: 20px 16px 40px; }
     .board-section { margin-bottom: 32px; }
@@ -1094,7 +1120,13 @@
 </head>
 <body>
 
-<div id="splash"><img src="/bizcafe-splash.png" alt="BiZCAFE"></div>
+<div id="splash">
+  <img src="/bizcafe-splash.png" alt="BiZCAFE">
+  <div id="splash-loading">
+    <div id="splash-spinner"></div>
+    <div id="splash-percent">0%</div>
+  </div>
+</div>
 <div id="loadingToast"></div>
 
 <header>
@@ -1422,9 +1454,14 @@
 
   // ===== スプラッシュ=====
   var splashHideAt = Date.now() + 1500;
-  var splashPending = 3; // 今月 + 来月 + メンテナンス取得 の3つが揃ったら消す
+  var splashTotal = 3; // 今月 + 来月 + メンテナンス取得 の3つが揃ったら消す
+  var splashPending = splashTotal;
   function checkSplashReady() {
     splashPending--;
+    var loaded = splashTotal - splashPending;
+    var pct = Math.round((loaded / splashTotal) * 100);
+    var pEl = document.getElementById('splash-percent');
+    if (pEl) pEl.textContent = pct + '%';
     if (splashPending > 0) return;
     var delay = Math.max(0, splashHideAt - Date.now());
     setTimeout(function() {
