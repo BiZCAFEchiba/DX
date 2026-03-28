@@ -22,6 +22,8 @@ var App = (function () {
           CalendarView.render();
         } else if (btn.dataset.tab === 'shift-change') {
           ShiftChangeView.render();
+        } else if (btn.dataset.tab === 'meeting') {
+          MeetingView.render();
         }
       });
     });
