@@ -862,7 +862,8 @@
       qa: 'Q&A',
       notices: 'お知らせ',
       free_board: 'なんでも掲示板',
-      recruit: '採用'
+      recruit: '採用',
+      candy: 'お菓子をもらう'
     };
     wrap.innerHTML = Object.keys(labels).map(function(key) {
       return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eef2f6;">'
@@ -2820,7 +2821,8 @@
       qa: 'Q&A',
       notices: 'お知らせ',
       free_board: 'なんでも掲示板',
-      recruit: '採用'
+      recruit: '採用',
+      candy: 'お菓子をもらう'
     };
     wrap.innerHTML = Object.keys(labels).map(function(key) {
       return '<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #eef2f6;">'
@@ -3260,7 +3262,8 @@
     qa: 'Q&A',
     notices: 'お知らせ',
     free_board: 'なんでも掲示板',
-    recruit: '採用'
+    recruit: '採用',
+    candy: 'お菓子をもらう'
   };
   var COUNTER_GRAPH_COLORS = {
     congestion: '#1a3a5c',
@@ -3268,7 +3271,8 @@
     qa: '#c05a00',
     notices: '#7b3fe4',
     free_board: '#00838f',
-    recruit: '#d64545'
+    recruit: '#d64545',
+    candy: '#e67e22'
   };
 
   function ensureCornerVisibilityControl() {
@@ -3322,34 +3326,37 @@
   }
 
   function ensureCounterGraphUI() {
-    var wrap = document.getElementById('counterStats');
-    if (!wrap) return;
-    var card = wrap.parentNode;
+    var statsEl = document.getElementById('counterStats');
+    if (!statsEl) return;
+    var card = statsEl.parentNode;
     if (!card || document.getElementById('counterGraphWrap')) return;
-    if (!document.getElementById('counterTotalTitle')) {
-      var totalTitle = document.createElement('div');
-      totalTitle.id = 'counterTotalTitle';
-      totalTitle.className = 'form-title';
-      totalTitle.style.marginTop = '10px';
-      totalTitle.textContent = '通算閲覧回数';
-      card.insertBefore(totalTitle, document.getElementById('counterMeta'));
-    }
+    // 「通算閲覧回数」タイトルを削除（グラフ内に移動するため）
+    var existingTitle = document.getElementById('counterTotalTitle');
+    if (existingTitle) existingTitle.parentNode.removeChild(existingTitle);
     var graphWrap = document.createElement('div');
     graphWrap.id = 'counterGraphWrap';
     graphWrap.style.marginTop = '16px';
+    var quickBtnStyle = 'border:1px solid #b8c6d8;border-radius:8px;padding:7px 14px;font-size:.82rem;font-weight:700;cursor:pointer;background:#fff;color:#1a3a5c;';
     graphWrap.innerHTML = ''
       + '<div class="form-title" style="margin-bottom:10px;">日別推移</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px;">'
+      + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px;">'
       + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">開始日'
       + '<input type="date" id="counterGraphStart" onchange="updateCounterGraphRange()" style="border:1px solid #d0d7e2;border-radius:8px;padding:8px 10px;font-size:.9rem;">'
       + '</label>'
       + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">終了日'
       + '<input type="date" id="counterGraphEnd" onchange="updateCounterGraphRange()" style="border:1px solid #d0d7e2;border-radius:8px;padding:8px 10px;font-size:.9rem;">'
       + '</label>'
+      + '<div style="display:flex;gap:6px;align-items:flex-end;padding-bottom:1px;">'
+      + '<button type="button" id="counterBtnWeek" onclick="setCounterGraphThisWeek()" style="' + quickBtnStyle + '">今週</button>'
+      + '<button type="button" id="counterBtnMonth" onclick="setCounterGraphThisMonth()" style="' + quickBtnStyle + '">今月</button>'
+      + '</div>'
       + '</div>'
       + '<div id="counterGraphFilters" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;"></div>'
       + '<div id="counterGraph" class="readonly-box">データを読み込み中...</div>';
     card.appendChild(graphWrap);
+    // 閲覧回数テーブルをグラフと日別推移タイトルの間へ移動
+    var filters = document.getElementById('counterGraphFilters');
+    if (filters && statsEl) graphWrap.insertBefore(statsEl, filters);
     ensureCounterGraphRangeDefaults();
     syncCounterGraphRangeInputs();
   }
@@ -3484,6 +3491,25 @@
       counterGraphEndDate = counterGraphStartDate;
       if (endInput) endInput.value = counterGraphEndDate;
     }
+    renderCounterGraph(window.__pageViewStatsData || {});
+  }
+
+  function setCounterGraphThisWeek() {
+    var now = new Date(); now.setHours(0, 0, 0, 0);
+    var start = new Date(now);
+    start.setDate(now.getDate() - now.getDay());
+    counterGraphStartDate = formatCounterDateKey(start);
+    counterGraphEndDate = formatCounterDateKey(now);
+    syncCounterGraphRangeInputs();
+    renderCounterGraph(window.__pageViewStatsData || {});
+  }
+
+  function setCounterGraphThisMonth() {
+    var now = new Date(); now.setHours(0, 0, 0, 0);
+    var start = new Date(now.getFullYear(), now.getMonth(), 1);
+    counterGraphStartDate = formatCounterDateKey(start);
+    counterGraphEndDate = formatCounterDateKey(now);
+    syncCounterGraphRangeInputs();
     renderCounterGraph(window.__pageViewStatsData || {});
   }
 
