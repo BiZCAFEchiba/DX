@@ -3,6 +3,12 @@
 // ============================================================
 var CalendarView = (function () {
   var currentYear, currentMonth, selectedDate, shiftDates, selectedName, allStaff;
+  // ミーティングデータ
+  var meetingByDate = {};   // { 'YYYY-MM-DD': { rowIndex, startTime, endTime, note } }
+  var meetingStaff = [];    // スタッフ名リスト
+  var attendanceCache = {}; // { 'YYYY-MM-DD': [...] }
+  var selectedMtgStatus = {};  // { 'YYYY-MM-DD': status }
+  var meetingStaffLoaded = false;
 
   function render() {
     var now = new Date();
@@ -33,12 +39,12 @@ var CalendarView = (function () {
     document.getElementById('cal-prev').addEventListener('click', function () {
       currentMonth--;
       if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-      loadMonth();
+      loadMonth(); loadMeetings();
     });
     document.getElementById('cal-next').addEventListener('click', function () {
       currentMonth++;
       if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-      loadMonth();
+      loadMonth(); loadMeetings();
     });
     document.getElementById('cal-name-filter').addEventListener('change', function () {
       selectedName = this.value;
@@ -63,6 +69,25 @@ var CalendarView = (function () {
     }).catch(function () {});
 
     loadMonth();
+    loadMeetings();
+  }
+
+  function loadMeetings() {
+    API.getMeetings().then(function (res) {
+      meetingByDate = {};
+      var rows = res.rows || [];
+      rows.forEach(function (r) {
+        if (r.date) meetingByDate[r.date] = r;
+      });
+      renderGrid(); // バッジを再描画
+    }).catch(function () {});
+
+    if (!meetingStaffLoaded) {
+      API.getMeetingStaffList().then(function (res) {
+        meetingStaff = res.names || [];
+        meetingStaffLoaded = true;
+      }).catch(function () {});
+    }
   }
 
   function populateNameFilter() {
@@ -146,6 +171,7 @@ var CalendarView = (function () {
         return !selectedName || s.name === selectedName;
       });
       if (hasShift) classes += ' has-shift';
+      if (meetingByDate[dateStr]) classes += ' has-meeting';
       html += '<div class="' + classes + '" data-date="' + dateStr + '">' + d + '</div>';
     }
 
@@ -173,6 +199,16 @@ var CalendarView = (function () {
       : dayData;
 
     detail.innerHTML = ShiftCard.render(filtered);
+
+    // ミーティングカードを挿入（シフト一覧の上に表示）
+    var meeting = meetingByDate[selectedDate];
+    if (meeting) {
+      var mtgEl = document.createElement('div');
+      mtgEl.id = 'meeting-card-wrap';
+      mtgEl.innerHTML = buildMeetingCard(meeting);
+      detail.insertBefore(mtgEl, detail.firstChild);
+      initMeetingCard(meeting);
+    }
 
     detail.querySelectorAll('.btn-edit-shift').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -380,5 +416,192 @@ var CalendarView = (function () {
 
   function pad(n) { return String(n).padStart(2, '0'); }
 
-  return { render: render };
+  // ===== ミーティングカード =====
+
+  function addMtgMin(timeStr, minutes) {
+    var p = String(timeStr || '00:00').split(':');
+    var total = parseInt(p[0] || 0) * 60 + parseInt(p[1] || 0) + minutes;
+    total = Math.max(0, total);
+    return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+  }
+
+  function buildMeetingCard(m) {
+    var bufStart = addMtgMin(m.startTime, -60);
+    var bufEnd   = addMtgMin(m.endTime, 60);
+    var nameOpts = '<option value="">-- 名前を選択 --</option>'
+      + meetingStaff.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+
+    return '<div class="meeting-card">'
+      + '<div class="meeting-card-header">'
+      +   '<span style="font-size:1.2rem;">🏢</span>'
+      +   '<span class="meeting-card-title">店舗ミーティング</span>'
+      + '</div>'
+      + '<div class="meeting-card-body">'
+      +   '<div class="meeting-time-row">⏰ ' + esc(m.startTime) + ' 〜 ' + esc(m.endTime) + '</div>'
+      +   '<div class="meeting-buffer">🔒 貸切: ' + bufStart + ' 〜 ' + bufEnd + '</div>'
+      +   (m.note ? '<div class="meeting-note">📝 ' + esc(m.note) + '</div>' : '')
+      +   '<div class="meeting-att-summary" id="mtg-att-summary">読み込み中...</div>'
+      +   '<div class="meeting-form">'
+      +     '<div class="meeting-form-title">参加を登録する</div>'
+      +     '<select class="meeting-name-select" id="mtg-name-sel" onchange="CalendarView.onMtgNameChange()">'
+      +       nameOpts
+      +     '</select>'
+      +     '<div class="meeting-status-row">'
+      +       '<button class="meeting-status-btn" id="mtg-btn-attend" onclick="CalendarView.selectMtgStatus(\'対面参加\')">👥 対面参加</button>'
+      +       '<button class="meeting-status-btn" id="mtg-btn-online" onclick="CalendarView.selectMtgStatus(\'オンライン参加\')">💻 オンライン</button>'
+      +       '<button class="meeting-status-btn" id="mtg-btn-absent" onclick="CalendarView.selectMtgStatus(\'不参加\')">❌ 不参加</button>'
+      +     '</div>'
+      +     '<div id="mtg-reason-wrap" style="display:none;">'
+      +       '<input class="meeting-reason-input" type="text" id="mtg-reason" placeholder="不参加の理由（必須）">'
+      +     '</div>'
+      +     '<button class="meeting-submit-btn" id="mtg-submit-btn" onclick="CalendarView.submitMtgAttendance()" disabled>登録する</button>'
+      +     '<div class="meeting-form-msg" id="mtg-form-msg"></div>'
+      +   '</div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function initMeetingCard(meeting) {
+    var date = meeting.date;
+    // 参加状況をロード
+    if (attendanceCache[date]) {
+      renderAttSummary(date);
+    } else {
+      API.getMeetingAttendance(date).then(function (res) {
+        attendanceCache[date] = res.attendances || [];
+        renderAttSummary(date);
+        restoreMyStatus(date);
+      }).catch(function () {
+        var el = document.getElementById('mtg-att-summary');
+        if (el) el.innerHTML = '<span class="meeting-att-empty">読み込み失敗</span>';
+      });
+    }
+  }
+
+  function renderAttSummary(date) {
+    var el = document.getElementById('mtg-att-summary');
+    if (!el) return;
+    var atts = attendanceCache[date] || [];
+    if (atts.length === 0) {
+      el.innerHTML = '<span class="meeting-att-empty">まだ登録がありません</span>';
+      return;
+    }
+    var inPerson = atts.filter(function (a) { return a.status === '対面参加'; });
+    var online   = atts.filter(function (a) { return a.status === 'オンライン参加'; });
+    var absent   = atts.filter(function (a) { return a.status === '不参加'; });
+    var html = '<div class="meeting-att-summary">';
+    if (inPerson.length) html += '<div class="meeting-att-group"><strong>👥 対面:</strong> ' + inPerson.map(function (a) { return esc(a.staffName); }).join('、') + '</div>';
+    if (online.length)   html += '<div class="meeting-att-group"><strong>💻 オンライン:</strong> ' + online.map(function (a) { return esc(a.staffName); }).join('、') + '</div>';
+    if (absent.length)   html += '<div class="meeting-att-group"><strong>❌ 不参加:</strong> ' + absent.map(function (a) { return esc(a.staffName) + (a.reason ? '（' + esc(a.reason) + '）' : ''); }).join('、') + '</div>';
+    html += '</div>';
+    el.innerHTML = html;
+  }
+
+  function restoreMyStatus(date) {
+    var nameEl = document.getElementById('mtg-name-sel');
+    if (!nameEl || !nameEl.value) return;
+    var mine = (attendanceCache[date] || []).filter(function (a) { return a.staffName === nameEl.value; })[0];
+    if (mine) {
+      selectMtgStatus(mine.status, true);
+      if (mine.status === '不参加') {
+        var r = document.getElementById('mtg-reason'); if (r) r.value = mine.reason || '';
+      }
+      var msg = document.getElementById('mtg-form-msg');
+      if (msg) msg.innerHTML = '<span style="color:#16a34a;">✅ 登録済みです。変更して再登録できます。</span>';
+    }
+  }
+
+  function onMtgNameChange() {
+    var nameEl = document.getElementById('mtg-name-sel');
+    var submitBtn = document.getElementById('mtg-submit-btn');
+    if (!nameEl || !submitBtn) return;
+    if (!nameEl.value) { submitBtn.disabled = true; return; }
+
+    // 既存登録を確認
+    var date = selectedDate;
+    var mine = (attendanceCache[date] || []).filter(function (a) { return a.staffName === nameEl.value; })[0];
+    if (mine) {
+      selectMtgStatus(mine.status, true);
+      if (mine.status === '不参加') {
+        var r = document.getElementById('mtg-reason'); if (r) r.value = mine.reason || '';
+      }
+      var msg = document.getElementById('mtg-form-msg');
+      if (msg) msg.innerHTML = '<span style="color:#16a34a;">✅ 登録済みです。変更して再登録できます。</span>';
+    } else {
+      // リセット
+      ['attend','online','absent'].forEach(function (k) {
+        var b = document.getElementById('mtg-btn-' + k); if (b) b.className = 'meeting-status-btn';
+      });
+      var rw = document.getElementById('mtg-reason-wrap'); if (rw) rw.style.display = 'none';
+      var msg2 = document.getElementById('mtg-form-msg'); if (msg2) msg2.textContent = '';
+      delete selectedMtgStatus[date];
+    }
+    submitBtn.disabled = !selectedMtgStatus[date] && !mine;
+  }
+
+  function selectMtgStatus(status, silent) {
+    var date = selectedDate;
+    selectedMtgStatus[date] = status;
+    var classMap = { '対面参加': 's-attend', 'オンライン参加': 's-online', '不参加': 's-absent' };
+    var keyMap   = { '対面参加': 'attend',   'オンライン参加': 'online',   '不参加': 'absent' };
+    ['attend','online','absent'].forEach(function (k) {
+      var b = document.getElementById('mtg-btn-' + k); if (b) b.className = 'meeting-status-btn';
+    });
+    var key = keyMap[status];
+    if (key) { var btn = document.getElementById('mtg-btn-' + key); if (btn) btn.className = 'meeting-status-btn ' + classMap[status]; }
+    var rw = document.getElementById('mtg-reason-wrap'); if (rw) rw.style.display = status === '不参加' ? 'block' : 'none';
+    var nameEl = document.getElementById('mtg-name-sel');
+    var submitBtn = document.getElementById('mtg-submit-btn');
+    if (submitBtn && nameEl && nameEl.value) submitBtn.disabled = false;
+  }
+
+  function submitMtgAttendance() {
+    var nameEl    = document.getElementById('mtg-name-sel');
+    var reasonEl  = document.getElementById('mtg-reason');
+    var msgEl     = document.getElementById('mtg-form-msg');
+    var submitBtn = document.getElementById('mtg-submit-btn');
+    var date = selectedDate;
+    var name   = nameEl ? nameEl.value : '';
+    var status = selectedMtgStatus[date] || '';
+    var reason = reasonEl ? reasonEl.value.trim() : '';
+
+    if (!name)   { if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626;">名前を選択してください</span>'; return; }
+    if (!status) { if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626;">参加区分を選択してください</span>'; return; }
+    if (status === '不参加' && !reason) { if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626;">不参加の理由を入力してください</span>'; return; }
+
+    if (submitBtn) submitBtn.disabled = true;
+    if (msgEl) msgEl.innerHTML = '<span style="color:#6b7280;">登録中...</span>';
+
+    API.saveMeetingAttendance(date, name, status, reason)
+      .then(function (res) {
+        if (res.ok) {
+          var atts = attendanceCache[date] || [];
+          var idx = -1;
+          atts.forEach(function (a, i) { if (a.staffName === name) idx = i; });
+          var entry = { staffName: name, status: status, reason: reason };
+          if (idx >= 0) atts[idx] = entry; else atts.push(entry);
+          attendanceCache[date] = atts;
+          renderAttSummary(date);
+          if (msgEl) msgEl.innerHTML = '<span style="color:#16a34a;">✅ ' + esc(status) + ' で登録しました</span>';
+        } else {
+          if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626;">❌ ' + esc(res.error || 'エラー') + '</span>';
+        }
+        if (submitBtn) submitBtn.disabled = false;
+      })
+      .catch(function () {
+        if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626;">❌ 通信エラー</span>';
+        if (submitBtn) submitBtn.disabled = false;
+      });
+  }
+
+  return {
+    render: render,
+    onMtgNameChange: onMtgNameChange,
+    selectMtgStatus: selectMtgStatus,
+    submitMtgAttendance: submitMtgAttendance
+  };
 })();

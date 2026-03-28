@@ -9,6 +9,7 @@ const SHEET_SHIFTS = 'シフト';
 const SHEET_STAFF = 'スタッフ';
 const SHEET_LOGS = '送信ログ';
 const SHEET_SETTINGS = '設定';
+const SHEET_MEETING = '店舗ミーティング'; // 実施日・時間 → 顧客カレンダーで前後1時間を貸切表示
 
 // --- Google Drive (PDFフォールバック用) ---
 const DRIVE_FOLDER_ID = '1sCuvYSNrekWdzpvvSlZq2SgPvZNyvc-D'; // シフトPDF格納フォルダのID
@@ -121,7 +122,8 @@ const STAFF_HOURS_SHEET_NAME    = 'スタッフ勤務時間';    // スタッフ
 const SHIFT_SHORTAGE_ALERT_DAYS = 5; // 何日後のシフト不足を検知するか
 
 // --- 期間設定 ---
-const SHEET_PERIOD_SETTINGS = '期間設定'; // 授業期間/ターム休みの日程管理シート
+const SHEET_PERIOD_SETTINGS   = '期間設定';         // 授業期間/ターム休みの日程管理シート
+const SHEET_MEETING_ATTENDANCE = '店舗ミーティング参加'; // 参加確認シート（実施日/スタッフ名/参加区分/理由/登録日時）
 
 // --- スタッフマッピング ---
 // 初期値（フォールバック用）。PWA運用後は「スタッフ」シートから自動読み込み。

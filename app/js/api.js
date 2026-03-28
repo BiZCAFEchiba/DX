@@ -3,8 +3,10 @@
 // ============================================================
 var API = (function () {
   var BASE_URL = '';
+  var MEETING_URL = '';
 
   function setBaseUrl(url) { BASE_URL = url; }
+  function setMeetingUrl(url) { MEETING_URL = url; }
 
   function get(params) {
     var qs = Object.keys(params).map(function (k) {
@@ -29,6 +31,23 @@ var API = (function () {
     });
   }
 
+  function meetingGet(params) {
+    var qs = Object.keys(params).map(function (k) {
+      return encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
+    }).join('&');
+    return fetch(MEETING_URL + '?' + qs)
+      .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); });
+  }
+
+  function meetingPost(body) {
+    return fetch(MEETING_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(body)
+    })
+    .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); });
+  }
+
   function getShifts(from, to) {
     return get({ action: 'getShifts', from: from, to: to });
   }
@@ -49,5 +68,29 @@ var API = (function () {
     return post({ action: 'deleteShift', date: date, staffName: staffName });
   }
 
-  return { setBaseUrl: setBaseUrl, getShifts: getShifts, getStaff: getStaff, updateShift: updateShift, addShift: addShift, deleteShift: deleteShift };
+  // ===== ミーティング API =====
+  function getMeetings() {
+    return meetingGet({ page: 'calendar', action: 'getMeetings' });
+  }
+
+  function getMeetingAttendance(date) {
+    return meetingGet({ page: 'calendar', action: 'getMeetingAttendance', date: date });
+  }
+
+  function getMeetingStaffList() {
+    return meetingGet({ page: 'calendar', action: 'getStaffList' });
+  }
+
+  function saveMeetingAttendance(meetingDate, staffName, status, reason) {
+    return meetingPost({ page: 'calendar', action: 'attendanceSave',
+      meetingDate: meetingDate, staffName: staffName, status: status, reason: reason || '' });
+  }
+
+  return {
+    setBaseUrl: setBaseUrl, setMeetingUrl: setMeetingUrl,
+    getShifts: getShifts, getStaff: getStaff,
+    updateShift: updateShift, addShift: addShift, deleteShift: deleteShift,
+    getMeetings: getMeetings, getMeetingAttendance: getMeetingAttendance,
+    getMeetingStaffList: getMeetingStaffList, saveMeetingAttendance: saveMeetingAttendance
+  };
 })();

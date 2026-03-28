@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>幹部管理 | BizCAFE</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:   #007aff;
+      --green:  #34c759;
+      --red:    #ff3b30;
+      --orange: #ff9500;
+      --gray:   #8e8e93;
+      --bg:     #f2f2f7;
+      --card:   #ffffff;
+      --border: #e5e5ea;
+      --text:   #1c1c1e;
+      --sub:    #6c6c70;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding-bottom: 80px;
+    }
+
+    /* ヘッダー */
+    header {
+      background: #1c1c1e;
+      color: #fff;
+      padding: 14px 16px 12px;
+      position: sticky; top: 0; z-index: 100;
+    }
+    header h1 { font-size: 17px; font-weight: 700; }
+
+    /* タブバー */
+    .tabs {
+      display: flex;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 48px; z-index: 99;
+    }
+    .tab {
+      flex: 1; padding: 11px 4px 9px;
+      border: none; background: none;
+      font-size: 11px; font-weight: 600; color: var(--gray);
+      cursor: pointer; border-bottom: 2.5px solid transparent;
+    }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+
+    /* パネル */
+    .panel { display: none; padding: 14px 14px 0; }
+    .panel.active { display: block; }
+
+    /* カード */
+    .card {
+      background: var(--card); border-radius: 12px;
+      margin-bottom: 14px; overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-header h2 { font-size: 13px; font-weight: 700; color: var(--sub); letter-spacing: .3px; }
+    .card-body { padding: 12px 14px; }
+
+    /* ボタン */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 10px 14px; border: none; border-radius: 9px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity .12s;
+    }
+    .btn:active { opacity: .65; }
+    .btn:disabled { opacity: .35; pointer-events: none; }
+    .btn-block { display: flex; width: 100%; }
+    .btn-primary  { background: var(--blue);  color: #fff; }
+    .btn-success  { background: var(--green); color: #fff; }
+    .btn-danger   { background: var(--red);   color: #fff; }
+    .btn-ghost    { background: var(--bg);    color: var(--blue); font-size: 12px; padding: 6px 10px; }
+    .btn-sm       { font-size: 12px; padding: 6px 10px; }
+    .btn + .btn   { margin-top: 9px; }
+
+    /* ファイル選択 */
+    .file-drop {
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 18px 14px; text-align: center; cursor: pointer;
+      background: var(--bg); margin-bottom: 10px;
+    }
+    .file-drop-icon { font-size: 30px; }
+    .file-drop-text { font-size: 14px; color: var(--sub); margin-top: 4px; }
+    .file-drop-name { font-size: 13px; color: var(--blue); margin-top: 6px; min-height: 18px; }
+    #pdfInput { display: none; }
+
+    /* PDF一覧 */
+    .list-row {
+      display: flex; align-items: center;
+      padding: 11px 14px; border-bottom: 1px solid var(--border);
+    }
+    .list-row:last-child { border-bottom: none; }
+    .list-info { flex: 1; min-width: 0; }
+    .list-name {
+      font-size: 13px; font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .list-sub { font-size: 11px; color: var(--gray); margin-top: 2px; }
+    .list-empty { padding: 18px; text-align: center; font-size: 13px; color: var(--gray); }
+
+    /* 期間設定 */
+    .period-row {
+      border-bottom: 1px solid var(--border);
+    }
+    .period-row:last-child { border-bottom: none; }
+    .period-display {
+      display: flex; align-items: center;
+      padding: 12px 14px; gap: 10px;
+    }
+    .period-color {
+      width: 4px; height: 36px; border-radius: 2px; flex-shrink: 0;
+    }
+    .color-jugyou { background: #34c759; }
+    .color-term   { background: #ff9500; }
+    .period-dates { flex: 1; }
+    .period-range { font-size: 13px; font-weight: 600; }
+    .period-badge {
+      font-size: 11px; font-weight: 700; padding: 2px 8px;
+      border-radius: 10px; margin-top: 3px; display: inline-block;
+    }
+    .badge-jugyou { background: #e8f5e9; color: #2e7d32; }
+    .badge-term   { background: #fff3e0; color: #bf360c; }
+    .period-edit-area {
+      display: none; padding: 10px 14px 12px;
+      background: #fafafa; border-top: 1px solid var(--border);
+    }
+    .period-edit-area.open { display: block; }
+    .period-edit-row { display: flex; gap: 8px; margin-bottom: 8px; }
+    .period-edit-row input,
+    .period-edit-row select {
+      flex: 1; padding: 9px 10px; border: 1.5px solid var(--border);
+      border-radius: 8px; font-size: 14px; background: #fff;
+      -webkit-appearance: none;
+    }
+    .period-edit-btns { display: flex; gap: 8px; }
+
+    /* フォーム（追加） */
+    .form-group { margin-bottom: 10px; }
+    .form-label { font-size: 11px; font-weight: 700; color: var(--sub); margin-bottom: 5px; display: block; }
+    .form-row { display: flex; gap: 8px; }
+    .form-row > * { flex: 1; }
+    .form-input {
+      width: 100%; padding: 11px 12px;
+      border: 1.5px solid var(--border); border-radius: 9px;
+      font-size: 15px; background: #fff; -webkit-appearance: none;
+    }
+    .form-input:focus { outline: none; border-color: var(--blue); }
+
+    /* ミーティング行 */
+    .meeting-row {
+      border-bottom: 1px solid var(--border);
+    }
+    .meeting-row:last-child { border-bottom: none; }
+    .meeting-display {
+      display: flex; align-items: center;
+      padding: 12px 14px; gap: 10px;
+    }
+    .meeting-icon { font-size: 22px; }
+    .meeting-info { flex: 1; }
+    .meeting-date { font-size: 14px; font-weight: 700; }
+    .meeting-time { font-size: 12px; color: var(--sub); margin-top: 2px; }
+    .meeting-buffer { font-size: 11px; color: var(--orange); margin-top: 2px; font-weight: 600; }
+    .meeting-note { font-size: 12px; color: var(--gray); margin-top: 2px; }
+    .meeting-edit-area {
+      display: none; padding: 10px 14px 12px;
+      background: #fafafa; border-top: 1px solid var(--border);
+    }
+    .meeting-edit-area.open { display: block; }
+
+    /* ステータス */
+    .status {
+      padding: 11px 13px; border-radius: 8px;
+      font-size: 13px; line-height: 1.5;
+      margin-top: 9px; display: none;
+    }
+    .status.show { display: block; }
+    .status-ok      { background: #e8f5e9; color: #1b5e20; }
+    .status-err     { background: #fdecea; color: #b71c1c; }
+    .status-loading { background: #e3f2fd; color: #0d47a1; }
+
+    /* スピナー */
+    .spin {
+      display: inline-block; width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+      border-radius: 50%; animation: rot .6s linear infinite;
+    }
+    @keyframes rot { to { transform: rotate(360deg); } }
+
+    /* セパレータ */
+    .sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+    /* 注釈テキスト */
+    .hint { font-size: 11px; color: var(--gray); margin-top: 5px; line-height: 1.4; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>📋 幹部管理 | BizCAFE</h1>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('shift',this)">📄 シフト</button>
+  <button class="tab" onclick="switchTab('period',this)">📅 期間設定</button>
+  <button class="tab" onclick="switchTab('meeting',this)">🏢 ミーティング</button>
+</div>
+
+<!-- ════════════ シフト管理 ════════════ -->
+<div id="panel-shift" class="panel active">
+
+  <!-- PDFアップロード -->
+  <div class="card">
+    <div class="card-header"><h2>📤 PDFアップロード</h2></div>
+    <div class="card-body">
+      <label class="file-drop" for="pdfInput">
+        <div class="file-drop-icon">📂</div>
+        <div class="file-drop-text">タップしてPDFを選択</div>
+        <div class="file-drop-name" id="selectedName"></div>
+      </label>
+      <input type="file" id="pdfInput" accept="application/pdf" onchange="onFileSelected(this)">
+      <button class="btn btn-primary btn-block" id="uploadBtn" onclick="uploadPdf()" disabled>
+        Drive にアップロード
+      </button>
+      <div id="uploadStatus" class="status"></div>
+    </div>
+  </div>
+
+  <!-- Drive内PDF一覧 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>📁 Drive内のPDF</h2>
+      <button class="btn btn-ghost" onclick="loadPdfList()">更新</button>
+    </div>
+    <div id="pdfList"><div class="list-empty">読み込み中...</div></div>
+  </div>
+
+  <!-- シフト取り込み -->
+  <div class="card">
+    <div class="card-header"><h2>⚙️ シフト取り込み</h2></div>
+    <div class="card-body">
+      <button class="btn btn-success btn-block" id="importBtn" onclick="importShifts()">
+        シフト取り込み + カレンダー同期
+      </button>
+      <p class="hint">Drive内のPDFを解析してシフトシートに書き込み、Googleカレンダーに同期します。</p>
+      <div id="importStatus" class="status"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════ 期間設定 ════════════ -->
+<div id="panel-period" class="panel">
+
+  <!-- 一覧 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>📋 期間一覧</h2>
+      <button class="btn btn-ghost" onclick="loadPeriodSettings()">更新</button>
+    </div>
+    <div id="periodList"><div class="list-empty">読み込み中...</div></div>
+  </div>
+
+  <!-- 新規追加 -->
+  <div class="card">
+    <div class="card-header"><h2>➕ 新規追加</h2></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">開始日</label>
+        <input class="form-input" type="date" id="newPeriodDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">種別</label>
+        <select class="form-input" id="newPeriodKind">
+          <option value="授業期間">授業期間</option>
+          <option value="ターム休み">ターム休み</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addPeriod()">追加する</button>
+      <div id="periodStatus" class="status"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════ 店舗ミーティング ════════════ -->
+<div id="panel-meeting" class="panel">
+
+  <!-- 説明 -->
+  <div class="card">
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--sub);line-height:1.6;">
+        登録した時間の<strong style="color:var(--orange);">前後1時間</strong>を、お客様向けカレンダーで<strong>貸切</strong>として表示します。
+      </p>
+    </div>
+  </div>
+
+  <!-- 一覧 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>🗓 実施スケジュール</h2>
+      <button class="btn btn-ghost" onclick="loadMeetings()">更新</button>
+    </div>
+    <div id="meetingList"><div class="list-empty">読み込み中...</div></div>
+  </div>
+
+  <!-- 新規追加 -->
+  <div class="card">
+    <div class="card-header"><h2>➕ 新規追加</h2></div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">実施日</label>
+        <input class="form-input" type="date" id="newMtgDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">開催時間</label>
+        <div class="form-row">
+          <input class="form-input" type="time" id="newMtgStart" placeholder="開始">
+          <input class="form-input" type="time" id="newMtgEnd" placeholder="終了">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">メモ（任意）</label>
+        <input class="form-input" type="text" id="newMtgNote" placeholder="例：月次定例">
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:8px;padding:10px 0;">
+        <input type="checkbox" id="newMtgNotifyAll" checked style="width:18px;height:18px;cursor:pointer;">
+        <label for="newMtgNotifyAll" style="font-size:13px;font-weight:600;color:var(--text);cursor:pointer;">
+          LINE WORKSに@allで通知する
+        </label>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="addMeeting()">追加する</button>
+      <div id="meetingStatus" class="status"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const APP_URL = '<?= appUrl ?>';
+let _periodRows = [];
+let _meetingRows = [];
+
+// ── タブ ─────────────────────────────────────────────────
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(function(el) { el.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(el) { el.classList.remove('active'); });
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'shift')   loadPdfList();
+  if (name === 'period')  loadPeriodSettings();
+  if (name === 'meeting') loadMeetings();
+}
+
+// ── API ──────────────────────────────────────────────────
+
+async function api(payload) {
+  const res = await fetch(APP_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain'},
+    body: JSON.stringify(Object.assign({page: 'kanbu'}, payload))
+  });
+  return res.json();
+}
+
+function setStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.className = 'status show status-' + type;
+  el.innerHTML = msg;
+}
+
+// ── シフト ───────────────────────────────────────────────
+
+function onFileSelected(input) {
+  const file = input.files[0];
+  document.getElementById('selectedName').textContent = file ? file.name : '';
+  document.getElementById('uploadBtn').disabled = !file;
+}
+
+async function uploadPdf() {
+  const input = document.getElementById('pdfInput');
+  const file = input.files[0];
+  if (!file) return;
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> アップロード中...';
+  setStatus('uploadStatus', 'アップロード中...', 'loading');
+  try {
+    const base64 = await toBase64(file);
+    const res = await api({action: 'uploadPdf', fileName: file.name, fileData: base64});
+    if (res.ok) {
+      setStatus('uploadStatus', '✅ ' + res.fileName + ' をアップロードしました', 'ok');
+      input.value = ''; document.getElementById('selectedName').textContent = '';
+      loadPdfList();
+    } else {
+      setStatus('uploadStatus', '❌ ' + res.error, 'err');
+    }
+  } catch(e) {
+    setStatus('uploadStatus', '❌ ' + e.message, 'err');
+  }
+  btn.disabled = true;
+  btn.innerHTML = 'Drive にアップロード';
+}
+
+function toBase64(file) {
+  return new Promise(function(resolve, reject) {
+    const r = new FileReader();
+    r.onload = function(e) { resolve(e.target.result.split(',')[1]); };
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+
+async function loadPdfList() {
+  const el = document.getElementById('pdfList');
+  el.innerHTML = '<div class="list-empty">読み込み中...</div>';
+  try {
+    const res = await api({action: 'listPdfs'});
+    if (!res.ok || res.files.length === 0) {
+      el.innerHTML = '<div class="list-empty">PDFはありません</div>';
+      return;
+    }
+    el.innerHTML = res.files.map(function(f) {
+      return '<div class="list-row">'
+        + '<div class="list-info">'
+        + '<div class="list-name">' + esc(f.name) + '</div>'
+        + '<div class="list-sub">' + f.date + '</div>'
+        + '</div>'
+        + '<button class="btn btn-danger btn-sm" onclick="deletePdf(\'' + f.id + '\',\'' + escq(f.name) + '\')">削除</button>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="list-empty">取得失敗: ' + e.message + '</div>';
+  }
+}
+
+async function deletePdf(id, name) {
+  if (!confirm(name + ' を削除しますか？')) return;
+  const res = await api({action: 'deletePdf', fileId: id});
+  if (res.ok) loadPdfList(); else alert('削除失敗: ' + res.error);
+}
+
+async function importShifts() {
+  const btn = document.getElementById('importBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 処理中...';
+  setStatus('importStatus', 'PDF解析・カレンダー同期中...', 'loading');
+  try {
+    const res = await api({action: 'importShifts'});
+    if (res.ok) {
+      setStatus('importStatus',
+        '✅ 取り込み完了<br>'
+        + '・新規: ' + res.imported + '件<br>'
+        + '・重複スキップ: ' + res.skipped + '件<br>'
+        + '・カレンダー登録: ' + res.calendarCount + '件<br>'
+        + '・PDF: ' + res.files.join(', '), 'ok');
+    } else {
+      setStatus('importStatus', '❌ ' + res.error, 'err');
+    }
+  } catch(e) {
+    setStatus('importStatus', '❌ ' + e.message, 'err');
+  }
+  btn.disabled = false;
+  btn.innerHTML = 'シフト取り込み + カレンダー同期';
+}
+
+// ── 期間設定 ─────────────────────────────────────────────
+
+async function loadPeriodSettings() {
+  const el = document.getElementById('periodList');
+  el.innerHTML = '<div class="list-empty">読み込み中...</div>';
+  try {
+    const res = await api({action: 'getPeriodSettings'});
+    _periodRows = res.rows || [];
+    if (_periodRows.length === 0) {
+      el.innerHTML = '<div class="list-empty">設定がありません</div>';
+      return;
+    }
+    el.innerHTML = _periodRows.map(function(row, idx) {
+      const isJugyou = row.kind === '授業期間';
+      const colorCls = isJugyou ? 'color-jugyou' : 'color-term';
+      const badgeCls = isJugyou ? 'badge-jugyou' : 'badge-term';
+      // 終了日 = 次の開始日の前日（最後は「〜」のみ）
+      const nextRow = _periodRows[idx + 1];
+      const endLabel = nextRow ? calcPrevDate(nextRow.startDate) : '';
+      const rangeLabel = endLabel
+        ? fmtDate(row.startDate) + ' 〜 ' + endLabel
+        : fmtDate(row.startDate) + ' 〜';
+      const editId = 'pedit-' + idx;
+      return '<div class="period-row" id="prow-' + idx + '">'
+        + '<div class="period-display">'
+        + '<div class="period-color ' + colorCls + '"></div>'
+        + '<div class="period-dates">'
+        + '<div class="period-range">' + rangeLabel + '</div>'
+        + '<span class="period-badge ' + badgeCls + '">' + esc(row.kind) + '</span>'
+        + '</div>'
+        + '<button class="btn btn-ghost" onclick="togglePeriodEdit(' + idx + ')">編集</button>'
+        + '</div>'
+        + '<div class="period-edit-area" id="' + editId + '">'
+        + '<div class="period-edit-row">'
+        + '<input type="date" value="' + row.startDate + '" id="peDate-' + idx + '">'
+        + '<select id="peKind-' + idx + '">'
+        + '<option value="授業期間"' + (isJugyou ? ' selected' : '') + '>授業期間</option>'
+        + '<option value="ターム休み"' + (!isJugyou ? ' selected' : '') + '>ターム休み</option>'
+        + '</select>'
+        + '</div>'
+        + '<div class="period-edit-btns">'
+        + '<button class="btn btn-primary btn-sm" onclick="savePeriod(' + idx + ',' + row.rowIndex + ')">保存</button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="togglePeriodEdit(' + idx + ')">キャンセル</button>'
+        + '<button class="btn btn-danger btn-sm" onclick="delPeriod(' + row.rowIndex + ',\'' + escq(fmtDate(row.startDate)) + '\')">削除</button>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="list-empty">取得失敗: ' + e.message + '</div>';
+  }
+}
+
+function togglePeriodEdit(idx) {
+  const area = document.getElementById('pedit-' + idx);
+  area.classList.toggle('open');
+}
+
+async function savePeriod(idx, rowIndex) {
+  const date = document.getElementById('peDate-' + idx).value;
+  const kind = document.getElementById('peKind-' + idx).value;
+  if (!date) { alert('開始日を選択してください'); return; }
+  const res = await api({action: 'savePeriodSetting', rowIndex: rowIndex, startDate: date, kind: kind});
+  if (res.ok) { setStatus('periodStatus', '✅ 保存しました', 'ok'); loadPeriodSettings(); }
+  else alert('保存失敗: ' + res.error);
+}
+
+async function delPeriod(rowIndex, label) {
+  if (!confirm(label + ' の設定を削除しますか？')) return;
+  const res = await api({action: 'deletePeriodSetting', rowIndex: rowIndex});
+  if (res.ok) loadPeriodSettings(); else alert('削除失敗: ' + res.error);
+}
+
+async function addPeriod() {
+  const date = document.getElementById('newPeriodDate').value;
+  const kind = document.getElementById('newPeriodKind').value;
+  if (!date) { setStatus('periodStatus', '❌ 開始日を選択してください', 'err'); return; }
+  setStatus('periodStatus', '保存中...', 'loading');
+  const res = await api({action: 'savePeriodSetting', rowIndex: 0, startDate: date, kind: kind});
+  if (res.ok) {
+    setStatus('periodStatus', '✅ 追加しました', 'ok');
+    document.getElementById('newPeriodDate').value = '';
+    loadPeriodSettings();
+  } else {
+    setStatus('periodStatus', '❌ ' + res.error, 'err');
+  }
+}
+
+// ── 店舗ミーティング ─────────────────────────────────────
+
+async function loadMeetings() {
+  const el = document.getElementById('meetingList');
+  el.innerHTML = '<div class="list-empty">読み込み中...</div>';
+  try {
+    const res = await api({action: 'getMeetings'});
+    _meetingRows = res.rows || [];
+    if (_meetingRows.length === 0) {
+      el.innerHTML = '<div class="list-empty">登録がありません</div>';
+      return;
+    }
+    el.innerHTML = _meetingRows.map(function(row, idx) {
+      const editId = 'medit-' + idx;
+      const bufStart = addMinutes(row.startTime, -60);
+      const bufEnd   = addMinutes(row.endTime, 60);
+      return '<div class="meeting-row">'
+        + '<div class="meeting-display">'
+        + '<div class="meeting-icon">🏢</div>'
+        + '<div class="meeting-info">'
+        + '<div class="meeting-date">' + fmtDate(row.date) + ' ' + fmtDow(row.date) + '</div>'
+        + '<div class="meeting-time">⏰ ' + row.startTime + ' 〜 ' + row.endTime + '</div>'
+        + '<div class="meeting-buffer">🔒 貸切: ' + bufStart + ' 〜 ' + bufEnd + '</div>'
+        + (row.note ? '<div class="meeting-note">' + esc(row.note) + '</div>' : '')
+        + '</div>'
+        + '<div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end;">'
+        + '<button class="btn btn-ghost" onclick="toggleMtgEdit(' + idx + ')">編集</button>'
+        + '<button class="btn btn-sm" style="background:#fff3cd;color:#856404;white-space:nowrap;" onclick="remindMeeting(' + row.rowIndex + ',' + idx + ')">📢 再リマインド</button>'
+        + '</div>'
+        + '</div>'
+        + '<div class="meeting-edit-area" id="' + editId + '">'
+        + '<div class="form-group"><label class="form-label">実施日</label>'
+        + '<input class="form-input" type="date" id="meDate-' + idx + '" value="' + row.date + '"></div>'
+        + '<div class="form-group"><label class="form-label">開催時間</label>'
+        + '<div class="form-row">'
+        + '<input class="form-input" type="time" id="meStart-' + idx + '" value="' + row.startTime + '">'
+        + '<input class="form-input" type="time" id="meEnd-' + idx + '" value="' + row.endTime + '">'
+        + '</div></div>'
+        + '<div class="form-group"><label class="form-label">メモ</label>'
+        + '<input class="form-input" type="text" id="meNote-' + idx + '" value="' + esc(row.note) + '"></div>'
+        + '<div style="display:flex;gap:8px;">'
+        + '<button class="btn btn-primary btn-sm" onclick="saveMeeting(' + idx + ',' + row.rowIndex + ')">保存</button>'
+        + '<button class="btn btn-ghost btn-sm" onclick="toggleMtgEdit(' + idx + ')">キャンセル</button>'
+        + '<button class="btn btn-danger btn-sm" onclick="delMeeting(' + row.rowIndex + ',\'' + escq(fmtDate(row.date)) + '\')">削除</button>'
+        + '</div>'
+        + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="list-empty">取得失敗: ' + e.message + '</div>';
+  }
+}
+
+function toggleMtgEdit(idx) {
+  document.getElementById('medit-' + idx).classList.toggle('open');
+}
+
+async function saveMeeting(idx, rowIndex) {
+  const date  = document.getElementById('meDate-'  + idx).value;
+  const start = document.getElementById('meStart-' + idx).value;
+  const end   = document.getElementById('meEnd-'   + idx).value;
+  const note  = document.getElementById('meNote-'  + idx).value;
+  if (!date || !start || !end) { alert('日付と時間を入力してください'); return; }
+  const res = await api({action: 'saveMeeting', rowIndex: rowIndex, date: date, startTime: start, endTime: end, note: note});
+  if (res.ok) { setStatus('meetingStatus', '✅ 保存しました', 'ok'); loadMeetings(); }
+  else alert('保存失敗: ' + res.error);
+}
+
+async function delMeeting(rowIndex, label) {
+  if (!confirm(label + ' のミーティングを削除しますか？')) return;
+  const res = await api({action: 'deleteMeeting', rowIndex: rowIndex});
+  if (res.ok) loadMeetings(); else alert('削除失敗: ' + res.error);
+}
+
+async function remindMeeting(rowIndex, idx) {
+  const notifyAll = confirm('@allメンションをつけて再リマインドしますか？\n（キャンセルで@allなしで送信）');
+  const row = _meetingRows[idx];
+  const label = row ? fmtDate(row.date) + ' ' + fmtDow(row.date) : '';
+  if (!confirm(label + ' のミーティングをリマインドします。よろしいですか？')) return;
+  const res = await api({action: 'remindMeeting', rowIndex: rowIndex, notifyAll: notifyAll});
+  if (res.ok && res.notified) {
+    setStatus('meetingStatus', '✅ ' + label + ' のリマインドを送信しました' + (notifyAll ? '（@all）' : ''), 'ok');
+  } else if (res.ok) {
+    setStatus('meetingStatus', '⚠️ ' + label + ' のリマインド送信に失敗しました', 'err');
+  } else {
+    setStatus('meetingStatus', '❌ ' + (res.error || 'エラー'), 'err');
+  }
+}
+
+async function addMeeting() {
+  const date  = document.getElementById('newMtgDate').value;
+  const start = document.getElementById('newMtgStart').value;
+  const end   = document.getElementById('newMtgEnd').value;
+  const note  = document.getElementById('newMtgNote').value;
+  const notifyAll = document.getElementById('newMtgNotifyAll').checked;
+  if (!date || !start || !end) { setStatus('meetingStatus', '❌ 日付と時間を入力してください', 'err'); return; }
+  setStatus('meetingStatus', '保存中...', 'loading');
+  const res = await api({action: 'saveMeeting', rowIndex: 0, date: date, startTime: start, endTime: end, note: note, notifyAll: notifyAll});
+  if (res.ok) {
+    let msg = '✅ 追加しました';
+    if (res.notified === true)  msg += '<br>📢 LINE WORKSに@all通知済み';
+    if (res.notified === false) msg += '<br>⚠️ LINE WORKS通知に失敗しました';
+    if (res.calendarCount > 0)  msg += '<br>📅 カレンダーに登録しました';
+    setStatus('meetingStatus', msg, 'ok');
+    document.getElementById('newMtgDate').value  = '';
+    document.getElementById('newMtgStart').value = '';
+    document.getElementById('newMtgEnd').value   = '';
+    document.getElementById('newMtgNote').value  = '';
+    loadMeetings();
+  } else {
+    setStatus('meetingStatus', '❌ ' + res.error, 'err');
+  }
+}
+
+// ── ユーティリティ ────────────────────────────────────────
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00+09:00');
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+function fmtDow(iso) {
+  const dow = ['（日）','（月）','（火）','（水）','（木）','（金）','（土）'];
+  return dow[new Date(iso + 'T00:00:00+09:00').getDay()];
+}
+
+function calcPrevDate(iso) {
+  const d = new Date(iso + 'T00:00:00+09:00');
+  d.setDate(d.getDate() - 1);
+  return (d.getMonth() + 1) + '/' + d.getDate();
+}
+
+function addMinutes(timeStr, minutes) {
+  const parts = timeStr.split(':');
+  let total = parseInt(parts[0]) * 60 + parseInt(parts[1]) + minutes;
+  total = Math.max(0, total);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escq(s) { return String(s).replace(/'/g,"\\'"); }
+
+// ── 初期ロード ────────────────────────────────────────────
+loadPdfList();
+</script>
+</body>
+</html>

@@ -27,6 +27,12 @@ function doPost(e) {
       } catch (jsonErr) {}
     }
 
+    if (body.page === 'kanbu') {
+      var kanbuResult = handleKanbuApi_(body);
+      return ContentService.createTextOutput(JSON.stringify(kanbuResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (body.page === 'calendar') {
       if (body.action === 'boardSave') {
         var saveResult = saveBoardItem_(body);
@@ -38,6 +44,11 @@ function doPost(e) {
           ok: false,
           error: 'board_image_upload_disabled'
         })).setMimeType(ContentService.MimeType.JSON);
+      }
+      if (body.action === 'attendanceSave') {
+        var attResult = kanbuSaveAttendance_(body.meetingDate, body.staffName, body.status, body.reason);
+        return ContentService.createTextOutput(JSON.stringify(attResult))
+          .setMimeType(ContentService.MimeType.JSON);
       }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_action' }))
         .setMimeType(ContentService.MimeType.JSON);
@@ -66,6 +77,15 @@ function doGet(e) {
     'info',
     JSON.stringify({ page: param.page || '', action: param.action || '', id: param.id || '' })
   );
+
+  // --- 幹部管理WebApp ---
+  if (param.page === 'kanbu') {
+    var kanbuTemplate = HtmlService.createTemplateFromFile('幹部管理');
+    kanbuTemplate.appUrl = ScriptApp.getService().getUrl();
+    return kanbuTemplate.evaluate()
+      .setTitle('幹部管理 | BizCAFE')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
 
   // --- 閲覧数ダッシュボード（スタッフ用） ---
   if (param.page === 'analytics') {
@@ -468,6 +488,21 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: true, hours: getRoomMaxHours_() }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 店舗ミーティング一覧（スタッフアプリ用）
+    if (param.action === 'getMeetings') {
+      return ContentService.createTextOutput(JSON.stringify(kanbuGetMeetings_()))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 参加状況取得（スタッフアプリ用）
+    if (param.action === 'getMeetingAttendance') {
+      return ContentService.createTextOutput(JSON.stringify(kanbuGetAttendance_(param.date || '')))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // スタッフ名一覧（スタッフアプリ用）
+    if (param.action === 'getStaffList') {
+      return ContentService.createTextOutput(JSON.stringify(kanbuGetStaffList_()))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (param.action) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,
@@ -495,6 +530,14 @@ function triggerShiftReminder() {
   Logger.log('=== シフトリマインド 実行開始 ===');
 
   const now = new Date();
+
+  // 土曜・日曜はスキップ（金曜に月曜分を送信済みのため）
+  const todayDow = now.getDay(); // 0=日, 6=土
+  if (todayDow === 0 || todayDow === 6) {
+    Logger.log('土日のためシフトリマインドをスキップします。');
+    return;
+  }
+
   const nextBusinessDay = findNextBusinessDay_(now);
   const targetISO = formatDateToISO_(nextBusinessDay);
   const targetDisplay = Utilities.formatDate(nextBusinessDay, TIMEZONE, 'M月d日(E)');
