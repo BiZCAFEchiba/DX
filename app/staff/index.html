@@ -2815,6 +2815,7 @@
     var meta = document.getElementById('counterMeta');
     if (!wrap) return;
     var counts = data && data.counts ? data.counts : data;
+    var dailyCounts = (data && data.dailyCounts) ? data.dailyCounts : {};
     var labels = {
       congestion: '混雑状況',
       calendar: 'カレンダー',
@@ -2829,18 +2830,33 @@
       notices: '#7b3fe4', free_board: '#00838f', recruit: '#d64545', candy: '#e67e22'
     };
     var selected = window.selectedCounterGraphKeys || ['congestion'];
-    wrap.innerHTML = Object.keys(labels).map(function(key) {
-      var checked = selected.indexOf(key) !== -1;
-      var color = colors[key] || '#1a3a5c';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #eef2f6;">'
-        + '<label style="display:flex;align-items:center;gap:6px;flex:1;cursor:pointer;">'
-        + '<input type="checkbox" id="counterGraphCheck-' + key + '" ' + (checked ? 'checked ' : '') + 'onchange="toggleCounterGraphSeries(\'' + key + '\', this.checked)">'
-        + '<span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:' + color + ';flex-shrink:0;"></span>'
-        + '<span>' + esc(labels[key]) + '</span>'
-        + '</label>'
-        + '<strong style="white-space:nowrap;">' + esc(String(Number(counts[key] || 0))) + '回</strong>'
-        + '</div>';
-    }).join('');
+    // Compute date-range filtered counts from dailyCounts
+    var startDate = window.counterGraphStartDate;
+    var endDate = window.counterGraphEndDate;
+    var displayCounts = counts;
+    if (startDate && endDate && typeof buildCounterDateKeys === 'function') {
+      var dates = buildCounterDateKeys(startDate, endDate);
+      var filtered = {};
+      Object.keys(labels).forEach(function(key) {
+        var series = dailyCounts[key] || {};
+        filtered[key] = dates.reduce(function(sum, d) { return sum + Number(series[d] || 0); }, 0);
+      });
+      displayCounts = filtered;
+    }
+    var rangeLabel = (startDate && endDate) ? startDate + ' 〜 ' + endDate : '';
+    wrap.innerHTML = (rangeLabel ? '<div style="font-size:.78rem;color:#667085;margin-bottom:6px;">期間: ' + esc(rangeLabel) + '</div>' : '')
+      + Object.keys(labels).map(function(key) {
+          var checked = selected.indexOf(key) !== -1;
+          var color = colors[key] || '#1a3a5c';
+          return '<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #eef2f6;">'
+            + '<label style="display:flex;align-items:center;gap:6px;flex:1;cursor:pointer;">'
+            + '<input type="checkbox" id="counterGraphCheck-' + key + '" ' + (checked ? 'checked ' : '') + 'onchange="toggleCounterGraphSeries(\'' + key + '\', this.checked)">'
+            + '<span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:' + color + ';flex-shrink:0;"></span>'
+            + '<span>' + esc(labels[key]) + '</span>'
+            + '</label>'
+            + '<strong style="white-space:nowrap;">' + esc(String(Number(displayCounts[key] || 0))) + '回</strong>'
+            + '</div>';
+        }).join('');
     if (meta) {
       meta.textContent = '最終リセット: ' + (data && data.lastResetAt ? formatCounterResetAt(data.lastResetAt) : '未実行');
     }
@@ -3386,9 +3402,62 @@
     // チェックボックス付き閲覧回数テーブルをグラフの直前に移動
     var graphDiv = document.getElementById('counterGraph');
     if (graphDiv && statsEl) graphWrap.insertBefore(statsEl, graphDiv);
+
+    // Looker Studio レポートセクション
+    var lookerWrap = document.createElement('div');
+    lookerWrap.id = 'counterLookerWrap';
+    lookerWrap.style.marginTop = '24px';
+    var lookerMonthChecks = '';
+    for (var lm = 1; lm <= 12; lm++) {
+      var lmChecked = lm === curMonth;
+      lookerMonthChecks += '<label style="display:flex;align-items:center;gap:3px;padding:4px 8px;border:1px solid #d0d7e2;border-radius:6px;background:#fff;font-size:.82rem;cursor:pointer;">'
+        + '<input type="checkbox" value="' + lm + '" ' + (lmChecked ? 'checked ' : '') + 'onchange="updateLookerReport()">'
+        + lm + '月</label>';
+    }
+    var lookerYearOpts = yearOpts; // same year range as graph
+    lookerWrap.innerHTML = ''
+      + '<div class="form-title" style="margin-bottom:10px;">店舗進捗レポート（Looker Studio）</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;margin-bottom:12px;">'
+      + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">年'
+      + '<select id="lookerYear" onchange="updateLookerReport()" style="' + selStyle + '">' + lookerYearOpts + '</select>'
+      + '</label>'
+      + '<div style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;"><span>月（複数選択可）</span>'
+      + '<div id="lookerMonths" style="display:flex;flex-wrap:wrap;gap:6px;">' + lookerMonthChecks + '</div>'
+      + '</div>'
+      + '</div>'
+      + '<div style="font-size:.76rem;color:#999;margin-bottom:8px;">※ 表示にはGoogleアカウントでのログインが必要です。店舗名はBiZCAFE千葉大学店に固定されています。</div>'
+      + '<iframe id="lookerFrame" src="" style="width:100%;height:720px;border:none;border-radius:8px;display:block;" allowfullscreen></iframe>';
+    card.appendChild(lookerWrap);
+
     // 週セレクトを生成して今月の範囲をセット
     buildCounterWeekOptions();
     onCounterYearMonthChange();
+    updateLookerReport();
+  }
+
+  function updateLookerReport() {
+    var frame = document.getElementById('lookerFrame');
+    if (!frame) return;
+    var yearSel = document.getElementById('lookerYear');
+    var year = yearSel ? parseInt(yearSel.value) : new Date().getFullYear();
+    var selectedMonths = [];
+    var monthChecks = document.querySelectorAll('#lookerMonths input[type="checkbox"]');
+    for (var i = 0; i < monthChecks.length; i++) {
+      if (monthChecks[i].checked) selectedMonths.push(parseInt(monthChecks[i].value));
+    }
+    var baseUrl = 'https://lookerstudio.google.com/embed/reporting/ef8ff644-d7a7-424a-a017-61234756c8c3/page/p_hcqejxjv0d';
+    if (!selectedMonths.length) {
+      frame.src = baseUrl;
+      return;
+    }
+    selectedMonths.sort(function(a, b) { return a - b; });
+    var startMonth = selectedMonths[0];
+    var endMonth = selectedMonths[selectedMonths.length - 1];
+    var startDate = year + '-' + pad2(startMonth) + '-01';
+    var endDay = new Date(year, endMonth, 0).getDate();
+    var endDate = year + '-' + pad2(endMonth) + '-' + pad2(endDay);
+    var params = encodeURIComponent(JSON.stringify({'df_start_date': startDate, 'df_end_date': endDate}));
+    frame.src = baseUrl + '?params=' + params;
   }
 
   function renderCounterGraphFilters() {
@@ -3499,7 +3568,8 @@
     // Clear week select since user manually edited dates
     var weekSel = document.getElementById('counterGraphWeek');
     if (weekSel) weekSel.value = '';
-    renderCounterGraph(window.__pageViewStatsData || {});
+    // renderPageViewStats override also calls renderCounterGraph
+    renderPageViewStats(window.__pageViewStatsData || {});
   }
 
   function getCounterWeeks(year, month) {
@@ -3554,7 +3624,7 @@
     buildCounterWeekOptions();
     var weekSel = document.getElementById('counterGraphWeek');
     if (weekSel) weekSel.value = '';
-    renderCounterGraph(window.__pageViewStatsData || {});
+    renderPageViewStats(window.__pageViewStatsData || {});
   }
 
   function onCounterWeekChange() {
@@ -3565,7 +3635,7 @@
     counterGraphStartDate = parts[0];
     counterGraphEndDate = parts[1];
     syncCounterGraphRangeInputs();
-    renderCounterGraph(window.__pageViewStatsData || {});
+    renderPageViewStats(window.__pageViewStatsData || {});
   }
 
   function buildCounterDateKeys(startKey, endKey) {
