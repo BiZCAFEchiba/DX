@@ -26,9 +26,9 @@
     }
     .tab-btn.active { color: #1a3a5c; border-bottom-color: #1a3a5c; }
     .tab-btn .tab-icon { font-size: 1rem; display: block; margin-bottom: 3px; }
-    .tab-content { flex: 1; overflow-y: auto; position: relative; min-height: 0; }
-    .tab-pane { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
-    .tab-pane.active { display: block; background: #fff; z-index: 10; }
+    .tab-content { flex: 1; overflow-y: auto; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
     .container { width: 100%; max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
     .section-title,
     .qa-section-title,
@@ -357,6 +357,25 @@
     .staff-room-user-contact { font-weight: 600; color: #1a3a5c; font-size: 0.9rem; }
     .staff-room-user-info { font-size: 0.8rem; color: #666; }
     .checkin-mode-active { background: #1a3a5c !important; color: #fff !important; }
+    /* ===== 分析ダッシュボード 3タブ用 ===== */
+    .counter-sub-nav { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #e0e7ef; padding-bottom: 2px; }
+    .counter-tab-btn {
+      flex: 1; padding: 10px 4px; border: none; background: none; font-size: 0.82rem; font-weight: 700; color: #888; cursor: pointer;
+      border-bottom: 3px solid transparent; transition: all 0.2s;
+    }
+    .counter-tab-btn.active { color: #1a3a5c; border-bottom-color: #1a3a5c; }
+    .counter-pane { display: none; }
+    .counter-pane.active { display: block; animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .progress-card { background: #fff; padding: 16px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 12px; }
+    .progress-label-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
+    .progress-name { font-size: 0.95rem; font-weight: 800; color: #1a3a5c; }
+    .progress-val-text { font-size: 1.1rem; font-weight: 800; }
+    .progress-bar-bg { height: 12px; background: #f0f4f8; border-radius: 6px; overflow: hidden; }
+    .progress-bar-fill { height: 100%; border-radius: 6px; transition: width 0.6s cubic-bezier(0.1, 0.7, 1.0, 0.1); }
+    .analysis-score-card { background: linear-gradient(135deg, #1a3a5c, #2a5f8f); color: white; padding: 20px; border-radius: 16px; text-align: center; margin-bottom: 20px; }
+    .analysis-score-val { font-size: 2.4rem; font-weight: 900; margin: 8px 0; }
+    .analysis-comment-box { background: #eaf2fb; border-left: 4px solid #1a3a5c; padding: 14px; border-radius: 0 12px 12px 0; font-size: 0.88rem; line-height: 1.6; color: #1a3a5c; }
   </style>
 </head>
 <body>
@@ -811,9 +830,46 @@
     var pane = document.createElement('div');
     pane.className = 'tab-pane';
     pane.id = 'paneCounter';
-    pane.innerHTML = '<iframe src="' + GAS_API_URL + '?page=analytics" style="width:100%; height:100%; border:none; display:block;" frameborder="0" loading="lazy"></iframe>';
+    pane.innerHTML = '<div class="container">'
+      + '<div class="counter-sub-nav">'
+      +   '<button class="counter-tab-btn active" onclick="switchCounterSubTab(\'pv\')">閲覧数</button>'
+      +   '<button class="counter-tab-btn" onclick="switchCounterSubTab(\'kpi\')">KPI評価</button>'
+      +   '<button class="counter-tab-btn" onclick="switchCounterSubTab(\'analysis\')">分析</button>'
+      + '</div>'
+      // PV Tab
+      + '<div id="counterSubPane-pv" class="counter-pane active">'
+      +   '<div class="section-title">タブ訪問回数</div>'
+      +   '<div class="corner-admin-form corner-content-card">'
+      +     '<div id="counterStats" class="readonly-box">読み込み中...</div>'
+      +     '<div class="form-btns" style="margin-top:10px;"><button class="btn-secondary" type="button" onclick="resetPageViewStats()">リセット</button></div>'
+      +     '<div id="counterMeta" class="corner-inline-help" style="margin-top:8px;"></div>'
+      +   '</div>'
+      +   '<div id="counterGraphContainer"></div>'
+      + '</div>'
+      // KPI Tab
+      + '<div id="counterSubPane-kpi" class="counter-pane">'
+      +   '<div class="section-title">今月の目標達成状況</div>'
+      +   '<div id="kpiProgressList">読み込み中...</div>'
+      + '</div>'
+      // Analysis Tab
+      + '<div id="counterSubPane-analysis" class="counter-pane">'
+      +   '<div class="section-title">集客効率・相関分析</div>'
+      +   '<div id="analysisSummary">読み込み中...</div>'
+      + '</div>'
+      + '</div>';
     content.appendChild(pane);
   }
+
+  window.switchCounterSubTab = function(name) {
+    document.querySelectorAll('.counter-tab-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('onclick').indexOf("'" + name + "'") !== -1);
+    });
+    document.querySelectorAll('.counter-pane').forEach(function(p) {
+      p.classList.toggle('active', p.id === 'counterSubPane-' + name);
+    });
+    // Trigger graph re-render if switching back to PV
+    if (name === 'pv') renderAnalyticsDashboard();
+  };
 
   function ensureCornerAdminEnhancements() {
     var stack = document.querySelector('#paneCorner .corner-manage-stack');
@@ -3345,12 +3401,8 @@
   }
 
   function ensureCounterGraphUI() {
-    var statsEl = document.getElementById('counterStats');
-    if (!statsEl) return;
-    var card = statsEl.parentNode;
-    if (!card || document.getElementById('counterGraphWrap')) return;
-    var existingTitle = document.getElementById('counterTotalTitle');
-    if (existingTitle) existingTitle.parentNode.removeChild(existingTitle);
+    var graphContainer = document.getElementById('counterGraphContainer');
+    if (!graphContainer || document.getElementById('counterGraphWrap')) return;
 
     var now = new Date();
     var curYear = now.getFullYear();
@@ -3363,64 +3415,53 @@
     for (var m = 1; m <= 12; m++) {
       monthOpts += '<option value="' + m + '"' + (m === curMonth ? ' selected' : '') + '>' + m + '月</option>';
     }
-    var selStyle = 'border:1px solid #d0d7e2;border-radius:8px;padding:7px 10px;font-size:.88rem;background:#fff;color:#1a3a5c;';
+    var selStyle = 'border:1.5px solid #d0d9e4;border-radius:10px;padding:8px 10px;font-size:.88rem;background:#f8fafc;color:#1a3a5c;flex:1;min-width:80px;';
 
     var graphWrap = document.createElement('div');
     graphWrap.id = 'counterGraphWrap';
-    graphWrap.style.marginTop = '16px';
     graphWrap.innerHTML = ''
-      + '<div class="form-title" style="margin-bottom:10px;">日別推移</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:8px;">'
-      + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">年'
-      + '<select id="counterGraphYear" onchange="onCounterYearMonthChange()" style="' + selStyle + '">' + yearOpts + '</select>'
-      + '</label>'
-      + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">月'
-      + '<select id="counterGraphMonth" onchange="onCounterYearMonthChange()" style="' + selStyle + '">' + monthOpts + '</select>'
-      + '</label>'
-      + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">週'
-      + '<select id="counterGraphWeek" onchange="onCounterWeekChange()" style="' + selStyle + ';min-width:180px;"><option value="">-- 週を選択 --</option></select>'
-      + '</label>'
+      + '<div class="corner-admin-form corner-content-card" style="padding:16px;margin-top:16px;">'
+      + '<div class="form-title" style="margin-bottom:12px;">期間別の閲覧推移</div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">'
+      +   '<select id="counterGraphYear" onchange="onCounterYearMonthChange()" style="' + selStyle + '">' + yearOpts + '</select>'
+      +   '<select id="counterGraphMonth" onchange="onCounterYearMonthChange()" style="' + selStyle + '">' + monthOpts + '</select>'
+      +   '<select id="counterGraphWeek" onchange="onCounterWeekChange()" style="' + selStyle + ';min-width:140px;"><option value="">-- 週を選択 --</option></select>'
       + '</div>'
-      + '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px;">'
-      + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">開始日'
-      + '<input type="date" id="counterGraphStart" onchange="updateCounterGraphRange()" style="border:1px solid #d0d7e2;border-radius:8px;padding:8px 10px;font-size:.9rem;">'
-      + '</label>'
-      + '<label style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;">終了日'
-      + '<input type="date" id="counterGraphEnd" onchange="updateCounterGraphRange()" style="border:1px solid #d0d7e2;border-radius:8px;padding:8px 10px;font-size:.9rem;">'
-      + '</label>'
+      + '<div style="display:flex;gap:8px;margin-bottom:16px;">'
+      +   '<input type="date" id="counterGraphStart" onchange="updateCounterGraphRange()" style="' + selStyle + ';font-size:.8rem;">'
+      +   '<input type="date" id="counterGraphEnd" onchange="updateCounterGraphRange()" style="' + selStyle + ';font-size:.8rem;">'
       + '</div>'
-      + '<div id="counterGraph" class="readonly-box">データを読み込み中...</div>';
-    card.appendChild(graphWrap);
-    // チェックボックス付き閲覧回数テーブルをグラフの直前に移動
-    var graphDiv = document.getElementById('counterGraph');
-    if (graphDiv && statsEl) graphWrap.insertBefore(statsEl, graphDiv);
+      + '<div id="counterGraph" class="readonly-box" style="height:250px;display:flex;align-items:center;justify-content:center;color:#666;">読み込み中...</div>'
+      + '</div>';
+    graphContainer.appendChild(graphWrap);
 
-    // 店舗進捗レポートセクション（BigQuery）
-    var lookerWrap = document.createElement('div');
-    lookerWrap.id = 'counterLookerWrap';
-    lookerWrap.style.marginTop = '24px';
-    // 年月一体型チェックボックス: 過去12ヶ月 + 今月 + 翌3ヶ月 = 16ヶ月分
-    var ymChecks = '';
-    var ymNow = new Date(curYear, curMonth - 1, 1);
-    for (var ymi = -12; ymi <= 3; ymi++) {
-      var ymDate = new Date(ymNow.getFullYear(), ymNow.getMonth() + ymi, 1);
-      var ymY = ymDate.getFullYear();
-      var ymM = ymDate.getMonth() + 1;
-      var ymVal = ymY + '-' + (ymM < 10 ? '0' + ymM : ymM);
-      var ymChecked = ymi === 0;
-      ymChecks += '<label style="display:flex;align-items:center;gap:3px;padding:4px 8px;border:1px solid #d0d7e2;border-radius:6px;background:#fff;font-size:.82rem;cursor:pointer;">'
-        + '<input type="checkbox" value="' + ymVal + '" ' + (ymChecked ? 'checked ' : '') + 'onchange="updateStoreProgress()">'
-        + ymY + '/' + ymM + '</label>';
+    // KPI Progress Section (targets #kpiProgressList in sub-pane)
+    var kpiWrap = document.getElementById('kpiProgressList');
+    if (kpiWrap) {
+      kpiWrap.innerHTML = ''
+        + '<div class="corner-admin-form corner-content-card" style="padding:16px;">'
+        + '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;overflow-x:auto;padding-bottom:4px;" id="progressYearMonths"></div>'
+        + '<div id="storeProgressGauges" style="display:flex;flex-direction:column;gap:12px;">読み込み中...</div>'
+        + '</div>';
+      
+      // Build Year-Month multi-select
+      var ymNow = new Date(curYear, curMonth - 1, 1);
+      var ymSelect = document.getElementById('progressYearMonths');
+      if (ymSelect) {
+        var ymHtml = '';
+        for (var ymi = -12; ymi <= 3; ymi++) {
+          var ymDate = new Date(ymNow.getFullYear(), ymNow.getMonth() + ymi, 1);
+          var ymY = ymDate.getFullYear();
+          var ymM = ymDate.getMonth() + 1;
+          var ymVal = ymY + '-' + (ymM < 10 ? '0' + ymM : ymM);
+          ymHtml += '<label style="flex-shrink:0;display:flex;align-items:center;gap:3px;padding:5px 10px;border:1.5px solid #d0d9e4;border-radius:8px;background:#fff;font-size:0.78rem;font-weight:700;cursor:pointer;">'
+            + '<input type="checkbox" value="' + ymVal + '" ' + (ymi === 0 ? 'checked ' : '') + 'onchange="updateStoreProgress()">'
+            + ymY + '/' + ymM + '</label>';
+        }
+        ymSelect.innerHTML = ymHtml;
+      }
     }
-    lookerWrap.innerHTML = ''
-      + '<div class="form-title" style="margin-bottom:10px;">店舗進捗レポート（BiZCAFE千葉大学店）</div>'
-      + '<div style="display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:#667085;margin-bottom:12px;"><span>年月（複数選択・年またぎ対応）</span>'
-      + '<div id="progressYearMonths" style="display:flex;flex-wrap:wrap;gap:6px;">' + ymChecks + '</div>'
-      + '</div>'
-      + '<div id="storeProgressGauges" style="display:flex;flex-wrap:wrap;gap:24px;justify-content:center;padding:16px 0;">読み込み中...</div>';
-    card.appendChild(lookerWrap);
 
-    // 週セレクトを生成して今月の範囲をセット
     buildCounterWeekOptions();
     onCounterYearMonthChange();
     updateStoreProgress();
@@ -3432,61 +3473,53 @@
     var ymChecks = document.querySelectorAll('#progressYearMonths input[type="checkbox"]');
     var selectedYM = [];
     for (var i = 0; i < ymChecks.length; i++) {
-      if (ymChecks[i].checked) selectedYM.push(ymChecks[i].value); // "YYYY-MM"
+        if (ymChecks[i].checked) selectedYM.push(ymChecks[i].value);
     }
     if (!selectedYM.length) {
-      gaugesEl.innerHTML = '<span style="color:#999;font-size:.9rem;">年月を選択してください</span>';
-      return;
+        gaugesEl.innerHTML = '<div style="text-align:center;padding:20px;color:#999;">年月を選択してください</div>';
+        return;
     }
-    gaugesEl.innerHTML = '読み込み中...';
+    gaugesEl.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">読み込み中...</div>';
     var url = GAS_API_URL + '?page=calendar&action=storeProgress&yearmonths=' + selectedYM.join(',') + '&store=' + encodeURIComponent('BiZCAFE（千葉大学）店');
     fetch(url)
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (data.error) {
-          gaugesEl.innerHTML = '<span style="color:#e53935;font-size:.9rem;">エラー: ' + esc(data.error) + '</span>';
-          return;
-        }
-        var ymLabel = selectedYM.map(function(ym) {
-          var p = ym.split('-'); return p[0] + '/' + parseInt(p[1]);
-        }).join('・');
-        gaugesEl.innerHTML = ''
-          + renderProgressGauge('DU', data.DU, '#e53935')
-          + renderProgressGauge('Meetup', data.Meetup, '#f57c00')
-          + renderProgressGauge('MCS', data.MCS, '#e53935');
-        var cap = document.createElement('div');
-        cap.style.cssText = 'width:100%;text-align:center;font-size:.76rem;color:#999;margin-top:4px;';
-        cap.textContent = ymLabel + ' 集計';
-        gaugesEl.appendChild(cap);
-      })
-      .catch(function(err) {
-        gaugesEl.innerHTML = '<span style="color:#e53935;font-size:.9rem;">通信エラー</span>';
-      });
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.error) {
+                gaugesEl.innerHTML = '<div style="color:#f44336;padding:10px;">エラー: ' + esc(data.error) + '</div>';
+                return;
+            }
+            gaugesEl.innerHTML = ''
+                + renderProgressBar('DU (Daily Users)', data.DU)
+                + renderProgressBar('Meetup (イベント)', data.Meetup)
+                + renderProgressBar('MCS (集客指標)', data.MCS);
+            
+            // Trigger analysis update after KPI data is loaded
+            window.__kpiStoreProgress = data;
+            updateAnalyticsAnalysis();
+        })
+        .catch(function() {
+            gaugesEl.innerHTML = '<div style="color:#f44336;padding:10px;">通信エラーが発生しました</div>';
+        });
   }
 
-  function renderProgressGauge(label, d, color) {
+  function renderProgressBar(label, d) {
     var actual = d ? (d.actual || 0) : 0;
     var target = d ? (d.target || 0) : 0;
-    var pct = target > 0 ? Math.min(actual / target, 1) : 0;
-    var pctInt = Math.round(pct * 100);
-    // SVGゲージ（半円ドーナツ）
-    var r = 70, cx = 90, cy = 90, sw = 14;
-    var circumference = Math.PI * r; // 半円
-    var filled = pct * circumference;
-    // 色判定
-    var gaugeColor = pct >= 1 ? '#4caf50' : pct >= 0.5 ? '#f57c00' : '#e53935';
-    var pctColor = gaugeColor;
-    return '<div style="display:flex;flex-direction:column;align-items:center;min-width:160px;">'
-      + '<div style="font-size:1rem;font-weight:700;margin-bottom:6px;">' + esc(label) + '</div>'
-      + '<svg width="180" height="100" viewBox="0 0 180 100">'
-      + '<path d="M' + (cx - r) + ',' + cy + ' A' + r + ',' + r + ' 0 0 1 ' + (cx + r) + ',' + cy + '" fill="none" stroke="#f5e6e6" stroke-width="' + sw + '" stroke-linecap="round"/>'
-      + '<path d="M' + (cx - r) + ',' + cy + ' A' + r + ',' + r + ' 0 0 1 ' + (cx + r) + ',' + cy + '" fill="none" stroke="' + gaugeColor + '" stroke-width="' + sw + '" stroke-linecap="round"'
-      + ' stroke-dasharray="' + filled.toFixed(1) + ' ' + circumference.toFixed(1) + '"/>'
-      + '<text x="' + cx + '" y="' + (cy - 10) + '" text-anchor="middle" fill="' + pctColor + '" font-size="22" font-weight="bold">' + pctInt + '%</text>'
-      + '</svg>'
-      + '<div style="display:flex;gap:24px;font-size:.85rem;margin-top:4px;">'
-      + '<div style="text-align:center;"><div style="color:#667085;font-size:.75rem;">実績</div><div style="font-weight:700;">' + actual.toLocaleString() + '</div></div>'
-      + '<div style="text-align:center;"><div style="color:#667085;font-size:.75rem;">目標</div><div style="font-weight:700;">' + target.toLocaleString() + '</div></div>'
+    var pct = target > 0 ? Math.min(actual / target, 1.25) : 0; // Show up to 125%
+    var pctInt = Math.round((target > 0 ? (actual / target) : 0) * 100);
+    var barColor = pct >= 1 ? '#4caf50' : pct >= 0.5 ? '#ff9800' : '#f44336';
+    
+    return '<div class="progress-card">'
+      + '<div class="progress-label-row">'
+      +   '<div class="progress-name">' + esc(label) + '</div>'
+      +   '<div class="progress-val-text" style="color:' + barColor + '">' + pctInt + '%</div>'
+      + '</div>'
+      + '<div class="progress-bar-bg">'
+      +   '<div class="progress-bar-fill" style="width:' + (Math.min(pct, 1) * 100) + '%; background:' + barColor + ';"></div>'
+      + '</div>'
+      + '<div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.75rem; color:#666;">'
+      +   '<span>実績: <strong>' + actual.toLocaleString() + '</strong></span>'
+      +   '<span>目標: ' + target.toLocaleString() + '</span>'
       + '</div>'
       + '</div>';
   }
@@ -3537,27 +3570,63 @@
     renderCounterGraph(window.__pageViewStatsData || {});
   }
 
-  function showCounterGraphPointDetail(evt, dateKey, tabLabel, value) {
-    var wrap = document.getElementById('counterGraph');
+  function renderAnalyticsDashboard() {
+    ensureCounterGraphUI();
+    var pvData = window.__pageViewStatsData || {};
+    renderPageViewStats(pvData);
+    renderCounterGraph(pvData);
+    updateStoreProgress();
+    updateAnalyticsAnalysis();
+  }
+
+  function updateAnalyticsAnalysis() {
+    var wrap = document.getElementById('analysisSummary');
     if (!wrap) return;
-    wrap.style.position = 'relative';
-    var tooltip = document.getElementById('counterGraphTooltip');
-    if (!tooltip) {
-      tooltip = document.createElement('div');
-      tooltip.id = 'counterGraphTooltip';
-      tooltip.style.cssText = 'position:absolute;min-width:140px;max-width:220px;padding:10px 12px;background:#fff;border:1px solid #d8e0e8;border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,0.12);font-size:.82rem;color:#1f2937;z-index:5;pointer-events:none;';
-      wrap.appendChild(tooltip);
+    
+    var pvData = window.__pageViewStatsData || {};
+    var kpiData = window.__kpiStoreProgress || {};
+    
+    // Calculate total PV (sum of selected categories or all)
+    var totalPv = 0;
+    if (pvData.totalStats) {
+        totalPv = Object.values(pvData.totalStats).reduce(function(a, b) { return a + b; }, 0);
     }
-    tooltip.innerHTML = ''
-      + '<div style="font-weight:700;color:#1a3a5c;margin-bottom:4px;">' + esc(dateKey) + '</div>'
-      + (counterGraphMultiMode ? '<div style="margin-bottom:2px;color:#4b5c70;">タブ: ' + esc(tabLabel) + '</div>' : '')
-      + '<div>閲覧回数: <strong>' + esc(String(value)) + '</strong></div>';
-    var rect = wrap.getBoundingClientRect();
-    var x = (evt && typeof evt.clientX === 'number' ? evt.clientX - rect.left : rect.width / 2) + 12;
-    var y = (evt && typeof evt.clientY === 'number' ? evt.clientY - rect.top : 24) - 12;
-    tooltip.style.left = Math.max(8, Math.min(x, rect.width - 170)) + 'px';
-    tooltip.style.top = Math.max(8, y) + 'px';
-    tooltip.style.display = 'block';
+    
+    // Get MCS (Main Attraction KPI)
+    var mcsActual = (kpiData.MCS && kpiData.MCS.actual) ? kpiData.MCS.actual : 0;
+    
+    // Efficiency: KPI per 1000 PV
+    var efficiency = totalPv > 0 ? (mcsActual / totalPv * 1000) : 0;
+    var score = Math.min(Math.round(efficiency * 2), 100); // Simple weighting
+    
+    var rank = score >= 80 ? 'S' : score >= 60 ? 'A' : score >= 40 ? 'B' : 'C';
+    var rankColor = score >= 60 ? '#4caf50' : score >= 40 ? '#ff9800' : '#f44336';
+    
+    wrap.innerHTML = ''
+      + '<div class="analysis-score-card">'
+      +   '<div style="font-size:0.9rem;opacity:0.9;">集客効率スコア</div>'
+      +   '<div class="analysis-score-val">' + score + '点</div>'
+      +   '<div style="font-weight:800;font-size:1.2rem;color:' + rankColor + ';background:white;display:inline-block;padding:2px 14px;border-radius:20px;">ランク ' + rank + '</div>'
+      + '</div>'
+      + '<div class="progress-card">'
+      +   '<div class="progress-name" style="margin-bottom:10px;">📊 統計データ（今月）</div>'
+      +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:0.85rem;">'
+      +     '<div>客用総PV:<br><strong>' + totalPv.toLocaleString() + ' 回</strong></div>'
+      +     '<div>集客KPI(MCS):<br><strong>' + mcsActual.toLocaleString() + ' 件</strong></div>'
+      +     '<div style="grid-column:span 2;padding-top:8px;border-top:1px solid #eee;">1,000PVあたりの獲得数:<br><strong>' + efficiency.toFixed(1) + ' 件</strong></div>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="analysis-comment-box">'
+      +   '<strong>💡 アドバイス:</strong><br>'
+      +   getAnalysisAdvice(rank, efficiency)
+      + '</div>';
+  }
+
+  function getAnalysisAdvice(rank, eff) {
+    if (rank === 'S') return '集客効率が非常に高いです！現在のコンテンツ維持と、更なる露出拡大（PV増）で圧倒的な成果が期待できます。';
+    if (rank === 'A') return '良好な効率です。PVを増やすことで安定してKPIを伸ばせます。季節イベントの告知などを強化しましょう。';
+    if (rank === 'B') return '標準的な効率です。各タブの回遊率（PV）はありますが、成約（KPI）への繋ぎ込みに改善の余地があるかもしれません。';
+    return '改善が必要です。PVに対してKPIが伸び悩んでいます。告知文言の見直しや、ターゲット層に刺さるコンテンツへの更新を検討してください。';
   }
 
   function hideCounterGraphPointDetail() {
@@ -3792,37 +3861,29 @@
       + '</svg>';
   }
 
-  var originalLoadPageViewStats = loadPageViewStats;
+  // Analytics Unified Entry Point
+  var baseLoadPageViewStats = loadPageViewStats;
   loadPageViewStats = function() {
     ensureCounterGraphUI();
-    ensureCounterGraphRangeDefaults();
-    syncCounterGraphRangeInputs();
-    renderCounterGraphFilters();
-    var wrap = document.getElementById('counterStats');
-    var meta = document.getElementById('counterMeta');
-    if (!wrap) return;
-    wrap.textContent = '読み込み中...';
-    if (meta) meta.textContent = '最終リセット: 読み込み中...';
+    renderAnalyticsDashboard(); 
+    // This calls fetch and updates window.__pageViewStatsData
     fetch(GAS_API_URL + '?page=calendar&action=pageViewGet')
       .then(function(r) { return r.json(); })
       .then(function(data) {
         window.__pageViewStatsData = data || {};
-        renderPageViewStats(window.__pageViewStatsData);
+        renderAnalyticsDashboard(); // Re-render with new PV data
       })
       .catch(function() {
-        wrap.textContent = '読み込みに失敗しました';
-        if (meta) meta.textContent = '最終リセット: 取得できませんでした';
-        renderCounterGraph({});
+        console.error('Failed to load PV stats');
       });
   };
 
-  var originalRenderPageViewStats = renderPageViewStats;
+  var baseRenderPageViewStats = renderPageViewStats;
   renderPageViewStats = function(data) {
-    originalRenderPageViewStats(data);
-    renderCounterGraph(window.__pageViewStatsData || data || {});
+    if (baseRenderPageViewStats) baseRenderPageViewStats(data);
+    renderCounterGraph(data || window.__pageViewStatsData || {});
   };
 
-  var originalResetPageViewStats = resetPageViewStats;
   resetPageViewStats = function() {
     if (!confirm('カウンタをリセットします。よろしいですか？')) return;
     fetch(GAS_API_URL + '?page=calendar&action=pageViewReset')
@@ -3830,20 +3891,19 @@
       .then(function(result) {
         if (!result || result.ok === false) throw new Error('reset_failed');
         window.__pageViewStatsData = result;
-        renderPageViewStats(result);
+        renderAnalyticsDashboard();
         showToast('カウンタをリセットしました');
       })
       .catch(function() { showToast('カウンタのリセットに失敗しました', true); });
   };
 
-  var originalSwitchTabWithCounter = switchTab;
+  var baseSwitchTab = switchTab;
   switchTab = function(name) {
     hideCounterGraphPointDetail();
-    originalSwitchTabWithCounter(name);
+    if (baseSwitchTab) baseSwitchTab(name);
     if (name === 'corner') loadCornerSettingsAdmin();
     if (name === 'counter') {
-      ensureCounterGraphUI();
-      renderCounterGraphFilters();
+      renderAnalyticsDashboard();
     }
   };
 
@@ -3855,7 +3915,6 @@
       hideCounterGraphPointDetail();
     });
   }
-
 </script>
 </body>
 </html>
