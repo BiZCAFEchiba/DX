@@ -8,6 +8,11 @@
         "userSymbol": "Drive",
         "serviceId": "drive",
         "version": "v2"
+      },
+      {
+        "userSymbol": "BigQuery",
+        "serviceId": "bigquery",
+        "version": "v2"
       }
     ]
   },

@@ -503,6 +503,21 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(kanbuGetStaffList_()))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 店舗進捗（BigQuery）
+    if (param.action === 'storeProgress') {
+      var spStore = param.store || 'BiZCAFE（千葉大学）店';
+      // yearmonths="2026-12,2027-01" 形式（年またぎ対応）
+      var spYM = param.yearmonths ? param.yearmonths.split(',') : [];
+      if (!spYM.length) {
+        // 旧形式フォールバック
+        var spYear = parseInt(param.year) || new Date().getFullYear();
+        var spMon  = param.months ? param.months.split(',').map(Number) : [new Date().getMonth() + 1];
+        spYM = spMon.map(function(m) { return spYear + '-' + (m < 10 ? '0' + m : m); });
+      }
+      var spResult = getStoreProgress(spYM, spStore);
+      return ContentService.createTextOutput(JSON.stringify(spResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (param.action) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,
