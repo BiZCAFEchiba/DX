@@ -805,21 +805,14 @@
     counterBtn.className = 'tab-btn';
     counterBtn.id = 'tabCounter';
     counterBtn.onclick = function() { switchTab('counter'); };
-    counterBtn.innerHTML = '<span class="tab-icon">📊</span>カウンタ';
+    counterBtn.innerHTML = '<span class="tab-icon">📊</span>分析';
     nav.appendChild(counterBtn);
 
     var pane = document.createElement('div');
     pane.className = 'tab-pane';
     pane.id = 'paneCounter';
-    pane.innerHTML = '<div class="container">'
-      + '<div class="section-title">タブ訪問回数</div>'
-      + '<div class="corner-admin-form corner-content-card">'
-      + '<div class="corner-inline-help">customer 側で各タブが開かれた回数の簡易集計です。</div>'
-      + '<div id="counterMeta" class="corner-inline-help">最終リセット: 未実行</div>'
-      + '<div class="form-btns" style="margin-top:8px;margin-bottom:8px;"><button class="btn-secondary" type="button" onclick="resetPageViewStats()">リセット</button></div>'
-      + '<div id="counterStats" class="readonly-box">読み込み中...</div>'
-      + '</div>'
-      + '</div>';
+    pane.style.height = '100%';
+    pane.innerHTML = '<iframe src="' + GAS_API_URL + '?page=analytics" style="width:100%; height:100%; border:none; background:white;"></iframe>';
     content.appendChild(pane);
   }
 

@@ -698,6 +698,12 @@
     }
   });
 
+  // iframe埋め込み時はヘッダーを非表示にする
+  if (window.self !== window.top) {
+    document.querySelector('header').style.display = 'none';
+    document.querySelector('.container').style.marginTop = '10px';
+  }
+
   loadData();
 </script>
 </body>
