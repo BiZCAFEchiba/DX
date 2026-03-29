@@ -82,41 +82,76 @@ function getCustomerCalendarData_(year, month, nocache) {
 
 /**
  * Meetup予定シートから指定年月の貸切イベントをマップで返す
+ * 店舗ミーティングシートの予定も前後1時間バッファ付きで追加する
  * @returns {{ [dateISO: string]: Array<{start: string, end: string, company: string}> }}
  */
 function buildKashikiriMap_(year, month) {
   const map = {};
+
+  // ① Meetup予定シートの貸切
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheet = ss.getSheetByName(SHEET_MEETUP);
-    if (!sheet || sheet.getLastRow() <= 1) return map;
+    if (sheet && sheet.getLastRow() > 1) {
+      const data = sheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const dateVal = row[0];
+        if (!dateVal) continue;
+        const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+        if (isNaN(d.getTime())) continue;
+        if (d.getFullYear() !== year || d.getMonth() + 1 !== month) continue;
 
-    const data = sheet.getDataRange().getValues();
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      const dateVal = row[0];
-      if (!dateVal) continue;
+        const kind = String(row[3]).trim();
+        if (!kind.includes('貸切')) continue;
 
-      const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
-      if (isNaN(d.getTime())) continue;
-      if (d.getFullYear() !== year || d.getMonth() + 1 !== month) continue;
+        const dateISO = formatDateToISO_(d);
+        const timeStr = String(row[2]).trim();
+        const company = String(row[1]).trim();
+        const timeParts = timeStr.split(/\s*~\s*/);
+        if (timeParts.length < 2) continue;
 
-      const kind = String(row[3]).trim();
-      if (!kind.includes('貸切')) continue;
-
-      const dateISO = formatDateToISO_(d);
-      const timeStr = String(row[2]).trim(); // "HH:mm ~ HH:mm"
-      const company = String(row[1]).trim();
-
-      const timeParts = timeStr.split(/\s*~\s*/);
-      if (timeParts.length < 2) continue;
-
-      if (!map[dateISO]) map[dateISO] = [];
-      map[dateISO].push({ start: timeParts[0].trim(), end: timeParts[1].trim(), company: company });
+        if (!map[dateISO]) map[dateISO] = [];
+        map[dateISO].push({ start: timeParts[0].trim(), end: timeParts[1].trim(), company: company });
+      }
     }
   } catch (e) {
-    Logger.log('buildKashikiriMap_ エラー: ' + e.message);
+    Logger.log('buildKashikiriMap_ Meetup取得エラー: ' + e.message);
   }
+
+  // ② 店舗ミーティングシートの予定（前後1時間バッファ付きで貸切扱い）
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const mSheet = ss.getSheetByName(SHEET_MEETING);
+    if (mSheet && mSheet.getLastRow() > 1) {
+      const data = mSheet.getDataRange().getValues();
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        const dateVal = row[0];
+        if (!dateVal) continue;
+        const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+        if (isNaN(d.getTime())) continue;
+        if (d.getFullYear() !== year || d.getMonth() + 1 !== month) continue;
+
+        const startStr = String(row[1]).trim(); // HH:mm
+        const endStr   = String(row[2]).trim(); // HH:mm
+        if (!startStr || !endStr) continue;
+
+        // 前後1時間バッファ
+        const startMin = timeToMin_(startStr);
+        const endMin   = timeToMin_(endStr);
+        const bufStart = minToTime_(Math.max(0, startMin - 60));
+        const bufEnd   = minToTime_(endMin + 60);
+
+        const dateISO = formatDateToISO_(d);
+        if (!map[dateISO]) map[dateISO] = [];
+        map[dateISO].push({ start: bufStart, end: bufEnd, company: '店舗ミーティング' });
+      }
+    }
+  } catch (e) {
+    Logger.log('buildKashikiriMap_ 店舗ミーティング取得エラー: ' + e.message);
+  }
+
   return map;
 }
 

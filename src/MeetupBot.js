@@ -11,31 +11,47 @@ function weeklyMeetupCarousel() {
   Logger.log('=== 週次Meetup送信 開始 ===');
 
   var result = getMeetupsNextWeekGrouped_();
-  var companies = filterAndSelectCompanies_(result.companies);
+  var groups = filterAndSelectCompaniesByGroup_(result.companies);
 
-  if (companies.length === 0) {
+  var totalCount = groups.special.length + groups.inPerson.length + groups.kasshiki.length + groups.online.length;
+
+  if (totalCount === 0) {
     Logger.log('来週のMeetup予定なし → 送信スキップ');
     Logger.log('=== 週次Meetup送信 完了 ===');
     return;
   }
 
-  // ヘッダー
+  // ヘッダー（weekEndは月曜起算+5日=土曜なので1日引いて金曜を表示）
   var ws = formatMeetupDateJP_(result.weekStart);
-  var we = formatMeetupDateJP_(result.weekEnd);
+  var weekFri = new Date(result.weekEnd);
+  weekFri.setDate(weekFri.getDate() - 1);
+  var we = formatMeetupDateJP_(weekFri);
   sendMeetupGroupText_(
     '━━━━━━━━━━━━━━━━━━━━\n' +
     '✨ 来週のMeetup予定 ✨\n' +
-    ws + ' 〜 ' + we + '　厳選' + companies.length + '社\n' +
+    ws + ' 〜 ' + we + '　計' + totalCount + '社\n' +
     '━━━━━━━━━━━━━━━━━━━━'
   );
 
-  // 4社ずつ list_template で送信
-  for (var i = 0; i < companies.length; i += 4) {
-    Utilities.sleep(400);
-    sendMeetupListTemplate_(companies.slice(i, i + 4));
-  }
+  // カテゴリ別に送信
+  var sections = [
+    { label: '🟢 特別イベント', list: groups.special },
+    { label: '🔴 対面',         list: groups.inPerson },
+    { label: '🟡 貸切',         list: groups.kasshiki },
+    { label: '🔵 オンライン',   list: groups.online }
+  ];
 
-  Logger.log('=== 週次Meetup送信 完了: ' + companies.length + '社 ===');
+  sections.forEach(function(sec) {
+    if (sec.list.length === 0) return;
+    Utilities.sleep(400);
+    sendMeetupGroupText_(sec.label + '（' + sec.list.length + '社）');
+    for (var i = 0; i < sec.list.length; i += 10) {
+      Utilities.sleep(400);
+      sendMeetupListTemplate_(sec.list.slice(i, i + 10));
+    }
+  });
+
+  Logger.log('=== 週次Meetup送信 完了: ' + totalCount + '社 ===');
 }
 
 /**
@@ -50,7 +66,7 @@ function getMeetupsNextWeekGrouped_() {
   weekStart.setDate(today.getDate() + daysToMon);
   weekStart.setHours(0, 0, 0, 0);
   var weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 7);
+  weekEnd.setDate(weekStart.getDate() + 5); // 月〜金
 
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sheet = ss.getSheetByName(SHEET_MEETUP);
@@ -82,10 +98,16 @@ function getMeetupsNextWeekGrouped_() {
     var master     = masterMap[company] || {};
 
     if (!companyMap[company]) {
+      // appealPointsが複数ある場合はランダムに1つ選ぶ、なければhookPointを使う
+      var appealPoints = master.appealPoints || [];
+      var hookPoint = appealPoints.length > 0
+        ? appealPoints[Math.floor(Math.random() * appealPoints.length)]
+        : (master.hookPoint || '');
       companyMap[company] = {
         name:       company,
         industry:   master.industry || '',
         theme:      master.theme    || '',
+        hookPoint:  hookPoint,
         targetYear: targetYear,
         firstDate:  d,
         sessions:   []
@@ -149,47 +171,49 @@ function buildCompanyCard_(c) {
 }
 
 /**
- * 企業リストを絞り込んで最大8社を選ぶ
+ * 企業リストをカテゴリ別にグループ化して返す
  * - 満席セッションを除外（残席0の回は非表示）
- * - 対面（残席あり）は全社必ず含める
- * - 不足分をオンライン（残席あり）からランダム補完し合計8社へ
- * - 対面が8社以上の場合は対面のみ全社表示
+ * - 特別・対面・貸切は全社必ず含める
+ * - オンラインは合計8社になるよう不足分をランダム補完
  * @param {Array} companies
- * @returns {Array}
+ * @returns {{ special: Array, inPerson: Array, kasshiki: Array, online: Array }}
  */
-function filterAndSelectCompanies_(companies) {
+function filterAndSelectCompaniesByGroup_(companies) {
   var MAX = 8;
+  var hideSoldOut = getMeetupHideSoldOut_();
 
-  // 各社の満席セッションを除外し、セッションが0になった企業ごと除外
+  // 満席セッション除外（設定シートのチェックがONの場合のみ）
   var available = companies.map(function(c) {
-    var sessions = c.sessions.filter(function(s) {
-      return !isSoldOut_(s.remaining);
-    });
+    var sessions = hideSoldOut
+      ? c.sessions.filter(function(s) { return !isSoldOut_(s.remaining); })
+      : c.sessions;
     return sessions.length > 0
-      ? { name: c.name, industry: c.industry, theme: c.theme, targetYear: c.targetYear,
-          firstDate: c.firstDate, sessions: sessions }
+      ? { name: c.name, industry: c.industry, theme: c.theme, hookPoint: c.hookPoint,
+          targetYear: c.targetYear, firstDate: c.firstDate, sessions: sessions }
       : null;
   }).filter(Boolean);
 
-  // 優先度でグループ分け: 特別イベント > 対面 > 貸切 > オンライン
+  // カテゴリ分類
   var special   = available.filter(function(c) { return c.sessions.some(function(s) { return s.kind.includes('特別'); }); });
   var inPerson  = available.filter(function(c) { return !special.includes(c) && c.sessions.some(function(s) { return s.inPerson && !s.kind.includes('貸切'); }); });
   var kasshiki  = available.filter(function(c) { return !special.includes(c) && c.sessions.some(function(s) { return s.kind.includes('貸切'); }); });
-  var onlineOnly = available.filter(function(c) { return !special.includes(c) && !inPerson.includes(c) && !kasshiki.includes(c); });
+  var onlineAll = available.filter(function(c) { return !special.includes(c) && !inPerson.includes(c) && !kasshiki.includes(c); });
 
-  // 特別イベント・対面・貸切は全社必ず含める
-  var selected = special.concat(inPerson).concat(kasshiki);
+  // オンラインは合計8社になるよう不足分をランダム補完
+  var fixedCount = special.length + inPerson.length + kasshiki.length;
+  var need = Math.max(0, MAX - fixedCount);
+  var online = onlineAll.slice().sort(function() { return Math.random() - 0.5; }).slice(0, need);
 
-  // 8社未満ならオンラインからランダムで補完
-  var need = MAX - selected.length;
-  if (need > 0 && onlineOnly.length > 0) {
-    var shuffled = onlineOnly.slice().sort(function() { return Math.random() - 0.5; });
-    selected = selected.concat(shuffled.slice(0, need));
+  function sortByDate(arr) {
+    return arr.slice().sort(function(a, b) { return a.firstDate - b.firstDate; });
   }
 
-  // 最初の開催日順にソートして返す
-  selected.sort(function(a, b) { return a.firstDate - b.firstDate; });
-  return selected;
+  return {
+    special:  sortByDate(special),
+    inPerson: sortByDate(inPerson),
+    kasshiki: sortByDate(kasshiki),
+    online:   sortByDate(online)
+  };
 }
 
 /**
@@ -201,6 +225,27 @@ function isSoldOut_(remaining) {
   if (!remaining) return false; // 残席情報なし → 除外しない
   var m = remaining.match(/残席 (\d+)\//);
   return m ? parseInt(m[1]) === 0 : false;
+}
+
+/**
+ * 設定シートの「満席を非表示」チェックボックスを読み込む（デフォルト: ON）
+ * @returns {boolean}
+ */
+function getMeetupHideSoldOut_() {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_SETTINGS);
+    if (!sheet) return true;
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]) === '満席を非表示') {
+        return data[i][1] === true || String(data[i][1]).toUpperCase() === 'TRUE';
+      }
+    }
+  } catch (e) {
+    Logger.log('getMeetupHideSoldOut_エラー: ' + e.message);
+  }
+  return true; // 設定行がなければデフォルトON
 }
 
 /**
@@ -250,7 +295,10 @@ function companyIndicator_(sessions) {
 }
 
 /**
- * list_template を Meetup Bot でグループに送信する（最大4社/回）
+ * carousel を Meetup Bot でグループに送信する（最大10社/回）
+ * - title: 企業名 ｜ テーマ（40字以内）
+ * - text : 開催日・残席（60字以内、複数セッションは改行）
+ * - action: 「詳細を見る」→ meetup:企業名
  * @param {Array} companies
  * @returns {boolean}
  */
@@ -258,39 +306,65 @@ function sendMeetupListTemplate_(companies) {
   var token = getLineWorksAccessToken();
   if (!token) return false;
 
-  var elements = companies.map(function(c) {
+  var columns = companies.map(function(c) {
     var displayName = c.name.replace(/株式会社\s*/g, '').replace(/\s*株式会社/g, '').trim();
-    var indicator = companyIndicator_(c.sessions);
-    var sessionLines = c.sessions.map(function(s) {
-      var compactTime = s.time.replace(/\s*[~〜]\s*/g, '~');
-      var compactRemaining = s.remaining ? s.remaining.replace('残席 ', '残').replace('残席', '残') : '';
-      var line = formatMeetupDateJP_(s.date) + compactTime;
-      if (compactRemaining) line += ' ' + compactRemaining;
-      return line;
-    });
-    var lines = [];
+
+    // title: 企業名 ｜ テーマ（40字以内）
+    var title = displayName;
+    if (c.theme) {
+      var sep = ' ｜ ';
+      var candidate = title + sep + c.theme;
+      if (candidate.length <= 40) {
+        title = candidate;
+      } else {
+        var remain = 40 - title.length - sep.length;
+        if (remain > 3) title = title + sep + c.theme.substring(0, remain - 1) + '…';
+      }
+    }
+
+    // text: 卒年 + 開催日 時間 残席（60字以内）
+    var yearLine = '';
     if (c.targetYear) {
       var years = c.targetYear.split(/[\s　]+/).map(function(y) { return y.replace('卒', ''); }).filter(Boolean);
-      var yearStr = years.length > 0 ? years.join('・') + '卒' : c.targetYear;
-      lines.push('🎓 ' + yearStr);
+      yearLine = years.join('・') + '卒';
     }
-    sessionLines.forEach(function(sl) { lines.push(sl); });
-    var subtitle = lines.join('\n');
-    Logger.log('【subtitle】' + JSON.stringify(subtitle));
-    return {
-      title:    '🏢 ' + displayName + '　' + indicator,
-      subtitle: subtitle,
-      action: {
-        type:  'message',
-        label: 'テーマを見る',
-        text:  'meetup:' + c.name
+    var sessionLines = [];
+    var charCount = yearLine ? yearLine.length + 1 : 0; // +1 for \n after yearLine
+    c.sessions.forEach(function(s) {
+      var compactTime = s.time.replace(/\s*[~〜]\s*/g, '~');
+      var compactRemaining = '';
+      if (s.remaining) {
+        var rm = s.remaining.match(/残席 ?(\d+)/);
+        compactRemaining = rm ? '残席' + rm[1] + '席' : '';
       }
+      var line = formatMeetupDateJP_(s.date) + compactTime;
+      if (compactRemaining) line += ' ' + compactRemaining;
+      var needed = (sessionLines.length > 0 ? 1 : 0) + line.length; // +1 for \n
+      if (charCount + needed <= 60) {
+        sessionLines.push(line);
+        charCount += needed;
+      }
+    });
+    var textParts = [];
+    if (yearLine) textParts.push(yearLine);
+    if (sessionLines.length > 0) textParts.push(sessionLines.join('\n'));
+    var text = textParts.join('\n') || '日程調整中';
+
+    Logger.log('【carousel】title=' + title + ' / text=' + text);
+    return {
+      title: title,
+      text:  text,
+      actions: [{
+        type:  'message',
+        label: '詳細を見る',
+        text:  'meetup:' + c.name
+      }]
     };
   });
 
   var url = LINEWORKS_API_BASE + '/bots/' + MEETUP_BOT_ID +
             '/channels/' + MEETUP_CHANNEL_ID + '/messages';
-  var body = { content: { type: 'list_template', elements: elements } };
+  var body = { content: { type: 'carousel', columns: columns } };
 
   try {
     var res = UrlFetchApp.fetch(url, {
@@ -302,13 +376,13 @@ function sendMeetupListTemplate_(companies) {
     });
     var code = res.getResponseCode();
     if (code !== 200 && code !== 201) {
-      Logger.log('list_template送信失敗: HTTP=' + code + ' ' + res.getContentText().substring(0, 300));
+      Logger.log('carousel送信失敗: HTTP=' + code + ' ' + res.getContentText().substring(0, 300));
       return false;
     }
-    Logger.log('list_template送信成功: ' + companies.length + '社');
+    Logger.log('carousel送信成功: ' + companies.length + '社');
     return true;
   } catch (e) {
-    Logger.log('list_template送信エラー: ' + e.message);
+    Logger.log('carousel送信エラー: ' + e.message);
     return false;
   }
 }
@@ -359,14 +433,30 @@ function handleMeetupDetailRequest_(replyChannelId, companyName) {
 
   var text = '🏢 ' + companyName + '\n';
   if (master.industry)  text += '🏭 ' + master.industry + '\n';
-  if (master.theme)     text += '\n📌 ' + master.theme + '\n';
-  // アピールポイントをランダムに1つ選んで表示
-  var appealPoints = master.appealPoints && master.appealPoints.length > 0
-    ? master.appealPoints
-    : (master.hookPoint ? [master.hookPoint] : []);
-  if (appealPoints.length > 0) {
-    var randomAppeal = appealPoints[Math.floor(Math.random() * appealPoints.length)];
-    text += '\n💬 ' + randomAppeal + '\n';
+  if (master.theme) {
+    text += '\n📌 テーマ\n' + master.theme + '\n';
+  }
+  if (master.aiAppeal) {
+    text += '\n🤖 AIによる紹介\n' + master.aiAppeal + '\n';
+  }
+  if (master.staffAppeals && master.staffAppeals.length > 0) {
+    var randomStaff = master.staffAppeals[Math.floor(Math.random() * master.staffAppeals.length)];
+    text += '\n💬 スタッフの声\n' + randomStaff + '\n';
+  }
+
+  // セッション一覧
+  if (sessions.length > 0) {
+    text += '\n📅 来週の日程\n';
+    sessions.forEach(function(s) {
+      var line = formatMeetupDateJP_(s.date) + ' ' + s.time;
+      line += '　' + kindEmoji_(s.kind) + s.kind;
+      if (s.remaining) {
+        // "残席 4/20" → "残席4"
+        var m = s.remaining.match(/残席 ?(\d+)/);
+        if (m) line += '　残席' + m[1];
+      }
+      text += line + '\n';
+    });
   }
 
   var token = getLineWorksAccessToken();
@@ -402,7 +492,7 @@ function getCompanySessionsNextWeek_(companyName) {
   weekStart.setDate(today.getDate() + daysToMon);
   weekStart.setHours(0, 0, 0, 0);
   var weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 7);
+  weekEnd.setDate(weekStart.getDate() + 5); // 月〜金
 
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var sheet = ss.getSheetByName(SHEET_MEETUP);

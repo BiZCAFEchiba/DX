@@ -689,9 +689,52 @@ function fetchCompanyHP_(url) {
   }
 }
 
+// ============================================================
+// Gemini API 日次使用回数管理（上限 20回/日）
+// ============================================================
+
+var GEMINI_DAILY_LIMIT = 20;
+
+/**
+ * 本日のGemini使用回数を取得する（スクリプトプロパティ管理）
+ * @returns {{ date: string, count: number }}
+ */
+function getGeminiDailyUsage_() {
+  var today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
+  var raw = PropertiesService.getScriptProperties().getProperty('GEMINI_DAILY');
+  if (!raw) return { date: today, count: 0 };
+  try {
+    var obj = JSON.parse(raw);
+    return obj.date === today ? obj : { date: today, count: 0 };
+  } catch (e) { return { date: today, count: 0 }; }
+}
+
+/**
+ * Geminiを呼び出せるか確認する（上限未達 & APIキーあり）
+ * @returns {boolean}
+ */
+function canCallGemini_() {
+  if (!GEMINI_API_KEY) return false;
+  return getGeminiDailyUsage_().count < GEMINI_DAILY_LIMIT;
+}
+
+/**
+ * Gemini呼び出し後に使用回数をインクリメントする
+ * @returns {number} 更新後の使用回数
+ */
+function recordGeminiCall_() {
+  var usage = getGeminiDailyUsage_();
+  usage.count++;
+  PropertiesService.getScriptProperties().setProperty('GEMINI_DAILY', JSON.stringify(usage));
+  Logger.log('Gemini使用回数: ' + usage.count + '/' + GEMINI_DAILY_LIMIT);
+  return usage.count;
+}
+
+// ============================================================
+
 /**
  * Gemini API を使ってカフェスタッフ向けフックポイントを生成する
- * モデル: gemini-2.0-flash（無料枠: 15RPM / 1日100万トークン）
+ * モデル: gemini-2.5-flash
  * @param {string} companyName
  * @param {string} description - SHIRUCAFEの企業説明
  * @param {string} hpText      - 企業HPから取得したテキスト
@@ -711,7 +754,7 @@ function generateStudentHook_(companyName, description, hpText) {
     '・話しかけるとよい話題のヒント\nフックポイントの文章のみ出力してください。\n\n' +
     '企業名: ' + companyName + '\n' + info;
 
-  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY;
+  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_API_KEY;
   try {
     Utilities.sleep(4100); // 無料枠 15 RPM = 4秒/リクエスト
     const res = UrlFetchApp.fetch(apiUrl, {
@@ -757,7 +800,7 @@ function generateTheme_(companyName, kind, description) {
     'テーマ文のみを出力してください（カギ括弧不要）。\n\n' +
     '企業名: ' + companyName + '\n' + info;
 
-  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY;
+  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_API_KEY;
   try {
     Utilities.sleep(4100); // 無料枠 15 RPM = 4秒/リクエスト
     const res = UrlFetchApp.fetch(apiUrl, {
@@ -822,6 +865,10 @@ function fillIndustryWithGemini_() {
     Logger.log('fillIndustryWithGemini_: 対象なし');
     return;
   }
+  if (!canCallGemini_()) {
+    Logger.log('fillIndustryWithGemini_: 本日のGemini使用上限に達しています');
+    return;
+  }
   Logger.log('fillIndustryWithGemini_: 対象 ' + targets.length + '社');
 
   // 30社ずつバッチで1リクエストに束ねて送信
@@ -829,8 +876,13 @@ function fillIndustryWithGemini_() {
   let updated = 0;
 
   for (var b = 0; b < targets.length; b += BATCH_SIZE) {
+    if (!canCallGemini_()) {
+      Logger.log('fillIndustryWithGemini_: 上限到達のため中断');
+      break;
+    }
     var batch = targets.slice(b, b + BATCH_SIZE);
     var resultMap = classifyIndustriesBatch_(batch);
+    recordGeminiCall_();
 
     batch.forEach(function(item) {
       var industry = resultMap[item.company];
@@ -845,6 +897,269 @@ function fillIndustryWithGemini_() {
   }
 
   Logger.log('fillIndustryWithGemini_完了: ' + updated + '件更新');
+}
+
+/**
+ * 企業IDマスターのフックポイント・テーマが空の企業をGeminiで自動生成する
+ * 1企業 = 1リクエスト（フック+テーマを同時生成）、日次上限管理あり
+ * dailyMeetupUpdateStep2 から自動実行される
+ */
+function fillHookAndThemeWithGemini_() {
+  if (!GEMINI_API_KEY) {
+    Logger.log('fillHookAndThemeWithGemini_: GEMINI_API_KEYが未設定');
+    return;
+  }
+
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_COMPANY_IDS);
+  if (!sheet || sheet.getLastRow() <= 1) return;
+
+  const numCols = sheet.getLastColumn();
+  const header = sheet.getRange(1, 1, 1, numCols).getValues()[0];
+  let themeIdx = 1, hookIdx = 3, descIdx = -1;
+  header.forEach(function(h, i) {
+    const s = String(h || '');
+    if (s === 'テーマ') themeIdx = i;
+    else if (s === 'AIアピール' || s === 'アピールポイント' || s === 'hookPoint') hookIdx = i;
+    else if (s === 'description' || s === 'イベント詳細') descIdx = i;
+  });
+
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, numCols).getValues();
+
+  // テーマ or フックが空の企業を対象（既に両方埋まっていればスキップ）
+  const targets = [];
+  data.forEach(function(row, i) {
+    const company = String(row[0] || '').trim();
+    const theme   = String(row[themeIdx] || '').trim();
+    const hook    = String(row[hookIdx]  || '').trim();
+    if (!company) return;
+    if (theme && hook) return; // 両方埋まっていればスキップ（重複防止）
+    const desc = descIdx >= 0 ? String(row[descIdx] || '').substring(0, 600) : '';
+    targets.push({ rowIdx: i, company: company, theme: theme, hook: hook, desc: desc });
+  });
+
+  if (targets.length === 0) {
+    Logger.log('fillHookAndThemeWithGemini_: 対象なし');
+    return;
+  }
+
+  // 業界分類のために1回分を残した上で処理可能な件数を計算
+  const usage = getGeminiDailyUsage_();
+  const available = GEMINI_DAILY_LIMIT - usage.count - 1;
+  if (available <= 0) {
+    Logger.log('fillHookAndThemeWithGemini_: 本日のGemini使用上限に達しています (' + usage.count + '/' + GEMINI_DAILY_LIMIT + ')');
+    return;
+  }
+  const processCount = Math.min(targets.length, available);
+  Logger.log('fillHookAndThemeWithGemini_: 対象 ' + targets.length + '社 → 本日最大 ' + processCount + '社処理');
+
+  let updated = 0;
+  for (var i = 0; i < processCount; i++) {
+    if (!canCallGemini_()) break;
+    const item = targets[i];
+    const result = generateHookAndTheme_(item.company, item.desc, item.theme, item.hook);
+    recordGeminiCall_();
+
+    const rowNum = item.rowIdx + 2;
+    if (result.theme && !item.theme) {
+      sheet.getRange(rowNum, themeIdx + 1).setValue(result.theme);
+      Logger.log('テーマ生成: ' + item.company + ' → ' + result.theme);
+    }
+    if (result.hook && !item.hook) {
+      sheet.getRange(rowNum, hookIdx + 1).setValue(result.hook);
+      Logger.log('フック生成: ' + item.company + ' → ' + result.hook.substring(0, 50));
+    }
+    updated++;
+    if (i < processCount - 1) Utilities.sleep(3000);
+  }
+
+  Logger.log('fillHookAndThemeWithGemini_完了: ' + updated + '社処理');
+}
+
+/**
+ * 企業IDマスターのアピールポイントが空の企業をGeminiで自動生成して追記する
+ * テーマ・業界は対象外。スプシに手動追加した行に対して実行する。
+ */
+function fillAppealPointsWithGemini() {
+  if (!GEMINI_API_KEY) {
+    Logger.log('fillAppealPointsWithGemini: GEMINI_API_KEYが未設定');
+    return;
+  }
+
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_COMPANY_IDS);
+  if (!sheet || sheet.getLastRow() <= 1) return;
+
+  const numCols = sheet.getLastColumn();
+  const header = sheet.getRange(1, 1, 1, numCols).getValues()[0];
+  let themeIdx = 1, industryIdx = 2, aiAppealIdx = 3;
+  header.forEach(function(h, i) {
+    const s = String(h || '');
+    if (s === 'テーマ') themeIdx = i;
+    else if (s === '業界') industryIdx = i;
+    else if (s === 'AIアピール' || s === 'アピールポイント' || s === 'hookPoint') aiAppealIdx = i;
+  });
+
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, numCols).getValues();
+
+  // AIアピール列が空の企業のみ対象（業界が空でも同時に埋める）
+  const targets = [];
+  data.forEach(function(row, i) {
+    const company = String(row[0] || '').trim();
+    if (!company) return;
+    if (String(row[aiAppealIdx] || '').trim()) return; // 既にAIアピールあり → スキップ
+    const theme = String(row[themeIdx] || '').trim();
+    const industry = String(row[industryIdx] || '').trim();
+    targets.push({ rowIdx: i, company: company, theme: theme, industry: industry });
+  });
+
+  if (targets.length === 0) {
+    Logger.log('fillAppealPointsWithGemini: 対象なし（全企業にAIアピールあり）');
+    return;
+  }
+
+  const usage = getGeminiDailyUsage_();
+  const available = GEMINI_DAILY_LIMIT - usage.count;
+  if (available <= 0) {
+    Logger.log('fillAppealPointsWithGemini: 本日のGemini使用上限に達しています');
+    return;
+  }
+  const processCount = Math.min(targets.length, available);
+  Logger.log('fillAppealPointsWithGemini: 対象 ' + targets.length + '社 → 本日最大 ' + processCount + '社処理');
+
+  let updated = 0;
+  for (var i = 0; i < processCount; i++) {
+    if (!canCallGemini_()) break;
+    const item = targets[i];
+    const result = generateAppealPoint_(item.company, item.theme);
+    recordGeminiCall_();
+    if (result.appeal) {
+      setAiAppeal_(item.company, result.appeal); // D列（AIアピール）に書き込み
+      Logger.log('AIアピール生成: ' + item.company + ' → ' + result.appeal.substring(0, 50));
+    }
+    if (result.industry && !item.industry) {
+      // 業界が空の場合のみ書き込み
+      const rowNum = item.rowIdx + 2;
+      sheet.getRange(rowNum, industryIdx + 1).setValue(result.industry);
+      Logger.log('業界設定: ' + item.company + ' → ' + result.industry);
+    }
+    if (result.appeal) updated++;
+    if (i < processCount - 1) Utilities.sleep(4100);
+  }
+
+  Logger.log('fillAppealPointsWithGemini完了: ' + updated + '社処理');
+}
+
+/**
+ * Gemini API でアピールポイントを1件生成する
+ * @param {string} companyName
+ * @param {string} theme - 既存テーマ（あれば参考情報として使用）
+ * @returns {{ appeal: string, industry: string }}
+ */
+function generateAppealPoint_(companyName, theme) {
+  if (!GEMINI_API_KEY) return { appeal: '', industry: '' };
+
+  const INDUSTRY_CATEGORIES = 'IT・通信 / コンサルティング / 商社 / メーカー / 金融・保険 / マスコミ・広告 / 小売・流通 / 不動産・建設 / サービス / 医療・製薬 / エネルギー・インフラ / 食品・飲料 / 教育 / 非営利・NPO / その他';
+
+  const prompt =
+    'あなたはカフェで働く大学生スタッフ向けの案内を書くアシスタントです。\n' +
+    '以下の企業情報をもとに、下記2つをJSONで返してください。\n\n' +
+    '「appeal」: 「この会社の人と話してみたい！」と感じさせるアピールポイントを2〜3行。\n' +
+    '  ・どんなビジネスか（学生に分かりやすく）\n' +
+    '  ・面白いポイントや珍しい点\n' +
+    '  ・話しかけるとよい話題のヒント\n' +
+    '「industry」: 以下のカテゴリから1つ選ぶ。\n' +
+    '  カテゴリ: ' + INDUSTRY_CATEGORIES + '\n\n' +
+    '出力形式（JSONのみ、説明不要）:\n{"appeal": "...", "industry": "..."}\n\n' +
+    '企業名: ' + companyName + '\n' +
+    (theme ? 'Meetupテーマ: ' + theme : '');
+
+  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_API_KEY;
+  try {
+    const res = UrlFetchApp.fetch(apiUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() === 200) {
+      const result = JSON.parse(res.getContentText());
+      const text = result.candidates[0].content.parts[0].text.trim();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return { appeal: parsed.appeal || '', industry: parsed.industry || '' };
+      }
+      Logger.log('generateAppealPoint_: JSONパース失敗 - ' + companyName);
+    } else if (res.getResponseCode() === 429) {
+      Logger.log('generateAppealPoint_: レート制限 - ' + companyName);
+    } else {
+      Logger.log('generateAppealPoint_: エラー ' + res.getResponseCode());
+    }
+  } catch (e) {
+    Logger.log('generateAppealPoint_ 呼び出しエラー: ' + e.message);
+  }
+  return { appeal: '', industry: '' };
+}
+
+/**
+ * 1企業のフックポイントとテーマを1回のGeminiリクエストで生成する
+ * @param {string} companyName
+ * @param {string} desc - 企業説明（最大600文字）
+ * @param {string} existingTheme - 既存テーマ（空なら生成）
+ * @param {string} existingHook  - 既存フック（空なら生成）
+ * @returns {{ theme: string, hook: string }}
+ */
+function generateHookAndTheme_(companyName, desc, existingTheme, existingHook) {
+  const needTheme = !existingTheme;
+  const needHook  = !existingHook;
+  if (!needTheme && !needHook) return { theme: existingTheme, hook: existingHook };
+
+  const keys = [];
+  const keyDesc = [];
+  if (needTheme) {
+    keys.push('"theme"');
+    keyDesc.push('「theme」: Meetupのテーマを20文字以内で1つ（例: AIを使ったサービス開発の裏側）');
+  }
+  if (needHook) {
+    keys.push('"hook"');
+    keyDesc.push('「hook」: カフェスタッフが来場者に声かけするための2〜3行のフック文（学生視点で興味を持たせる内容）');
+  }
+
+  const prompt =
+    'あなたはカフェで開催される企業Meetupのコンテンツを作るアシスタントです。\n' +
+    '以下の企業情報をもとに、指定のJSONキーを出力してください。\n\n' +
+    '出力するキー:\n' + keyDesc.join('\n') + '\n\n' +
+    '出力形式（JSONのみ、説明不要）:\n{' + keys.map(function(k) { return k + ': "..."'; }).join(', ') + '}\n\n' +
+    '企業名: ' + companyName + '\n' +
+    (desc ? '企業説明: ' + desc : '');
+
+  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_API_KEY;
+  try {
+    const res = UrlFetchApp.fetch(apiUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() === 200) {
+      const result = JSON.parse(res.getContentText());
+      const text = result.candidates[0].content.parts[0].text.trim();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return { theme: parsed.theme || '', hook: parsed.hook || '' };
+      }
+      Logger.log('generateHookAndTheme_: JSONパース失敗 text=' + text.substring(0, 100));
+    } else if (res.getResponseCode() === 429) {
+      Logger.log('generateHookAndTheme_: レート制限 - ' + companyName);
+    } else {
+      Logger.log('generateHookAndTheme_: エラー ' + res.getResponseCode() + ' - ' + res.getContentText().substring(0, 150));
+    }
+  } catch (e) {
+    Logger.log('generateHookAndTheme_ 呼び出しエラー: ' + e.message);
+  }
+  return { theme: '', hook: '' };
 }
 
 /**
@@ -865,7 +1180,7 @@ function classifyIndustriesBatch_(companies) {
     '企業リスト:\n' + lines + '\n\n' +
     '出力形式（JSONのみ、説明不要）:\n{"企業名1": "カテゴリ", "企業名2": "カテゴリ"}';
 
-  var apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY;
+  var apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_API_KEY;
   try {
     var res = UrlFetchApp.fetch(apiUrl, {
       method: 'post',
@@ -1293,13 +1608,17 @@ function loadCompanyIdMaster_() {
   const numCols = sheet.getLastColumn();
   const header = sheet.getRange(1, 1, 1, numCols).getValues()[0];
 
-  // ヘッダー名で列インデックスを動的に取得（デフォルト: B=テーマ, C=業界, D=アピールポイント）
-  let themeIdx = 1, industryIdx = 2, hookIdx = 3;
+  // ヘッダー名で列インデックスを動的に取得
+  // D=AIアピール（1件固定）, E以降=スタッフアピール（蓄積）
+  let themeIdx = 1, industryIdx = 2, aiAppealIdx = 3, staffAppealIdx = 4;
   header.forEach(function(h, i) {
     const s = String(h || '');
     if (s === 'テーマ') themeIdx = i;
     else if (s === '業界') industryIdx = i;
-    else if (s === 'アピールポイント' || s === 'hookPoint') hookIdx = i;
+    else if (s === 'AIアピール') aiAppealIdx = i;
+    else if (s === 'スタッフアピール') staffAppealIdx = i;
+    // 旧フォーマット互換
+    else if (s === 'アピールポイント' || s === 'hookPoint') { aiAppealIdx = i; staffAppealIdx = i + 1; }
   });
 
   const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, numCols).getValues();
@@ -1307,18 +1626,21 @@ function loadCompanyIdMaster_() {
   data.forEach(function(row) {
     const name = String(row[0] || '').trim();
     if (!name) return;
-    // D列(hookIdx)以降をアピールポイントの配列として収集
-    const appealPoints = [];
-    for (var j = hookIdx; j < numCols; j++) {
+    const aiAppeal = String(row[aiAppealIdx] || '').trim();
+    const staffAppeals = [];
+    for (var j = staffAppealIdx; j < numCols; j++) {
       var v = String(row[j] || '').trim();
-      if (v) appealPoints.push(v);
+      if (v) staffAppeals.push(v);
     }
     map[name] = {
       reserveId:    '',
       theme:        String(row[themeIdx]    || '').trim(),
       industry:     String(row[industryIdx] || '').trim(),
-      hookPoint:    appealPoints.length > 0 ? appealPoints[0] : '', // 後方互換
-      appealPoints: appealPoints
+      aiAppeal:     aiAppeal,
+      staffAppeals: staffAppeals,
+      // 後方互換
+      hookPoint:    staffAppeals.length > 0 ? staffAppeals[0] : aiAppeal,
+      appealPoints: staffAppeals.length > 0 ? staffAppeals : (aiAppeal ? [aiAppeal] : [])
     };
   });
   Logger.log('企業IDマスター読込: ' + Object.keys(map).length + '件');
@@ -1352,7 +1674,7 @@ function saveToCompanyIdMaster_(companyName, reserveId, fields) {
     const s = String(h || '');
     if (s === 'テーマ') themeIdx = i;
     else if (s === '業界') industryIdx = i;
-    else if (s === 'アピールポイント' || s === 'hookPoint') hookIdx = i;
+    else if (s === 'AIアピール' || s === 'アピールポイント' || s === 'hookPoint') hookIdx = i;
   });
 
   const lastRow = sheet.getLastRow();
@@ -2134,7 +2456,7 @@ function summarizeEventDetails_(companyName, rawDetails) {
 【イベント詳細原文】:
 ${rawDetails.substring(0, 1500)}`;
 
-  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_API_KEY;
+  const apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + GEMINI_API_KEY;
   try {
     Utilities.sleep(4100); // 無料枠制限考慮
     const res = UrlFetchApp.fetch(apiUrl, {
@@ -2464,7 +2786,8 @@ function dailyMeetupUpdate() {
  */
 function dailyMeetupUpdateStep2() {
   Logger.log('=== dailyMeetupUpdateStep2（ステップ2）開始 ===');
-  fillIndustryWithGemini_();
+  fillIndustryWithGemini_();       // 業界分類（30社バッチ=1回）
+  fillHookAndThemeWithGemini_();   // フック・テーマ生成（上限内で1社1回）
   if (isFormSyncEnabled_()) {
     syncMeetupFormChoices_();
   } else {
@@ -2704,7 +3027,7 @@ function onMeetupFormSubmit_(e) {
 }
 
 /**
- * アピールポイントを企業IDマスターの指定企業行のD列以降に追記する
+ * スタッフアピールポイントを企業IDマスターのE列以降に追記する
  */
 function appendAppealPoint_(company, comment) {
   if (!company || !comment) return;
@@ -2712,12 +3035,12 @@ function appendAppealPoint_(company, comment) {
   const sheet = ss.getSheetByName(SHEET_COMPANY_IDS);
   if (!sheet || sheet.getLastRow() <= 1) return;
 
-  // アピールポイント開始列をヘッダーから取得（デフォルトD=4）
+  // スタッフアピール開始列をヘッダーから取得（デフォルトE=5）
   const numCols = sheet.getLastColumn();
   const header = sheet.getRange(1, 1, 1, numCols).getValues()[0];
-  var appealStartCol = 4;
+  var appealStartCol = 5; // E列（1-based）
   header.forEach(function(h, i) {
-    if (String(h || '') === 'アピールポイント' || String(h || '') === 'hookPoint') {
+    if (String(h || '') === 'スタッフアピール') {
       appealStartCol = i + 1; // 1-based
     }
   });
@@ -2742,6 +3065,67 @@ function appendAppealPoint_(company, comment) {
     return;
   }
   Logger.log('appendAppealPoint_: 企業が見つかりません: ' + company);
+}
+
+/**
+ * AIアピールポイントを企業IDマスターのD列（AIアピール列）に上書き保存する
+ * @param {string} companyName
+ * @param {string} appeal
+ */
+function setAiAppeal_(companyName, appeal) {
+  if (!companyName || !appeal) return;
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_COMPANY_IDS);
+  if (!sheet || sheet.getLastRow() <= 1) return;
+  const numCols = sheet.getLastColumn();
+  const header = sheet.getRange(1, 1, 1, numCols).getValues()[0];
+  var aiCol = 4; // D列（1-based）
+  header.forEach(function(h, i) {
+    const s = String(h || '');
+    if (s === 'AIアピール' || s === 'アピールポイント' || s === 'hookPoint') aiCol = i + 1;
+  });
+  const names = sheet.getRange(2, 1, sheet.getLastRow() - 1, 1).getValues();
+  for (var i = 0; i < names.length; i++) {
+    if (String(names[i][0] || '').trim() === companyName) {
+      sheet.getRange(i + 2, aiCol).setValue(appeal);
+      Logger.log('AIアピール設定: ' + companyName + ' → ' + appeal.substring(0, 50));
+      return;
+    }
+  }
+}
+
+/**
+ * 企業IDマスターのヘッダーを新フォーマットに移行する（手動1回実行）
+ * 「アピールポイント」→「AIアピール」に変更し、E列に「スタッフアピール」ヘッダーを追加する
+ */
+function migrateCompanyIdMasterHeader() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_COMPANY_IDS);
+  if (!sheet) { Logger.log('企業IDマスターシートが見つかりません'); return; }
+  const numCols = Math.max(sheet.getLastColumn(), 5);
+  const header = sheet.getRange(1, 1, 1, numCols).getValues()[0];
+  var changed = false;
+  for (var i = 0; i < header.length; i++) {
+    const s = String(header[i] || '');
+    if (s === 'アピールポイント' || s === 'hookPoint') {
+      header[i] = 'AIアピール';
+      if (!header[i + 1] || header[i + 1] === '') header[i + 1] = 'スタッフアピール';
+      changed = true;
+      break;
+    }
+    if (s === 'AIアピール') {
+      if (!header[i + 1] || header[i + 1] === '') { header[i + 1] = 'スタッフアピール'; changed = true; }
+      break;
+    }
+  }
+  if (changed) {
+    sheet.getRange(1, 1, 1, header.length).setValues([header]);
+    Logger.log('企業IDマスターヘッダー移行完了: ' + header.join(' | '));
+    SpreadsheetApp.getUi().alert('完了', 'ヘッダーを移行しました。\n' + header.join(' | '), SpreadsheetApp.getUi().ButtonSet.OK);
+  } else {
+    Logger.log('企業IDマスターヘッダー: 移行済みまたは対象なし');
+    SpreadsheetApp.getUi().alert('既に移行済みか、対象ヘッダーが見つかりませんでした。');
+  }
 }
 
 /**

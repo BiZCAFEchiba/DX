@@ -56,7 +56,42 @@
     .btn-danger  { background: #c0392b; color: white; }
     .btn-danger:hover  { opacity: 0.85; }
 
-    /* カードグリッド */
+    /* タブナビゲーション */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+      background: #e0e5eb;
+      padding: 4px;
+      border-radius: 10px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      background: none;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #666;
+      cursor: pointer;
+      border-radius: 7px;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: white;
+      color: #1a3a5c;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    .tab-content { display: none; margin-top: 10px; }
+    .tab-content.active { display: block; animation: fadeIn 0.3s; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 累計カード */
     .cards {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -74,6 +109,28 @@
     .card-label { font-size: 0.75rem; color: #888; margin-bottom: 8px; font-weight: 600; letter-spacing: 0.03em; }
     .card-count { font-size: 2rem; font-weight: 800; color: #1a3a5c; line-height: 1; }
     .card-unit  { font-size: 0.72rem; color: #aaa; margin-top: 4px; }
+
+    /* KPIカード */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .kpi-card {
+      background: white;
+      padding: 18px 12px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+    }
+    .kpi-label { font-size: 0.72rem; color: #888; margin-bottom: 6px; font-weight: 700; }
+    .kpi-value { font-size: 1.4rem; font-weight: 800; color: #1a3a5c; }
+    .kpi-target { font-size: 0.75rem; color: #999; margin-top: 4px; }
+    .achievement-bar {
+      height: 6px; background: #eee; border-radius: 3px; margin-top: 10px; overflow: hidden;
+    }
+    .achievement-fill { height: 100%; background: #27ae60; width: 0%; transition: width 0.5s; }
 
     /* チャートセクション */
     .section-title {
@@ -94,6 +151,12 @@
       overflow: hidden;
     }
     .chart-box canvas { display: block; width: 100%; }
+
+    /* 分析セクション */
+    .analysis-score {
+      font-size: 2.2rem; font-weight: 800; color: #27ae60; text-align: center; margin: 10px 0;
+    }
+    .analysis-desc { font-size: 0.85rem; color: #666; line-height: 1.6; padding: 0 10px; }
 
     /* 日別テーブル */
     .table-wrap { overflow-x: auto; }
@@ -155,6 +218,7 @@
 
     @media (max-width: 480px) {
       .cards { grid-template-columns: repeat(2, 1fr); }
+      .kpi-grid { grid-template-columns: 1fr; }
       .card-count { font-size: 1.6rem; }
     }
   </style>
@@ -163,51 +227,95 @@
 
 <header>
   <h1>📊 閲覧数ダッシュボード</h1>
-  <p>BizCAFE コーナー各ページのアクセス集計</p>
+  <p>BizCAFE コーナーアクセス & KPI分析</p>
 </header>
 
 <div class="container">
 
-  <div class="toolbar">
-    <div class="toolbar-info">
-      リセット日時: <span id="lastReset">—</span>
+  <!-- タブ切替 -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('views')">閲覧数</button>
+    <button class="tab-btn"        onclick="switchTab('kpi')">KPI評価</button>
+    <button class="tab-btn"        onclick="switchTab('analysis')">分析</button>
+  </div>
+
+  <!-- タブ1: 閲覧数 -->
+  <div id="tab-views" class="tab-content active">
+    <div class="toolbar">
+      <div class="toolbar-info">
+        リセット日時: <span id="lastReset">—</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="loadData()">🔄 更新</button>
+        <button class="btn btn-danger"  onclick="openResetModal()">🗑 リセット</button>
+      </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-primary" onclick="loadData()">🔄 更新</button>
-      <button class="btn btn-danger"  onclick="openResetModal()">🗑 リセット</button>
+
+    <div class="section-title">累計閲覧数</div>
+    <div class="cards" id="cards">
+      <div class="loading">読み込み中...</div>
+    </div>
+
+    <div class="section-title">ページ別 累計（棒グラフ）</div>
+    <div class="chart-box">
+      <canvas id="barChart" height="220"></canvas>
+    </div>
+
+    <div class="section-title">直近7日間の推移（折れ線グラフ）</div>
+    <div class="chart-box">
+      <canvas id="lineChart" height="220"></canvas>
+    </div>
+
+    <div class="section-title">日別詳細</div>
+    <div class="chart-box">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr id="tableHead"></tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="10" class="loading">読み込み中...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
-  <!-- 累計カード -->
-  <div class="section-title">累計閲覧数</div>
-  <div class="cards" id="cards">
-    <div class="loading">読み込み中...</div>
+  <!-- タブ2: KPI評価 -->
+  <div id="tab-kpi" class="tab-content">
+    <div class="section-title">今月のKPI進捗</div>
+    <div class="kpi-grid" id="kpiCards">
+      <div class="loading">読み込み中...</div>
+    </div>
+
+    <div class="section-title">KPI項目別 達成状況</div>
+    <div class="chart-box">
+      <canvas id="kpiBarChart" height="200"></canvas>
+    </div>
+
+    <div class="section-title">主要指標の推移（直近7日間）</div>
+    <div class="chart-box">
+      <canvas id="kpiLineChart" height="220"></canvas>
+    </div>
   </div>
 
-  <!-- 棒グラフ: ページ別累計 -->
-  <div class="section-title">ページ別 累計（棒グラフ）</div>
-  <div class="chart-box">
-    <canvas id="barChart" height="220"></canvas>
-  </div>
+  <!-- タブ3: 分析 -->
+  <div id="tab-analysis" class="tab-content">
+    <div class="section-title">閲覧効率分析</div>
+    <div class="chart-box" style="text-align:center;">
+      <div class="card-label">サイト集客効率 (CVR目安)</div>
+      <div class="analysis-score" id="efficiencyScore">—%</div>
+      <p class="analysis-desc" id="efficiencyDesc">閲覧数に対するKPI成果（DU/Meetup/MCS）の総和比率です。</p>
+    </div>
 
-  <!-- 折れ線グラフ: 直近7日間の推移 -->
-  <div class="section-title">直近7日間の推移（折れ線グラフ）</div>
-  <div class="chart-box">
-    <canvas id="lineChart" height="220"></canvas>
-  </div>
+    <div class="section-title">PVと成果の相関</div>
+    <div class="chart-box">
+      <canvas id="correlChart" height="220"></canvas>
+    </div>
 
-  <!-- 日別テーブル -->
-  <div class="section-title">日別詳細</div>
-  <div class="chart-box">
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr id="tableHead"></tr>
-        </thead>
-        <tbody id="tableBody">
-          <tr><td colspan="10" class="loading">読み込み中...</td></tr>
-        </tbody>
-      </table>
+    <div class="chart-box">
+      <div class="section-title" style="border:none;margin-bottom:8px;">💡 分析コメント</div>
+      <div class="analysis-desc" id="analysisComment">データを読み込み中です...</div>
     </div>
   </div>
 
@@ -228,8 +336,6 @@
 
 <script>
   var APP_URL = '<?= appUrl ?>';
-
-  // ページラベル定義
   var PAGE_LABELS = {
     congestion: '混雑状況',
     calendar:   '営業カレンダー',
@@ -238,39 +344,71 @@
     free_board: '自由掲示板',
     recruit:    '採用情報'
   };
-
-  // グラフ用カラーパレット
-  var COLORS = [
-    '#2a5f8f', '#27ae60', '#e67e22', '#8e44ad', '#c0392b', '#16a085'
-  ];
-  var COLORS_ALPHA = [
-    'rgba(42,95,143,0.15)', 'rgba(39,174,96,0.12)', 'rgba(230,126,34,0.12)',
-    'rgba(142,68,173,0.12)', 'rgba(192,57,43,0.12)', 'rgba(22,160,133,0.12)'
-  ];
-
+  var COLORS = ['#2a5f8f', '#27ae60', '#e67e22', '#8e44ad', '#c0392b', '#16a085'];
   var pageKeys = Object.keys(PAGE_LABELS);
   var currentData = null;
+  var kpiData = null;
+  var kpiDaily = null;
+
+  // ---------- タブ切替 ----------
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.remove('active'); });
+    
+    var btn = document.querySelector('button[onclick="switchTab(\'' + tabId + '\')"]');
+    if (btn) btn.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+
+    if (currentData) {
+      if (tabId === 'views') {
+        renderBarChart(currentData.counts);
+        renderLineChart(currentData.dailyCounts);
+      } else if (tabId === 'kpi' && kpiData) {
+        renderKpiCards(kpiData);
+        renderKpiBarChart(kpiData);
+        if (kpiDaily) renderKpiLineChart(kpiDaily);
+      } else if (tabId === 'analysis' && kpiData && currentData) {
+        renderAnalysis(currentData, kpiData, kpiDaily);
+      }
+    }
+  }
 
   // ---------- データ取得 ----------
   function loadData() {
     setStatus('更新中...');
-    fetch(APP_URL + '?page=calendar&action=pageViewGet')
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        currentData = data;
-        renderCards(data.counts);
-        renderBarChart(data.counts);
-        renderLineChart(data.dailyCounts);
-        renderTable(data.dailyCounts);
+    
+    var p1 = fetch(APP_URL + '?page=calendar&action=pageViewGet').then(function(r){return r.json();});
+    var p2 = fetch(APP_URL + '?page=calendar&action=storeProgress').then(function(r){return r.json();});
+    var p3 = fetch(APP_URL + '?page=calendar&action=kpiDailyGet').then(function(r){return r.json();});
+
+    Promise.all([p1, p2, p3])
+      .then(function(results) {
+        currentData = results[0];
+        kpiData = results[1];
+        kpiDaily = results[2];
+
+        // 各タブのレンダリング
+        renderCards(currentData.counts);
+        renderBarChart(currentData.counts);
+        renderLineChart(currentData.dailyCounts);
+        renderTable(currentData.dailyCounts);
+        
+        renderKpiCards(kpiData);
+        renderKpiBarChart(kpiData);
+        renderKpiLineChart(kpiDaily);
+
+        renderAnalysis(currentData, kpiData, kpiDaily);
+
         document.getElementById('lastReset').textContent =
-          data.lastResetAt ? formatDateTimeJP(data.lastResetAt) : '未リセット';
+          currentData.lastResetAt ? formatDateTimeJP(currentData.lastResetAt) : '未リセット';
         setStatus('最終更新: ' + formatDateTimeJP(new Date().toISOString()));
       })
-      .catch(function(e) { setStatus('取得エラー: ' + e.message); });
+      .catch(function(e) { setStatus('取得エラー: ' + e.message); console.error(e); });
   }
 
-  // ---------- カード描画 ----------
+  // ---------- 閲覧数: 各関数 ----------
   function renderCards(counts) {
+    if(!counts) return;
     var total = pageKeys.reduce(function(s, k) { return s + (counts[k] || 0); }, 0);
     var html = pageKeys.map(function(k, i) {
       return '<div class="card" style="border-top-color:' + COLORS[i] + '">'
@@ -287,275 +425,277 @@
     document.getElementById('cards').innerHTML = html;
   }
 
-  // ---------- 棒グラフ ----------
   function renderBarChart(counts) {
     var canvas = document.getElementById('barChart');
-    canvas.width = canvas.offsetWidth || 800;
-    var ctx = canvas.getContext('2d');
-    var W = canvas.width, H = canvas.height;
+    if (!canvas || canvas.offsetParent === null) return;
+    canvas.width = canvas.offsetWidth;
+    var ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
     var values = pageKeys.map(function(k) { return counts[k] || 0; });
     var maxVal = Math.max.apply(null, values) || 1;
     var padL = 36, padR = 12, padT = 16, padB = 50;
-    var plotW = W - padL - padR;
-    var plotH = H - padT - padB;
-    var barW = Math.floor(plotW / pageKeys.length * 0.55);
-    var gap  = Math.floor(plotW / pageKeys.length);
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var barW = Math.floor(plotW / pageKeys.length * 0.55), gap = Math.floor(plotW / pageKeys.length);
 
-    // 目盛り線
-    ctx.strokeStyle = '#e8edf2';
-    ctx.lineWidth = 1;
-    var steps = 4;
-    for (var s = 0; s <= steps; s++) {
-      var yy = padT + plotH - (plotH * s / steps);
-      ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
-      ctx.fillStyle = '#aaa';
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(Math.round(maxVal * s / steps), padL - 4, yy + 4);
-    }
+    drawGrid(ctx, padL, padR, padT, padB, W, H, maxVal);
 
-    // バー
     values.forEach(function(v, i) {
       var x = padL + gap * i + (gap - barW) / 2;
       var bh = plotH * (v / maxVal);
       var y = padT + plotH - bh;
-
-      // 影
-      ctx.shadowColor = 'rgba(0,0,0,0.08)';
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetY = 2;
-
-      // グラデーション
-      var grad = ctx.createLinearGradient(x, y, x, padT + plotH);
-      grad.addColorStop(0, COLORS[i]);
-      grad.addColorStop(1, COLORS[i] + '99');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
+      ctx.fillStyle = COLORS[i];
       roundRect(ctx, x, y, barW, bh, 5);
       ctx.fill();
-
-      ctx.shadowColor = 'transparent';
-
-      // 値ラベル
       if (v > 0) {
-        ctx.fillStyle = '#333';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.textAlign = 'center';
+        ctx.fillStyle = '#333'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(v, x + barW / 2, y - 5);
       }
-
-      // ページラベル
-      ctx.fillStyle = '#555';
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'center';
+      ctx.fillStyle = '#555'; ctx.font = '9px sans-serif'; 
       var label = PAGE_LABELS[pageKeys[i]];
-      if (label.length > 5) {
-        ctx.fillText(label.slice(0, 4), x + barW / 2, padT + plotH + 16);
-        ctx.fillText(label.slice(4), x + barW / 2, padT + plotH + 28);
-      } else {
-        ctx.fillText(label, x + barW / 2, padT + plotH + 18);
-      }
+      ctx.fillText(label.length > 5 ? label.slice(0, 5) : label, x + barW / 2, padT + plotH + 16);
     });
   }
 
-  // ---------- 折れ線グラフ ----------
   function renderLineChart(dailyCounts) {
     var canvas = document.getElementById('lineChart');
-    canvas.width = canvas.offsetWidth || 800;
-    var ctx = canvas.getContext('2d');
-    var W = canvas.width, H = canvas.height;
+    if (!canvas || canvas.offsetParent === null) return;
+    canvas.width = canvas.offsetWidth;
+    var ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    // 直近7日のキーを生成
-    var days = [];
-    for (var d = 6; d >= 0; d--) {
-      var dt = new Date();
-      dt.setDate(dt.getDate() - d);
-      days.push(formatDateKey(dt));
-    }
-
+    var days = getRecentDays(7);
     var padL = 36, padR = 12, padT = 16, padB = 36;
-    var plotW = W - padL - padR;
-    var plotH = H - padT - padB;
-
-    // 全ページの日次データを集計して最大値を求める
+    var plotW = W - padL - padR, plotH = H - padT - padB;
     var maxVal = 1;
     pageKeys.forEach(function(k) {
-      if (!dailyCounts[k]) return;
       days.forEach(function(day) {
-        var v = dailyCounts[k][day] || 0;
+        var v = (dailyCounts[k] && dailyCounts[k][day]) ? dailyCounts[k][day] : 0;
         if (v > maxVal) maxVal = v;
       });
     });
 
-    // 目盛り線
-    ctx.strokeStyle = '#e8edf2';
-    ctx.lineWidth = 1;
-    var steps = 4;
-    for (var s = 0; s <= steps; s++) {
-      var yy = padT + plotH - (plotH * s / steps);
-      ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
-      ctx.fillStyle = '#aaa';
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(Math.round(maxVal * s / steps), padL - 4, yy + 4);
-    }
+    drawGrid(ctx, padL, padR, padT, padB, W, H, maxVal);
 
-    // 各ページの折れ線
     pageKeys.forEach(function(k, i) {
-      var pageCounts = dailyCounts[k] || {};
       var pts = days.map(function(day, di) {
-        var v = pageCounts[day] || 0;
-        return {
-          x: padL + plotW * di / (days.length - 1),
-          y: padT + plotH - (plotH * v / maxVal),
-          v: v
-        };
+        var v = (dailyCounts[k] && dailyCounts[k][day]) ? dailyCounts[k][day] : 0;
+        return { x: padL + plotW * di / (days.length - 1), y: padT + plotH - (plotH * v / maxVal), v: v };
       });
-
-      // 塗りつぶし
-      ctx.beginPath();
-      ctx.moveTo(pts[0].x, padT + plotH);
-      pts.forEach(function(p) { ctx.lineTo(p.x, p.y); });
-      ctx.lineTo(pts[pts.length - 1].x, padT + plotH);
-      ctx.closePath();
-      ctx.fillStyle = COLORS_ALPHA[i];
-      ctx.fill();
-
-      // 線
-      ctx.beginPath();
-      ctx.strokeStyle = COLORS[i];
-      ctx.lineWidth = 2;
-      ctx.lineJoin = 'round';
-      pts.forEach(function(p, pi) {
-        pi === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
-      });
+      ctx.beginPath(); ctx.strokeStyle = COLORS[i]; ctx.lineWidth = 2;
+      pts.forEach(function(p, pi) { pi === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y); });
       ctx.stroke();
-
-      // ドット
-      pts.forEach(function(p) {
-        if (p.v === 0) return;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = COLORS[i];
-        ctx.fill();
-      });
     });
-
-    // X軸日付ラベル
-    ctx.fillStyle = '#888';
-    ctx.font = '10px sans-serif';
-    ctx.textAlign = 'center';
+    
+    ctx.fillStyle = '#888'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
     days.forEach(function(day, di) {
       var x = padL + plotW * di / (days.length - 1);
-      var parts = day.split('-');
-      ctx.fillText(parts[1] + '/' + parts[2], x, padT + plotH + 16);
-    });
-
-    // 凡例
-    var legX = padL;
-    var legY = padT + plotH + 30;
-    ctx.font = '9px sans-serif';
-    ctx.textAlign = 'left';
-    pageKeys.forEach(function(k, i) {
-      if (legX + 90 > W) return; // 幅超えたら省略
-      ctx.fillStyle = COLORS[i];
-      ctx.fillRect(legX, legY - 7, 12, 8);
-      ctx.fillStyle = '#555';
-      ctx.fillText(PAGE_LABELS[k], legX + 15, legY);
-      legX += 80;
+      ctx.fillText(day.slice(5).replace('-','/'), x, padT + plotH + 16);
     });
   }
 
-  // ---------- 日別テーブル ----------
-  function renderTable(dailyCounts) {
-    // 全ページのdayキーを収集してソート
-    var daySet = {};
-    pageKeys.forEach(function(k) {
-      if (!dailyCounts[k]) return;
-      Object.keys(dailyCounts[k]).forEach(function(day) { daySet[day] = true; });
-    });
-    var days = Object.keys(daySet).sort().reverse().slice(0, 30); // 直近30日
-
-    // ヘッダー
-    var thead = document.getElementById('tableHead');
-    thead.innerHTML = '<th class="td-date">日付</th>'
-      + pageKeys.map(function(k) { return '<th>' + PAGE_LABELS[k] + '</th>'; }).join('')
-      + '<th>合計</th>';
-
-    // ボディ
-    var tbody = document.getElementById('tableBody');
-    if (days.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="' + (pageKeys.length + 2) + '">データなし</td></tr>';
-      return;
-    }
-    tbody.innerHTML = days.map(function(day) {
-      var parts = day.split('-');
-      var label = parts[1] + '月' + parts[2] + '日';
-      var total = 0;
-      var cells = pageKeys.map(function(k) {
-        var v = (dailyCounts[k] && dailyCounts[k][day]) ? dailyCounts[k][day] : 0;
-        total += v;
-        return '<td>' + (v || '—') + '</td>';
-      }).join('');
-      return '<tr><td class="td-date">' + label + '</td>' + cells + '<td><strong>' + total + '</strong></td></tr>';
+  // ---------- KPI評価 タブ ----------
+  function renderKpiCards(data) {
+    if(!data) return;
+    var keys = ['DU', 'Meetup', 'MCS'];
+    var labels = { DU: 'DU (来店)', Meetup: 'Meetup (オンライン)', MCS: 'MCS (閲覧)' };
+    var html = keys.map(function(k) {
+      var actual = data[k].actual || 0;
+      var target = data[k].target || 1;
+      var rate = Math.min(100, Math.round(actual / target * 100));
+      return '<div class="kpi-card">'
+        + '<div class="kpi-label">' + labels[k] + '</div>'
+        + '<div class="kpi-value">' + actual + '</div>'
+        + '<div class="kpi-target">目標: ' + target + '</div>'
+        + '<div class="achievement-bar"><div class="achievement-fill" style="width:' + rate + '%"></div></div>'
+        + '<div class="card-unit" style="margin-top:6px; font-weight:700; color:' + (rate >= 100 ? '#27ae60':'#e67e22') + '">' + rate + '%</div>'
+        + '</div>';
     }).join('');
+    document.getElementById('kpiCards').innerHTML = html;
   }
 
-  // ---------- リセット ----------
-  function openResetModal() { document.getElementById('overlay').classList.add('open'); }
-  function closeResetModal(e) {
-    if (e && e.target !== document.getElementById('overlay')) return;
-    document.getElementById('overlay').classList.remove('open');
+  function renderKpiBarChart(data) {
+    var canvas = document.getElementById('kpiBarChart');
+    if (!canvas || canvas.offsetParent === null) return;
+    canvas.width = canvas.offsetWidth;
+    var ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var keys = ['DU', 'Meetup', 'MCS'];
+    var maxVal = 0;
+    keys.forEach(function(k) { maxVal = Math.max(maxVal, data[k].actual, data[k].target); });
+    maxVal = maxVal || 100;
+
+    var padL = 40, padR = 20, padT = 20, padB = 40;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    var groupW = plotW / 3, barW = groupW * 0.3;
+
+    drawGrid(ctx, padL, padR, padT, padB, W, H, maxVal);
+
+    keys.forEach(function(k, i) {
+      var baseX = padL + groupW * i + groupW/2;
+      var th = plotH * (data[k].target / maxVal);
+      ctx.fillStyle = '#eee';
+      roundRect(ctx, baseX - barW - 2, padT + plotH - th, barW, th, 4);
+      ctx.fill();
+      var ah = plotH * (data[k].actual / maxVal);
+      ctx.fillStyle = COLORS[i];
+      roundRect(ctx, baseX + 2, padT + plotH - ah, barW, ah, 4);
+      ctx.fill();
+      ctx.fillStyle = '#666'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(k, baseX, padT + plotH + 18);
+    });
   }
 
-  function doReset() {
-    document.getElementById('overlay').classList.remove('open');
-    setStatus('リセット中...');
-    fetch(APP_URL + '?page=calendar&action=pageViewReset')
-      .then(function(r) { return r.json(); })
-      .then(function() { loadData(); })
-      .catch(function(e) { setStatus('リセットエラー: ' + e.message); });
+  function renderKpiLineChart(daily) {
+    var canvas = document.getElementById('kpiLineChart');
+    if (!canvas || canvas.offsetParent === null || !daily) return;
+    canvas.width = canvas.offsetWidth;
+    var ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var days = getRecentDays(7);
+    var keys = ['DU', 'Meetup', 'MCS'];
+    var maxVal = 1;
+    keys.forEach(function(k) { days.forEach(function(d) { if(daily[k] && daily[k][d] > maxVal) maxVal = daily[k][d]; }); });
+
+    var padL = 36, padR = 12, padT = 16, padB = 36;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+    drawGrid(ctx, padL, padR, padT, padB, W, H, maxVal);
+    keys.forEach(function(k, i) {
+      ctx.beginPath(); ctx.strokeStyle = COLORS[i]; ctx.lineWidth = 2;
+      days.forEach(function(d, di) {
+        var v = (daily[k] && daily[k][d]) ? daily[k][d] : 0;
+        var px = padL + plotW * di / (days.length - 1);
+        var py = padT + plotH - (plotH * v / maxVal);
+        di === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      });
+      ctx.stroke();
+    });
+  }
+
+  // ---------- 分析 タブ ----------
+  function renderAnalysis(views, kpi, daily) {
+    if(!views || !kpi) return;
+    var totalViews = pageKeys.reduce(function(s, k) { return s + (views.counts[k] || 0); }, 0);
+    var totalKpi = (kpi.DU.actual || 0) + (kpi.Meetup.actual || 0) + (kpi.MCS.actual || 0);
+    var efficiency = totalViews > 0 ? (totalKpi / totalViews * 100).toFixed(1) : 0;
+    document.getElementById('efficiencyScore').textContent = efficiency + '%';
+    var comment = '';
+    if (efficiency > 5) comment = '成果への転換率が非常に高い状態です。現在のコンテンツ展開を継続しましょう。';
+    else if (efficiency > 2) comment = '安定した成果が出ています。さらなる改善のため特定ページのPV増加を狙いましょう。';
+    else comment = '閲覧数に対して成果がやや少なめです。導線設計やコンテンツの訴求力を見直す余地があります。';
+    document.getElementById('analysisComment').textContent = comment;
+    if(daily) renderCorrelChart(views.dailyCounts, daily);
+  }
+
+  function renderCorrelChart(dailyViews, dailyKpi) {
+    var canvas = document.getElementById('correlChart');
+    if (!canvas || canvas.offsetParent === null) return;
+    canvas.width = canvas.offsetWidth;
+    var ctx = canvas.getContext('2d'), W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    var days = getRecentDays(7);
+    var viewData = days.map(function(d) { return pageKeys.reduce(function(s, k) { return s + (dailyViews[k] ? dailyViews[k][d]||0 : 0); }, 0); });
+    var kpiData = days.map(function(d) { return ((dailyKpi.DU && dailyKpi.DU[d])||0) + ((dailyKpi.Meetup && dailyKpi.Meetup[d])||0) + ((dailyKpi.MCS && dailyKpi.MCS[d])||0); });
+    var maxV = Math.max.apply(null, viewData) || 1, maxK = Math.max.apply(null, kpiData) || 1;
+    var padL = 40, padR = 40, padT = 20, padB = 30;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    viewData.forEach(function(v, i) {
+      var bw = plotW / days.length * 0.6;
+      var bx = padL + (plotW / days.length) * i + (plotW / days.length - bw)/2;
+      var bh = plotH * (v / maxV);
+      ctx.fillStyle = 'rgba(42,95,143,0.15)';
+      roundRect(ctx, bx, padT + plotH - bh, bw, bh, 3);
+      ctx.fill();
+    });
+    ctx.beginPath(); ctx.strokeStyle = '#27ae60'; ctx.lineWidth = 3;
+    kpiData.forEach(function(k, i) {
+      var px = padL + (plotW / (days.length - 1 || 1)) * i;
+      var py = padT + plotH - (plotH * k / maxK);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+    ctx.fillStyle = '#1a3a5c'; ctx.font = '9px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('■ 閲覧数 (左軸)', padL, padT - 8);
+    ctx.fillStyle = '#27ae60'; ctx.textAlign = 'right';
+    ctx.fillText('● KPI成果 (右軸) ■', W - padR, padT - 8);
   }
 
   // ---------- ユーティリティ ----------
+  function getRecentDays(n) {
+    var days = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var d = new Date(); d.setDate(d.getDate() - i);
+      days.push(formatDateKey(d));
+    }
+    return days;
+  }
+  function drawGrid(ctx, padL, padR, padT, padB, W, H, maxVal) {
+    ctx.strokeStyle = '#f0f2f5'; ctx.lineWidth = 1;
+    var steps = 4;
+    for (var s = 0; s <= steps; s++) {
+      var yy = padT + (H - padT - padB) - ((H - padT - padB) * s / steps);
+      ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
+      ctx.fillStyle = '#bbb'; ctx.font = '9px sans-serif'; ctx.textAlign = 'right';
+      ctx.fillText(Math.round(maxVal * s / steps), padL - 5, yy + 3);
+    }
+  }
   function setStatus(msg) { document.getElementById('status').textContent = msg; }
-
   function formatDateKey(date) {
     var y = date.getFullYear();
     var m = ('0' + (date.getMonth() + 1)).slice(-2);
     var d = ('0' + date.getDate()).slice(-2);
     return y + '-' + m + '-' + d;
   }
-
   function formatDateTimeJP(iso) {
     try {
       var d = new Date(iso);
-      if (isNaN(d)) return iso;
-      return (d.getMonth() + 1) + '月' + d.getDate() + '日 '
-        + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+      return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
     } catch (e) { return iso; }
   }
-
   function roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h);
-    ctx.lineTo(x, y + h);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
+    if (h < 0) h = 0;
+    ctx.beginPath(); ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r); ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h); ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
+  }
+
+  function renderTable(dailyCounts) {
+    var daySet = {};
+    pageKeys.forEach(function(k) { if (dailyCounts[k]) Object.keys(dailyCounts[k]).forEach(function(day) { daySet[day] = true; }); });
+    var days = Object.keys(daySet).sort().reverse().slice(0, 30);
+    var thead = document.getElementById('tableHead');
+    thead.innerHTML = '<th class="td-date">日付</th>' + pageKeys.map(function(k) { return '<th>' + PAGE_LABELS[k] + '</th>'; }).join('') + '<th>合計</th>';
+    var tbody = document.getElementById('tableBody');
+    if (days.length === 0) { tbody.innerHTML = '<tr><td colspan="8">データなし</td></tr>'; return; }
+    tbody.innerHTML = days.map(function(day) {
+      var total = 0;
+      var cells = pageKeys.map(function(k) {
+        var v = (dailyCounts[k] && dailyCounts[k][day]) ? dailyCounts[k][day] : 0;
+        total += v; return '<td>' + (v || '—') + '</td>';
+      }).join('');
+      return '<tr><td class="td-date">' + day.slice(5) + '</td>' + cells + '<td><strong>' + total + '</strong></td></tr>';
+    }).join('');
+  }
+
+  function openResetModal() { document.getElementById('overlay').classList.add('open'); }
+  function closeResetModal(e) { if (e && e.target !== document.getElementById('overlay')) return; document.getElementById('overlay').classList.remove('open'); }
+  function doReset() {
+    document.getElementById('overlay').classList.remove('open');
+    setStatus('リセット中...');
+    fetch(APP_URL + '?page=calendar&action=pageViewReset').then(function(r) { return r.json(); }).then(function() { loadData(); }).catch(function(e) { setStatus('リセットエラー: ' + e.message); });
   }
 
   // ---------- 初期化 ----------
   window.addEventListener('resize', function() {
-    if (!currentData) return;
-    renderBarChart(currentData.counts);
-    renderLineChart(currentData.dailyCounts);
+    var activeBtn = document.querySelector('.tab-btn.active');
+    if(activeBtn) {
+      var activeTab = activeBtn.getAttribute('onclick').match(/'([^']+)'/)[1];
+      switchTab(activeTab);
+    }
   });
 
   loadData();

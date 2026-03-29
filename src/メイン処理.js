@@ -518,6 +518,13 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(spResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    if (param.action === 'kpiDailyGet') {
+      var kpiStore = param.store || 'BiZCAFE（千葉大学）店';
+      var kpiYM = param.yearmonths ? param.yearmonths.split(',') : [Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM')];
+      var kpiResult = getStoreProgressDaily(kpiYM, kpiStore);
+      return ContentService.createTextOutput(JSON.stringify(kpiResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     if (param.action) {
       return ContentService.createTextOutput(JSON.stringify({
         ok: false,

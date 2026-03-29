@@ -247,9 +247,9 @@ function appendAppealPoint_(companyName, appealPoint) {
   for (var i = 0; i < nameCol.length; i++) {
     if (String(nameCol[i][0]).trim() === companyName) {
       // この行のD列以降（index 3〜）で最初の空きセルに書き込む
-      var rowData = sheet.getRange(i + 2, 1, 1, Math.max(lastCol, 4)).getValues()[0];
-      var writeCol = 4; // D列（1-indexed）
-      for (var j = 3; j < rowData.length; j++) { // 0-indexedで3 = D列
+      var rowData = sheet.getRange(i + 2, 1, 1, Math.max(lastCol, 5)).getValues()[0];
+      var writeCol = 5; // E列（1-indexed）スタッフアピール開始
+      for (var j = 4; j < rowData.length; j++) { // 0-indexedで4 = E列
         if (!String(rowData[j]).trim()) {
           writeCol = j + 1; // 1-indexed
           break;
