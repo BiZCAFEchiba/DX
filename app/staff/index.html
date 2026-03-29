@@ -26,7 +26,7 @@
     }
     .tab-btn.active { color: #1a3a5c; border-bottom-color: #1a3a5c; }
     .tab-btn .tab-icon { font-size: 1rem; display: block; margin-bottom: 3px; }
-    .tab-content { flex: 1; overflow-y: auto; }
+    .tab-content { flex: 1; overflow-y: auto; position: relative; }
     .tab-pane { display: none; }
     .tab-pane.active { display: block; }
     .container { width: 100%; max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
@@ -805,14 +805,19 @@
     counterBtn.className = 'tab-btn';
     counterBtn.id = 'tabCounter';
     counterBtn.onclick = function() { switchTab('counter'); };
-    counterBtn.innerHTML = '<span class="tab-icon">📊</span>分析';
+    counterBtn.innerHTML = '<span class="tab-icon">📊</span>カウンタ';
     nav.appendChild(counterBtn);
 
     var pane = document.createElement('div');
     pane.className = 'tab-pane';
     pane.id = 'paneCounter';
-    pane.style.height = '100%';
-    pane.innerHTML = '<iframe src="' + GAS_API_URL + '?page=analytics" style="width:100%; height:100%; border:none; background:white;"></iframe>';
+    pane.style.position = 'absolute';
+    pane.style.top = '0';
+    pane.style.left = '0';
+    pane.style.right = '0';
+    pane.style.bottom = '0';
+    pane.style.overflow = 'hidden';
+    pane.innerHTML = '<iframe src="' + GAS_API_URL + '?page=analytics" style="width:100%; height:100%; border:none; background:white;" loading="lazy"></iframe>';
     content.appendChild(pane);
   }
 
