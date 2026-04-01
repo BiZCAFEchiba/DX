@@ -3,6 +3,39 @@
 // ============================================================
 var ShiftCard = (function () {
 
+  // 同一人物の複数シフトをグループ化する
+  function groupByName(staff) {
+    var map = {};
+    var order = [];
+    staff.forEach(function (s, idx) {
+      if (!map[s.name]) {
+        map[s.name] = { name: s.name, segments: [] };
+        order.push(s.name);
+      }
+      map[s.name].segments.push({ start: s.start, end: s.end, tasks: s.tasks || [], idx: idx });
+    });
+    order.forEach(function (name) {
+      map[name].segments.sort(function (a, b) { return a.start.localeCompare(b.start); });
+    });
+    return order.map(function (name) { return map[name]; });
+  }
+
+  // "HH:MM" → 分に変換
+  function toMin(t) {
+    var p = String(t || '0:0').split(':');
+    return parseInt(p[0]) * 60 + parseInt(p[1]);
+  }
+
+  // 分 → "Xh" or "Xh Ym" 表示
+  function fmtBreak(min) {
+    if (min <= 0) return '';
+    var h = Math.floor(min / 60);
+    var m = min % 60;
+    if (h > 0 && m > 0) return h + 'h' + m + 'm';
+    if (h > 0) return h + 'h';
+    return m + 'm';
+  }
+
   function render(dayData) {
     var displayDate = formatDisplayDate(dayData.date, dayData.dayOfWeek);
 
@@ -12,22 +45,40 @@ var ShiftCard = (function () {
     if (!dayData.staff || dayData.staff.length === 0) {
       html += '<div class="empty-state"><span class="text">シフトなし</span></div>';
     } else {
+      var groups = groupByName(dayData.staff);
       html += '<ul class="shift-list">';
-      dayData.staff.forEach(function (s, idx) {
-        html += '<li class="shift-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">';
-        html += '<div style="flex:1;min-width:0;">';
-        html += '<div class="shift-name-time">';
-        html += '<span class="shift-name">' + escHtml(s.name) + '</span>';
-        html += '<span class="shift-time">' + s.start + '〜' + s.end + '</span>';
-        html += '</div>';
-        if (s.tasks && s.tasks.length > 0) {
-          html += '<div class="shift-tasks">📋 ' + escHtml(s.tasks.join(' / ')) + '</div>';
-        }
-        html += '</div>';
-        html += '<div style="display:flex;gap:4px;flex-shrink:0;">';
-        html += '<button class="btn-edit-shift" data-idx="' + idx + '" style="padding:6px 10px;background:var(--gray-100);border:none;border-radius:6px;font-size:0.82rem;cursor:pointer;">編集</button>';
-        html += '<button class="btn-delete-shift" data-idx="' + idx + '" style="padding:6px 10px;background:#fee2e2;color:#991b1b;border:none;border-radius:6px;font-size:0.82rem;cursor:pointer;">削除</button>';
-        html += '</div>';
+      groups.forEach(function (g) {
+        var isSplit = g.segments.length > 1;
+        html += '<li class="shift-item shift-line' + (isSplit ? ' shift-line--split' : '') + '">';
+
+        // 名前
+        html += '<div class="shift-line-name">' + escHtml(g.name) + '</div>';
+
+        // セグメント群
+        html += '<div class="shift-line-body">';
+        g.segments.forEach(function (seg, si) {
+          // 前のセグメントとの休憩時間
+          if (si > 0) {
+            var breakMin = toMin(seg.start) - toMin(g.segments[si - 1].end);
+            var breakLabel = fmtBreak(breakMin);
+            html += '<div class="shift-break">';
+            if (breakLabel) html += '<span class="shift-break-label">☕' + breakLabel + '</span>';
+            html += '</div>';
+          }
+
+          html += '<div class="shift-segment">';
+          html += '<div class="shift-segment-time">' + seg.start + '〜' + seg.end + '</div>';
+          if (seg.tasks.length > 0) {
+            html += '<div class="shift-tasks">📋 ' + escHtml(seg.tasks.join(' / ')) + '</div>';
+          }
+          html += '<div class="shift-segment-btns">';
+          html += '<button class="btn-edit-shift" data-idx="' + seg.idx + '">編集</button>';
+          html += '<button class="btn-delete-shift" data-idx="' + seg.idx + '">削除</button>';
+          html += '</div>';
+          html += '</div>';
+        });
+        html += '</div>'; // shift-line-body
+
         html += '</li>';
       });
       html += '</ul>';

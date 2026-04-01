@@ -104,19 +104,92 @@ body {
 .shift-item {
   padding: 10px 0;
   border-bottom: 1px solid var(--gray-100);
-  display: flex; flex-direction: column; gap: 2px;
 }
 .shift-item:last-child { border-bottom: none; }
-.shift-name-time {
-  display: flex; justify-content: space-between; align-items: center;
+
+/* シフトライン（1人1行） */
+.shift-line {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
+.shift-line-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--gray-900);
+}
+.shift-line-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* 各時間帯セグメント */
+.shift-segment {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  padding: 5px 8px;
+  min-width: 0;
+}
+.shift-line--split .shift-segment {
+  border-color: var(--primary-light);
+  background: #f0f7ff;
+}
+.shift-segment-time {
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--gray-700);
+  white-space: nowrap;
+}
+.shift-segment-btns {
+  display: flex;
+  gap: 4px;
+  margin-top: 3px;
+}
+.shift-segment-btns .btn-edit-shift {
+  padding: 4px 8px;
+  background: var(--gray-100);
+  border: none;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  color: var(--gray-700);
+}
+.shift-segment-btns .btn-delete-shift {
+  padding: 4px 8px;
+  background: #fee2e2;
+  color: #991b1b;
+  border: none;
+  border-radius: 5px;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+/* 休憩区切り */
+.shift-break {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  padding-top: 6px;
+}
+.shift-break-label {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
+.shift-tasks {
+  font-size: 0.78rem; color: var(--gray-500);
+}
+
+/* 後方互換（旧クラスが残っている場合） */
 .shift-name { font-weight: 600; font-size: 0.95rem; }
 .shift-time { color: var(--gray-500); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
-.shift-tasks {
-  font-size: 0.8rem; color: var(--gray-500);
-  padding-left: 12px;
-}
-.shift-tasks::before { content: '\2514 '; }
 
 /* --- Buttons --- */
 .btn {
