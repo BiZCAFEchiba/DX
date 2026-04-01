@@ -67,10 +67,10 @@
       position: relative;
     }
 
-    /* Grid layout: Staff Name (150px) + 48 slots (12h * 4) */
+    /* Grid layout: Staff Name (150px) + 72 slots (12h * 6) */
     .grid-container {
       display: grid;
-      grid-template-columns: 150px repeat(48, 1fr);
+      grid-template-columns: 150px repeat(72, 1fr);
       position: relative;
     }
 
@@ -123,13 +123,13 @@
       position: absolute;
       inset: 0;
       display: grid;
-      grid-template-columns: repeat(48, 1fr);
+      grid-template-columns: repeat(72, 1fr);
       pointer-events: none;
     }
     .grid-cell {
       border-left: 1px solid var(--grid-line);
     }
-    .grid-cell:nth-child(4n+1) {
+    .grid-cell:nth-child(6n+1) {
       border-left: 1px solid var(--grid-hour);
     }
 
@@ -266,7 +266,7 @@
   const APP_URL = '<?= appUrl ?>';
   const START_HOUR = 10;
   const END_HOUR = 22;
-  const TOTAL_SLOTS = (END_HOUR - START_HOUR) * 4;
+  const TOTAL_SLOTS = (END_HOUR - START_HOUR) * 6;
   
   let currentTargetDate = new Date();
 
@@ -280,7 +280,7 @@
     const totalMin = h * 60 + m;
     const startMin = START_HOUR * 60;
     const diff = totalMin - startMin;
-    return diff / 15;
+    return diff / 10;
   }
 
   async function loadData() {
@@ -324,7 +324,7 @@
     for (let h = START_HOUR; h < END_HOUR; h++) {
       const hCell = document.createElement('div');
       hCell.className = 'time-header';
-      hCell.style.gridColumn = `span 4`;
+      hCell.style.gridColumn = `span 6`;
       hCell.textContent = h + ':00';
       grid.appendChild(hCell);
     }
