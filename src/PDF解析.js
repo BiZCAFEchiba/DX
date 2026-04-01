@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // pdfParser.gs - PDF→テキスト変換・シフトデータ抽出
 // ============================================================
 
@@ -69,7 +69,30 @@ function getTomorrow() {
  * @param {{ formatted: string }} tomorrow - 翌日情報
  * @returns {Array<{ name: string, start: string, end: string, tasks: string[] }>}
  */
-function parseShiftData(text, tomorrow) {
+function parseShiftData(text, tomorrow, pdfFile) {
+  if (pdfFile && typeof parseAllShiftsFromPdf_ === 'function') {
+    var allShifts = parseAllShiftsFromPdf_(pdfFile, text);
+    var targetISO = tomorrow && tomorrow.dateObj
+      ? Utilities.formatDate(tomorrow.dateObj, TIMEZONE, 'yyyy-MM-dd')
+      : null;
+
+    if (!targetISO && tomorrow && tomorrow.formatted) {
+      var formattedMatch = tomorrow.formatted.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
+      if (formattedMatch) {
+        targetISO = formattedMatch[1] + '-' +
+          String(formattedMatch[2]).padStart(2, '0') + '-' +
+          String(formattedMatch[3]).padStart(2, '0');
+      }
+    }
+
+    if (!targetISO) return [];
+
+    for (var ai = 0; ai < allShifts.length; ai++) {
+      if (allShifts[ai].date === targetISO) return allShifts[ai].shifts;
+    }
+    return [];
+  }
+
   // 日付パターンでテキストをブロック分割
   const datePattern = /(\d{4})年(\d{2})月(\d{2})日\((.)\)/g;
   const lines = normalizePdfText_(text).split('\n');
@@ -198,11 +221,11 @@ function parseStaffLines(blockLines) {
   const taskKeywords = ['清掃', '在報', '棚卸', '発注', '研修', 'MTG', 'ミーティング', '引継', '営業中研修', 'OP研修'];
 
   // 名前パターン1: 姓 名（スペース区切り）
-  const namePatternSpaced = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+[\s　]+[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
+  const namePatternSpaced = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+[\s　]+[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
   // 名前パターン2: 姓名（スペースなし）3〜8文字 - OCRがスペースを認識しないケース（例: 北田あや）
-  const namePatternUnspaced = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]{3,8}$/u;
+  const namePatternUnspaced = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]{3,8}$/u;
   // 名前部分の文字種チェック（OCRゴミ文字を除外 & タスクキーワードを除外）
-  const validNameChars = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
+  const validNameChars = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
 
   const results = [];          // パターンA（同一行）で確定した結果
   const standaloneNames = [];  // 時刻なし名前行（列ごとOCR対応）
@@ -315,9 +338,9 @@ function parseStaffLines(blockLines) {
  */
 function extractLeadingTimes_(blockLines, maxCount) {
   const taskKeywords = ['清掃', '在報', '棚卸', '発注', '研修', 'MTG', 'ミーティング', '引継', '営業中研修', 'OP研修'];
-  const validNameChars = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
-  const namePatternSpaced = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+[\s　]+[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
-  const namePatternUnspaced = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]{3,8}$/u;
+  const validNameChars = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
+  const namePatternSpaced = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+[\s　]+[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
+  const namePatternUnspaced = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]{3,8}$/u;
   const skipKeywords = ['スタッフ', '開始', '終了', '時刻', '計:'];
 
   const times = [];

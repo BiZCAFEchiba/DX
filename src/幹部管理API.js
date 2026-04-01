@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // 幹部管理API.js - 幹部向けWebAppバックエンド
 // ============================================================
 
@@ -113,7 +113,7 @@ function kanbuImportShifts_() {
       continue;
     }
 
-    const allShifts = parseAllShiftsFromText_(shiftText);
+    const allShifts = parseAllShiftsFromPdf_(pdfFile, shiftText);
 
     // カレンダーに登録（重複はカレンダー側でチェック）
     calendarCount += registerShiftsToCalendar(allShifts);

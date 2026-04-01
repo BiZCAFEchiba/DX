@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // main.gs - エントリーポイント（Sheets統合版）
 // ============================================================
 
@@ -1080,7 +1080,7 @@ function autoProcessPdfFromDrive() {
       continue;
     }
 
-    const allShifts = parseAllShiftsFromText_(shiftText);
+    const allShifts = parseAllShiftsFromPdf_(pdfFile, shiftText);
     let fileImported = 0;
     let fileSkipped = 0;
 
@@ -1250,7 +1250,7 @@ function getShiftsFromPdfFallback_(tomorrow) {
     var shiftText = extractTextFromPdf(pdfFile);
     if (!shiftText) continue;
 
-    var shiftData = parseShiftData(shiftText, tomorrow);
+    var shiftData = parseShiftData(shiftText, tomorrow, pdfFile);
     if (shiftData.length === 0) continue;
 
     // 全PDFのデータを結合
@@ -1297,8 +1297,11 @@ function testParsePdf() {
     Logger.log('抽出テキスト:\n' + text);
 
     var tomorrow = getTomorrow();
-    var data = parseShiftData(text, tomorrow);
-    Logger.log('シフトデータ: ' + JSON.stringify(data, null, 2));
+    var allShifts = parseAllShiftsFromPdf_(pdfFile, text);
+    Logger.log('全シフトデータ: ' + JSON.stringify(allShifts, null, 2));
+
+    var data = parseShiftData(text, tomorrow, pdfFile);
+    Logger.log('翌日シフトデータ: ' + JSON.stringify(data, null, 2));
 
     var result = buildReminderMessage(data, tomorrow);
     Logger.log('送信メッセージ:\n' + result.messageText);
@@ -1465,7 +1468,7 @@ function menuParsePdf() {
     }
 
     // テキストから全日付ブロックを抽出
-    const allShifts = parseAllShiftsFromText_(shiftText);
+    const allShifts = parseAllShiftsFromPdf_(pdfFile, shiftText);
     let fileImported = 0;
     let fileSkipped = 0;
 
