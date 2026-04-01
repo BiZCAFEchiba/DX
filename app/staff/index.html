@@ -402,6 +402,9 @@
   <button class="tab-btn" id="tabStaffRoom" onclick="switchTab('room')">
     <span class="tab-icon">🚪</span>ルーム管理
   </button>
+  <button class="tab-btn" onclick="openShiftBoard()">
+    <span class="tab-icon">📅</span>シフト
+  </button>
 </nav>
 
 <div class="tab-content">
@@ -1000,6 +1003,11 @@
         msg.textContent = '保存に失敗しました。';
         btn.disabled = false;
       });
+  }
+
+  function openShiftBoard() {
+    const url = window.location.href.split('?')[0] + '?page=shiftBoard';
+    window.open(url, '_blank');
   }
 
   applyStaffLabels();

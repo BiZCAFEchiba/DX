@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフトボード | BizCAFE</title>
+  <style>
+    :root {
+      --bg-color: #f8fafc;
+      --card-bg: #ffffff;
+      --text-main: #1e293b;
+      --text-sub: #64748b;
+      --border-color: #e2e8f0;
+      --accent: #2563eb;
+      --grid-line: #f1f5f9;
+      --grid-hour: #cbd5e1;
+      
+      /* Role Colors */
+      --color-default: #94a3b8;
+      --color-clean: #10b981;
+      --color-mtg: #f59e0b;
+      --color-order: #3b82f6;
+      --color-training: #8b5cf6;
+      --color-meetup: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .header h1 { font-size: 1.5rem; font-weight: 800; color: #0f172a; }
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      padding: 6px 16px;
+      border-radius: 99px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .date-nav button {
+      border: none; background: none; cursor: pointer; font-size: 1.2rem; color: var(--accent);
+    }
+    #currentDate { font-weight: 700; font-size: 0.95rem; min-width: 120px; text-align: center; }
+
+    .board-container {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      overflow-x: auto;
+      border: 1px solid var(--border-color);
+      position: relative;
+    }
+
+    .timeline-wrapper {
+      min-width: 1000px; /* Ensure 12 hours fit */
+      position: relative;
+    }
+
+    /* Grid layout: Staff Name (150px) + 48 slots (12h * 4) */
+    .grid-container {
+      display: grid;
+      grid-template-columns: 150px repeat(48, 1fr);
+      position: relative;
+    }
+
+    .time-headers {
+      display: contents;
+    }
+    .time-header {
+      grid-row: 1;
+      text-align: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      padding: 12px 0;
+      border-left: 1px solid var(--grid-hour);
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 10;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Staff Rows */
+    .staff-row {
+      display: contents;
+    }
+    .staff-name {
+      grid-column: 1;
+      padding: 16px 20px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      border-bottom: 1px solid var(--border-color);
+      background: white;
+      position: sticky;
+      left: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      height: 60px;
+    }
+    .grid-cells-wrapper {
+      grid-column: 2 / -1;
+      position: relative;
+      height: 60px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .grid-background {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-columns: repeat(48, 1fr);
+      pointer-events: none;
+    }
+    .grid-cell {
+      border-left: 1px solid var(--grid-line);
+    }
+    .grid-cell:nth-child(4n+1) {
+      border-left: 1px solid var(--grid-hour);
+    }
+
+    /* Shift Bars */
+    .shift-bar {
+      height: 32px;
+      top: 14px;
+      border-radius: 8px;
+      position: absolute;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      color: white;
+      font-size: 0.75rem;
+      font-weight: 700;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.12);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: help;
+      z-index: 2;
+    }
+    .shift-bar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.18);
+      z-index: 10;
+    }
+    
+    .role-label {
+      display: inline-block;
+      padding: 0 6px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.15);
+      margin-right: 8px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+    }
+
+    /* Current Time Marker */
+    #timeMarker {
+      position: absolute;
+      top: 0; bottom: 0;
+      width: 2px;
+      background: #ef4444;
+      z-index: 20;
+      pointer-events: none;
+      display: none;
+    }
+    #timeMarker::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -5px;
+      width: 12px; height: 12px;
+      background: #ef4444;
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(239, 68, 68, 0.4);
+    }
+
+    /* Summary Card */
+    .summary-card {
+      margin-top: 24px;
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .summary-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 20px; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+    .summary-title::before { content: '📅'; font-size: 1.1rem; }
+
+    .meetup-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+    .meetup-item {
+      display: flex; align-items: center; gap: 16px;
+      padding: 16px; background: #f8fafc; border-radius: 12px;
+      border: 1px solid #f1f5f9;
+      transition: all 0.2s;
+    }
+    .meetup-item:hover { background: #f1f5f9; border-color: #e2e8f0; }
+    .meetup-time { font-weight: 800; color: var(--accent); font-size: 1rem; width: 100px; }
+    .meetup-content { font-size: 0.9rem; line-height: 1.4; }
+    .meetup-company { font-weight: 700; color: #0f172a; display: block; }
+    .meetup-kind { font-size: 0.75rem; color: var(--text-sub); }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 60px; color: var(--text-sub); background: white; grid-column: 1 / -1; }
+
+    /* Loading */
+    .loading-overlay {
+      position: absolute; inset: 0; background: rgba(255,255,255,0.7);
+      display: flex; align-items: center; justify-content: center; z-index: 100;
+      backdrop-filter: blur(2px);
+    }
+    .spinner {
+      width: 40px; height: 40px; border: 4px solid var(--accent); border-top-color: #e2e8f0;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🏢 シフトボード</h1>
+  <div class="date-nav">
+    <button onclick="changeDate(-1)">❮</button>
+    <div id="currentDate">読み込み中...</div>
+    <button onclick="changeDate(1)">❯</button>
+  </div>
+</div>
+
+<div class="board-container" id="boardContainer">
+  <div class="loading-overlay" id="loading">
+    <div class="spinner"></div>
+  </div>
+  
+  <div class="timeline-wrapper">
+    <div class="grid-container" id="grid">
+      <!-- Generated via JS -->
+    </div>
+    <div id="timeMarker"></div>
+  </div>
+</div>
+
+<div class="summary-card" id="summaryCard" style="display: none;">
+  <div class="summary-title">Meetup / 貸切予定</div>
+  <div class="meetup-list" id="meetupList">
+    <!-- Generated via JS -->
+  </div>
+</div>
+
+<script>
+  // GAS Template variables
+  const APP_URL = '<?= appUrl ?>';
+  const START_HOUR = 10;
+  const END_HOUR = 22;
+  const TOTAL_SLOTS = (END_HOUR - START_HOUR) * 4;
+  
+  let currentTargetDate = new Date();
+
+  function formatTime(date) {
+    return date.getHours().toString().padStart(2, '0') + ':' + 
+           date.getMinutes().toString().padStart(2, '0');
+  }
+
+  function getSlotIndex(timeStr) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const totalMin = h * 60 + m;
+    const startMin = START_HOUR * 60;
+    const diff = totalMin - startMin;
+    return diff / 15;
+  }
+
+  async function loadData() {
+    document.getElementById('loading').style.display = 'flex';
+    const isoDate = currentTargetDate.toISOString().split('T')[0];
+    const dow = ['日','月','火','水','木','金','土'][currentTargetDate.getDay()];
+    document.getElementById('currentDate').textContent = `${currentTargetDate.getFullYear()}年${currentTargetDate.getMonth()+1}月${currentTargetDate.getDate()}日 (${dow})`;
+
+    try {
+      const response = await fetch(`${APP_URL}?page=shiftBoard&action=getShiftBoardData&date=${isoDate}`);
+      const data = await response.json();
+      renderBoard(data);
+    } catch (e) {
+      console.error(e);
+      alert('データ取得エラー');
+    } finally {
+      document.getElementById('loading').style.display = 'none';
+      updateTimeMarker();
+    }
+  }
+
+  const roleColors = {
+    '清掃': '#10b981', // 緑
+    'MTG': '#f59e0b', // オレンジ
+    'ミーティング': '#f59e0b',
+    '発注': '#3b82f6', // 青
+    '研修': '#8b5cf6', // 紫
+    '対面Meetup': '#ef4444', // 赤
+    '貸切Meetup': '#ef4444',
+  };
+
+  function renderBoard(data) {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+
+    // 1. Time Headers
+    const emptyHeader = document.createElement('div');
+    emptyHeader.className = 'time-header';
+    grid.appendChild(emptyHeader);
+
+    for (let h = START_HOUR; h < END_HOUR; h++) {
+      const hCell = document.createElement('div');
+      hCell.className = 'time-header';
+      hCell.style.gridColumn = `span 4`;
+      hCell.textContent = h + ':00';
+      grid.appendChild(hCell);
+    }
+
+    if (!data || !data.shifts || data.shifts.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.textContent = '本日のシフトデータが見つかりませんでした。';
+      grid.appendChild(empty);
+      document.getElementById('summaryCard').style.display = 'none';
+      return;
+    }
+
+    // 2. Group by staff
+    const staffShifts = {};
+    data.shifts.forEach(s => {
+      if (!staffShifts[s.name]) staffShifts[s.name] = [];
+      staffShifts[s.name].push(s);
+    });
+
+    // 3. Render Staff Rows
+    Object.keys(staffShifts).forEach(name => {
+      const nameEl = document.createElement('div');
+      nameEl.className = 'staff-name';
+      nameEl.textContent = name;
+      grid.appendChild(nameEl);
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'grid-cells-wrapper';
+      
+      const bg = document.createElement('div');
+      bg.className = 'grid-background';
+      for (let i = 0; i < TOTAL_SLOTS; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell';
+        bg.appendChild(cell);
+      }
+      wrapper.appendChild(bg);
+
+      staffShifts[name].forEach(shift => {
+        const startIdx = getSlotIndex(shift.start);
+        const endIdx = getSlotIndex(shift.end);
+        
+        const left = Math.max(0, startIdx);
+        const right = Math.min(TOTAL_SLOTS, endIdx);
+        
+        if (right > left) {
+          const bar = document.createElement('div');
+          bar.className = 'shift-bar';
+          bar.style.left = (left * 100 / TOTAL_SLOTS) + '%';
+          bar.style.width = ((right - left) * 100 / TOTAL_SLOTS) + '%';
+          
+          const primaryRole = shift.tasks && shift.tasks.length > 0 ? shift.tasks[0] : '';
+          bar.style.backgroundColor = roleColors[primaryRole] || '#94a3b8';
+          
+          if (primaryRole) {
+            const roleEl = document.createElement('span');
+            roleEl.className = 'role-label';
+            roleEl.textContent = primaryRole;
+            bar.appendChild(roleEl);
+          }
+          
+          const timeText = document.createElement('span');
+          timeText.textContent = `${shift.start}〜${shift.end}`;
+          bar.appendChild(timeText);
+          
+          bar.title = `${name}: ${shift.start}〜${shift.end}\n役割: ${shift.tasks.join(', ') || 'なし'}`;
+          wrapper.appendChild(bar);
+        }
+      });
+
+      grid.appendChild(wrapper);
+    });
+
+    // 4. Meetups
+    const meetupList = document.getElementById('meetupList');
+    meetupList.innerHTML = '';
+    if (data.meetups && data.meetups.length > 0) {
+      document.getElementById('summaryCard').style.display = 'block';
+      data.meetups.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'meetup-item';
+        item.innerHTML = `
+          <div class="meetup-time">${m.time}</div>
+          <div class="meetup-content">
+            <span class="meetup-company">${m.company}</span>
+            <span class="meetup-kind">${m.kind || 'イベント'}</span>
+          </div>
+        `;
+        meetupList.appendChild(item);
+      });
+    } else {
+      document.getElementById('summaryCard').style.display = 'none';
+    }
+  }
+
+  function updateTimeMarker() {
+    const marker = document.getElementById('timeMarker');
+    const now = new Date();
+    
+    // Check if within display range
+    // Normalize target date to local midnight
+    const t = new Date(currentTargetDate); t.setHours(0,0,0,0);
+    const n = new Date(now); n.setHours(0,0,0,0);
+    
+    if (t.getTime() !== n.getTime()) {
+      marker.style.display = 'none';
+      return;
+    }
+
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const totalMin = h * 60 + m;
+    const startMin = START_HOUR * 60;
+    const endMin = END_HOUR * 60;
+
+    if (totalMin >= startMin && totalMin < endMin) {
+      const pos = (totalMin - startMin) / (endMin - startMin) * 100;
+      marker.style.display = 'block';
+      marker.style.left = `calc(150px + (100% - 150px) * ${pos / 100})`;
+    } else {
+      marker.style.display = 'none';
+    }
+  }
+
+  function changeDate(offset) {
+    currentTargetDate.setDate(currentTargetDate.getDate() + offset);
+    loadData();
+  }
+
+  setInterval(updateTimeMarker, 60000);
+  window.onload = loadData;
+</script>
+
+</body>
+</html>
