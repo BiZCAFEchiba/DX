@@ -27,7 +27,7 @@ function extractTextFromPdf(pdfFile) {
     const doc = DocumentApp.openById(docFile.id);
     const text = doc.getBody().getText();
     Logger.log('テキスト抽出完了: ' + pdfFile.getName() + ' (' + text.length + '文字)');
-    return text;
+    return normalizePdfText_(text);
   } catch (e) {
     Logger.log('PDF変換エラー: ' + e.message);
     return null;
@@ -72,7 +72,7 @@ function getTomorrow() {
 function parseShiftData(text, tomorrow) {
   // 日付パターンでテキストをブロック分割
   const datePattern = /(\d{4})年(\d{2})月(\d{2})日\((.)\)/g;
-  const lines = text.split('\n');
+  const lines = normalizePdfText_(text).split('\n');
 
   // 翌日の日付文字列（照合用）
   const tomorrowDate = tomorrow.formatted; // 例: "2026年02月13日"
@@ -119,6 +119,64 @@ function normalizeTime_(time) {
   return parts[0].padStart(2, '0') + ':' + parts[1];
 }
 
+function normalizePdfFragment_(text) {
+  if (text === null || text === undefined) return '';
+  const source = String(text);
+  try {
+    return source.normalize('NFKC');
+  } catch (e) {
+    return source;
+  }
+}
+
+function normalizePdfLine_(line) {
+  return normalizePdfFragment_(line)
+    .replace(/[\u00A0\u2000-\u200B\u3000]/g, ' ')
+    .replace(/[〜～∼]/g, '~')
+    .replace(/[‐‑‒–—―−－]/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizePdfText_(text) {
+  if (!text) return '';
+  return normalizePdfFragment_(text)
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map(function(line) { return normalizePdfLine_(line); })
+    .join('\n');
+}
+
+function extractTimeRanges_(text) {
+  const source = normalizePdfLine_(text);
+  const timePattern = /(\d{1,2}:\d{2})\s*(?:[~\-]|\s+)\s*(\d{1,2}:\d{2})/g;
+  const ranges = [];
+  let match;
+
+  while ((match = timePattern.exec(source)) !== null) {
+    ranges.push({
+      start: normalizeTime_(match[1]),
+      end: normalizeTime_(match[2]),
+      raw: match[0],
+      index: match.index
+    });
+  }
+
+  return ranges;
+}
+
+function appendShiftEntries_(results, name, timeRanges, tasks) {
+  if (!name || !timeRanges || timeRanges.length === 0) return;
+  for (const range of timeRanges) {
+    results.push({
+      name: name,
+      start: range.start,
+      end: range.end,
+      tasks: tasks || []
+    });
+  }
+}
+
 /**
  * シフトブロックの行からスタッフ・時間・業務内容を抽出する
  *
@@ -137,7 +195,6 @@ function normalizeTime_(time) {
 function parseStaffLines(blockLines) {
   // ヘッダー系のみスキップ。タスクキーワードは業務内容として読み取るためスキップしない
   const skipKeywords = ['スタッフ', '開始', '終了', '時刻', '計:'];
-  const timePattern = /(\d{1,2}:\d{2})(?:[〜~～\-]|\s+)(\d{1,2}:\d{2})/;
   const taskKeywords = ['清掃', '在報', '棚卸', '発注', '研修', 'MTG', 'ミーティング', '引継', '営業中研修', 'OP研修'];
 
   // 名前パターン1: 姓 名（スペース区切り）
@@ -153,36 +210,51 @@ function parseStaffLines(blockLines) {
   const standaloneTasks = [];  // 業務内容のみ行（インデックスでスタッフと対応）
 
   for (const line of blockLines) {
-    const trimmed = line.trim();
+    const trimmed = normalizePdfLine_(line);
     if (!trimmed) continue;
     if (skipKeywords.some(function(kw) { return trimmed.includes(kw); })) continue;
 
-    const timeMatch = trimmed.match(timePattern);
+    const timeRanges = extractTimeRanges_(trimmed);
 
-    if (timeMatch) {
+    if (timeRanges.length > 0) {
       // 時刻行: 前後のテキストを確認
-      const namePartRaw = trimmed.substring(0, trimmed.indexOf(timeMatch[0])).trim();
-      const namePart = namePartRaw.replace(/[\s　]+/g, '');
-      const afterTime = trimmed.substring(trimmed.indexOf(timeMatch[0]) + timeMatch[0].length).trim();
+      const firstRange = timeRanges[0];
+      const lastRange = timeRanges[timeRanges.length - 1];
+      const namePartRaw = trimmed.substring(0, firstRange.index).trim();
+      const namePart = namePartRaw.replace(/\s+/g, '');
+      const afterTime = trimmed.substring(lastRange.index + lastRange.raw.length).trim();
 
       // 名前部分が有効かつタスクキーワードを含まない → パターンA（同一行に名前＋時刻）
       var isValidName = namePart && validNameChars.test(namePart) &&
                         !taskKeywords.some(function(kw) { return namePart.includes(kw); });
 
       if (isValidName) {
-        results.push({
-          name: namePart,
-          start: normalizeTime_(timeMatch[1]),
-          end: normalizeTime_(timeMatch[2]),
-          tasks: extractTasks(namePartRaw + ' ' + afterTime, taskKeywords)
-        });
+        appendShiftEntries_(
+          results,
+          namePart,
+          timeRanges,
+          extractTasks(namePartRaw + ' ' + afterTime, taskKeywords)
+        );
+      } else if ((standaloneNames.length - standaloneTimes.length) === 1 && timeRanges.length > 1) {
+        // A single unresolved name followed by multiple intervals is usually one
+        // staff member with a break in between. Emit separate rows and keep
+        // downstream consumers compatible by preserving the current shape.
+        var pendingName = standaloneNames.pop();
+        appendShiftEntries_(
+          results,
+          pendingName,
+          timeRanges,
+          extractTasks(trimmed, taskKeywords)
+        );
       } else {
         // 名前なし時刻行 → スタンドアロン。行内にタスクがあれば付属させる
         var inlineTasks = extractTasks(namePartRaw + ' ' + afterTime, taskKeywords);
-        standaloneTimes.push({
-          start: normalizeTime_(timeMatch[1]),
-          end: normalizeTime_(timeMatch[2]),
-          tasks: inlineTasks
+        timeRanges.forEach(function(range) {
+          standaloneTimes.push({
+            start: range.start,
+            end: range.end,
+            tasks: inlineTasks
+          });
         });
       }
 
@@ -193,7 +265,7 @@ function parseStaffLines(blockLines) {
         standaloneTasks.push(lineTasks);
       } else if (namePatternSpaced.test(trimmed) || namePatternUnspaced.test(trimmed)) {
         // 名前のみの行 → スタンドアロン名前リストへ
-        standaloneNames.push(trimmed.replace(/[\s　]+/g, ''));
+        standaloneNames.push(trimmed.replace(/\s+/g, ''));
       }
       // それ以外（数字のみ、記号のみ、OCRゴミ等）は無視
     }
@@ -242,7 +314,6 @@ function parseStaffLines(blockLines) {
  * @returns {{ times: Array<{start,end,tasks}>, remainingLines: string[] }}
  */
 function extractLeadingTimes_(blockLines, maxCount) {
-  const timePattern = /(\d{1,2}:\d{2})(?:[〜~～\-]|\s+)(\d{1,2}:\d{2})/;
   const taskKeywords = ['清掃', '在報', '棚卸', '発注', '研修', 'MTG', 'ミーティング', '引継', '営業中研修', 'OP研修'];
   const validNameChars = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
   const namePatternSpaced = /^[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+[\s　]+[\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Zａ-ｚＡ-Ｚ]+$/u;
@@ -253,25 +324,28 @@ function extractLeadingTimes_(blockLines, maxCount) {
   const consumedIndices = new Set();
 
   for (var i = 0; i < blockLines.length && times.length < maxCount; i++) {
-    const trimmed = blockLines[i].trim();
+    const trimmed = normalizePdfLine_(blockLines[i]);
     if (!trimmed) continue;
     if (skipKeywords.some(function(kw) { return trimmed.includes(kw); })) continue;
 
     // 名前行に当たったら終了
-    const namePart = trimmed.replace(/[\s　]+/g, '');
+    const namePart = trimmed.replace(/\s+/g, '');
     if (validNameChars.test(namePart) &&
         (namePatternSpaced.test(trimmed) || namePatternUnspaced.test(trimmed))) {
       break;
     }
 
     // 時刻行
-    const timeMatch = trimmed.match(timePattern);
-    if (timeMatch) {
-      times.push({
-        start: normalizeTime_(timeMatch[1]),
-        end: normalizeTime_(timeMatch[2]),
-        tasks: extractTasks(trimmed, taskKeywords)
-      });
+    const timeRanges = extractTimeRanges_(trimmed);
+    if (timeRanges.length > 0) {
+      const lineTasks = extractTasks(trimmed, taskKeywords);
+      for (var ti = 0; ti < timeRanges.length && times.length < maxCount; ti++) {
+        times.push({
+          start: timeRanges[ti].start,
+          end: timeRanges[ti].end,
+          tasks: lineTasks
+        });
+      }
       consumedIndices.add(i);
     }
   }

@@ -1530,7 +1530,7 @@ function menuParsePdf() {
  * carryoverNames でその未ペア名前を次ブロック冒頭の時刻と繋げる。
  */
 function parseAllShiftsFromText_(text) {
-  const lines = text.split('\n');
+  const lines = normalizePdfText_(text).split('\n');
   const results = [];
   let currentBlock = null;
   let currentDateStr = null;
