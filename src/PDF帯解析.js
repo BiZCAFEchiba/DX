@@ -199,9 +199,14 @@ function mergeBandRowsWithOcrRows_(ocrBlock, rowMeta, bandBlock) {
 function analyzePdfRectPage_(rects) {
   var grid = inferPdfBandGrid_(rects);
   if (!grid) return null;
+  var candidateRects = rects.filter(function(rect) {
+    return isActiveBandColor_(rect.color) && rect.h > 10 && rect.h < 25;
+  });
+  extendPdfBandGridToCoverRects_(grid, candidateRects);
+  var minBandWidth = Math.max(3, grid.slotWidth * 0.35);
 
-  var activeRects = rects.filter(function(rect) {
-    return isActiveBandColor_(rect.color) && rect.w > 20 && rect.h > 10 && rect.h < 25;
+  var activeRects = candidateRects.filter(function(rect) {
+    return rect.w >= minBandWidth;
   });
   if (activeRects.length === 0) return null;
 
@@ -235,6 +240,20 @@ function analyzePdfRectPage_(rects) {
   });
 
   return { grid: grid, dayBlocks: dayBlocks };
+}
+
+function extendPdfBandGridToCoverRects_(grid, rects) {
+  if (!grid || !grid.xLines || grid.xLines.length === 0 || !rects || rects.length === 0) return;
+
+  var maxRectX = Math.max.apply(null, rects.map(function(rect) { return rect.x2; }));
+  var lastLine = grid.xLines[grid.xLines.length - 1];
+  var safety = 0;
+
+  while (lastLine + (grid.slotWidth * 0.4) < maxRectX && safety < 24) {
+    lastLine = Math.round((lastLine + grid.slotWidth) * 1000000) / 1000000;
+    grid.xLines.push(lastLine);
+    safety++;
+  }
 }
 
 function inferPdfBandGrid_(rects) {
@@ -408,6 +427,28 @@ function parseColoredRectsFromPdfContent_(content) {
       continue;
     }
 
+    var grayFillMatch = line.match(/^([0-9.]+) g$/);
+    if (grayFillMatch) {
+      var gray = Number(grayFillMatch[1]);
+      color = normalizePdfBandColor_([gray, gray, gray]);
+      currentPath = [];
+      subpaths = [];
+      continue;
+    }
+
+    var cmykFillMatch = line.match(/^([0-9.]+) ([0-9.]+) ([0-9.]+) ([0-9.]+) k$/);
+    if (cmykFillMatch) {
+      color = normalizePdfBandColor_(convertPdfCmykToRgb_([
+        Number(cmykFillMatch[1]),
+        Number(cmykFillMatch[2]),
+        Number(cmykFillMatch[3]),
+        Number(cmykFillMatch[4])
+      ]));
+      currentPath = [];
+      subpaths = [];
+      continue;
+    }
+
     var moveMatch = line.match(/^([0-9.]+) ([0-9.]+) m$/);
     if (moveMatch) {
       if (currentPath.length > 0) subpaths.push(currentPath);
@@ -468,6 +509,18 @@ function normalizePdfBandColor_(color) {
   return color.map(function(value) {
     return Math.round(value * 1000000) / 1000000;
   });
+}
+
+function convertPdfCmykToRgb_(cmyk) {
+  var c = cmyk[0];
+  var m = cmyk[1];
+  var y = cmyk[2];
+  var k = cmyk[3];
+  return [
+    1 - Math.min(1, c + k),
+    1 - Math.min(1, m + k),
+    1 - Math.min(1, y + k)
+  ];
 }
 
 function isPdfBandBlack_(color) {
