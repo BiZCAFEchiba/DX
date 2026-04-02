@@ -1,5 +1,5 @@
 const GAS_WEB_APP_URL =
-  'https://script.google.com/macros/s/AKfycbxc5QSSH2bHqX6cuHqClVMWfkBrfqW8Zi4AY2E_wYPjO2NWUD4oJXMihgR1XtVgR0vP/exec';
+  'https://script.google.com/macros/s/AKfycbz1-u0KjsXGA8RXjD8eLHA8amJg3oesL_ahcyvbXU7TX53y_qec3MR6pClR6uj5wIPS/exec';
 
 export default {
   async fetch(request, env) {
@@ -67,7 +67,11 @@ function isRedirectResponse(status) {
 
 function buildProxyHeaders(request) {
   const headers = new Headers();
-  headers.set('Accept', 'application/json, text/plain, */*');
+  // Acceptヘッダーは元のリクエストから引き継ぐか、制限を解除する
+  const accept = request.headers.get('accept');
+  if (accept) {
+    headers.set('Accept', accept);
+  }
 
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     const contentType = request.headers.get('content-type');
