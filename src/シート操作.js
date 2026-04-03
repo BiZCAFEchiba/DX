@@ -314,7 +314,7 @@ function updateShiftInSheet(targetDate, staffName, newTimeRange) {
 /**
  * 指定日の全シフトを取得する
  * @param {Date} date
- * @returns {Array<{ name: string, start: string, end: string, tasks: string[] }>}
+ * @returns {Array<{ name: string, start: string, end: string, tasks: string[], status: string }>}
  */
 function getShiftsForDate(date) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
@@ -334,7 +334,8 @@ function getShiftsForDate(date) {
         name: String(row[2]).trim(),
         start: formatCellTime_(row[3]),
         end: formatCellTime_(row[4]),
-        tasks: row[5] ? String(row[5]).split('/') : []
+        tasks: row[5] ? String(row[5]).split('/') : [],
+        status: row[9] ? String(row[9]).trim() : '' // J列（インデックス9）
       });
     }
   }
@@ -345,6 +346,80 @@ function getShiftsForDate(date) {
   });
 
   return shifts;
+}
+
+/**
+ * 抜けた後のオペ数を計算し、研修が含まれる場合は付記する
+ */
+function calculateRemainingOpeCount_(targetDateStr, removeStaffName, startStr, endStr) {
+  const shifts = getShiftsForDate(new Date(targetDateStr));
+  let remainingCount = 0;
+  let hasTraining = false;
+
+  const targetStart = stringToDate_(startStr).getTime();
+  const targetEnd = stringToDate_(endStr).getTime();
+
+  shifts.forEach(shift => {
+    if (shift.name === removeStaffName) return;
+
+    const shiftStart = stringToDate_(shift.start).getTime();
+    const shiftEnd = stringToDate_(shift.end).getTime();
+
+    // 時間帯が被っているか
+    if (targetStart < shiftEnd && shiftStart < targetEnd) {
+      remainingCount++;
+      // 研修フラグチェック
+      if (shift.tasks.some(function(t) { return t.indexOf('研修') !== -1; })) {
+        hasTraining = true;
+      }
+    }
+  });
+
+  if (hasTraining) {
+    return remainingCount + 'オペ（研修）';
+  }
+  return remainingCount + 'オペ';
+}
+
+/**
+ * シフトのJ列（ステータス）を更新する
+ */
+function updateShiftStatus(targetDateStr, staffName, statusStr) {
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
+  if (!sheet) return false;
+
+  const targetDateFmt = Utilities.formatDate(new Date(targetDateStr), TIMEZONE, 'yyyy/MM/dd');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const rowDate = data[i][0] instanceof Date ? Utilities.formatDate(data[i][0], TIMEZONE, 'yyyy/MM/dd') : String(data[i][0]);
+    if (rowDate === targetDateFmt && String(data[i][2]).trim() === staffName) {
+      sheet.getRange(i + 1, 10).setValue(statusStr); // J列
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * シフトの担当スタッフ名とステータスを更新する（承認用）
+ */
+function updateShiftStaff(targetDateStr, oldStaffName, newStaffName) {
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
+  if (!sheet) return false;
+
+  const targetDateFmt = Utilities.formatDate(new Date(targetDateStr), TIMEZONE, 'yyyy/MM/dd');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const rowDate = data[i][0] instanceof Date ? Utilities.formatDate(data[i][0], TIMEZONE, 'yyyy/MM/dd') : String(data[i][0]);
+    if (rowDate === targetDateFmt && String(data[i][2]).trim() === oldStaffName) {
+      sheet.getRange(i + 1, 3).setValue(newStaffName); // C列: 新スタッフ名
+      sheet.getRange(i + 1, 10).clearContent(); // J列: ステータスクリア
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

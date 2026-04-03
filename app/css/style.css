@@ -294,12 +294,29 @@ body {
 .cal-day.selected { background: var(--primary); color: #fff; }
 .cal-day.selected:hover { background: var(--primary-dark); }
 .cal-day.empty { cursor: default; }
+
+/* 曜日別の色 */
+.cal-day.dow-sat { color: #2563eb; background: #eff6ff; font-weight: 600; }
+.cal-day.dow-sat:hover { background: #dbeafe; }
+.cal-day.dow-sun { color: #ea580c; background: #fff7ed; font-weight: 600; }
+.cal-day.dow-sun:hover { background: #ffedd5; }
+
+/* シフトありバッジ */
 .cal-day.has-shift::after {
   content: ''; position: absolute; bottom: 4px;
   width: 5px; height: 5px; border-radius: 50%;
   background: var(--primary);
 }
 .cal-day.selected.has-shift::after { background: #fff; }
+
+/* 募集中バッジ */
+.cal-day.has-recruit::before {
+  content: ''; position: absolute; bottom: 4px; right: 4px;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #f43f5e;
+  box-shadow: 0 0 0 1px #fff;
+}
+.cal-day.selected.has-recruit::before { border-color: var(--primary); }
 
 /* --- Upload --- */
 .upload-zone {

@@ -50,6 +50,55 @@ function doPost(e) {
         return ContentService.createTextOutput(JSON.stringify(attResult))
           .setMimeType(ContentService.MimeType.JSON);
       }
+      // シフト交代通知
+      if (body.action === 'notifyShiftChange') {
+        var notifyResult = notifyShiftChange_({
+          date:          body.date          || '',
+          originalStaff: body.originalStaff || '',
+          originalTime:  body.originalTime  || '',
+          agentStaff:    body.agentStaff    || '',
+          reason:        body.reason        || '',
+          notifyGroup:   body.notifyGroup   !== false,
+          notifyAgent:   body.notifyAgent   === true
+        });
+        return ContentService.createTextOutput(JSON.stringify(notifyResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      // 緊急トラブル報告 (シフト変更)
+      if (body.action === 'notifyShiftTrouble') {
+        var remainingOpe = calculateRemainingOpeCount_(body.date, body.staffName, body.start, body.end);
+        var troubleResult = notifyShiftTrouble_({
+          staffName:    body.staffName || '',
+          date:         body.date      || '',
+          time:         (body.start || '') + '-' + (body.end || ''),
+          reason:       body.reason    || '',
+          remainingOpe: remainingOpe
+        });
+        return ContentService.createTextOutput(JSON.stringify(troubleResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      // シフト交代募集
+      if (body.action === 'requestShiftRecruitment') {
+        var recruitResult = requestShiftRecruitment_({
+          date:          body.date          || '',
+          originalStaff: body.originalStaff || '',
+          originalTime:  body.originalTime  || '',
+          reason:        body.reason        || ''
+        });
+        return ContentService.createTextOutput(JSON.stringify(recruitResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      // シフト交代承認
+      if (body.action === 'approveShiftRecruitment') {
+        var approveResult = approveShiftRecruitment_({
+          date:          body.date          || '',
+          originalStaff: body.originalStaff || '',
+          originalTime:  body.originalTime  || '',
+          agentStaff:    body.agentStaff    || ''
+        });
+        return ContentService.createTextOutput(JSON.stringify(approveResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_action' }))
         .setMimeType(ContentService.MimeType.JSON);
     }

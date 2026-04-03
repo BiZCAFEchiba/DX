@@ -171,6 +171,17 @@ var CalendarView = (function () {
         return !selectedName || s.name === selectedName;
       });
       if (hasShift) classes += ' has-shift';
+      
+      // 曜日のクラス (0:日, 6:土)
+      var dowIdx = new Date(dateStr + 'T00:00:00').getDay();
+      if (dowIdx === 0) classes += ' dow-sun';
+      if (dowIdx === 6) classes += ' dow-sat';
+
+      // 募集中ステータスの有無
+      if (dayData && dayData.staff && dayData.staff.some(function(s){ return s.status === '募集中'; })) {
+        classes += ' has-recruit';
+      }
+
       if (meetingByDate[dateStr]) classes += ' has-meeting';
       html += '<div class="' + classes + '" data-date="' + dateStr + '">' + d + '</div>';
     }
@@ -213,6 +224,13 @@ var CalendarView = (function () {
     detail.querySelectorAll('.btn-edit-shift').forEach(function (btn) {
       btn.addEventListener('click', function () {
         openEditModal(filtered, parseInt(btn.dataset.idx));
+      });
+    });
+
+    detail.querySelectorAll('.btn-approve-shift').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var s = filtered.staff[parseInt(btn.dataset.idx)];
+        openApproveModal(filtered, s);
       });
     });
 
@@ -372,6 +390,34 @@ var CalendarView = (function () {
           }
         })
         .catch(function () { overlay.hidden = true; showToast('通信エラー', true); });
+    });
+  }
+
+  function openApproveModal(dayData, shift) {
+    var overlay = document.getElementById('modal-overlay');
+    var container = document.getElementById('modal-container');
+    container.innerHTML = '<div class="modal-title">シフト交代の引受け</div>' +
+      '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">' + dayData.date.replace(/-/g, '/') + ' ' + shift.start + '〜' + shift.end + '<br>元の担当: ' + shift.name + '</div>' +
+      '<div style="margin-bottom:12px;"><label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">引受けるあなたの名前</label>' +
+      staffSelectHtml('approve-name', '') + '</div>' +
+      '<div class="modal-actions"><button class="btn" id="approve-cancel">キャンセル</button><button class="btn" style="background:#eab308;color:#fff;" id="approve-save">引受ける</button></div>';
+    
+    overlay.hidden = false;
+    document.getElementById('approve-cancel').addEventListener('click', function () { overlay.hidden = true; });
+    document.getElementById('approve-save').addEventListener('click', function () {
+      var agent = document.getElementById('approve-name').value;
+      if (!agent) { showToast('名前を選択してください', true); return; }
+      var btn = document.getElementById('approve-save'); btn.disabled = true; btn.textContent = '送信中...';
+      API.approveShiftRecruitment({ date: dayData.date, originalStaff: shift.name, originalTime: shift.start+'-'+shift.end, agentStaff: agent })
+        .then(function(res) {
+          overlay.hidden = true;
+          if (res.ok) {
+            updateLocal(dayData.date, shift.name, agent, shift.start, shift.end);
+            // 募集中フラグを消す
+            shiftDates[dayData.date].staff.forEach(function(s) { if(s.name===agent) { s.status = ''; } });
+            showToast('引受け完了しました！'); loadDayDetail(); renderGrid();
+          } else { throw new Error(res.error || 'エラー'); }
+        }).catch(function(err) { overlay.hidden = true; showToast('エラー: ' + err.message, true); });
     });
   }
 

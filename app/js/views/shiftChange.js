@@ -1,103 +1,158 @@
-// ============================================================
-// views/shiftChange.js - シフト交代フォーマット生成画面
-// ============================================================
+﻿/**
+ * シフト交代依頼画面 - 3つのモード(代理指名・募集・緊急)をタブ切り替え
+ */
 var ShiftChangeView = (function () {
-  var pending = null; // カレンダーからセットされるデータ
+  var container;
+  var currentTab = 'assign'; // 'assign', 'recruit', 'trouble'
 
-  function setPending(data) {
-    pending = data;
+  function init(el) {
+    container = el;
+    render();
   }
 
   function render() {
-    var main = document.getElementById('main-content');
+    var html = '<div class=\"card shadow-sm\">';
+    html += '<div class=\"card-header\"><span class=\"icon\">🔄</span> シフト変更・交代依頼</div>';
+    
+    // タブ切り替え
+    html += '<div style=\"display:flex; border-bottom:1px solid var(--gray-200); margin-bottom:16px;\">';
+    html += renderTab('assign', '🤝 代理指名');
+    html += renderTab('recruit', '📢 募集をかける');
+    html += renderTab('trouble', '🚨 緊急連絡');
+    html += '</div>';
 
-    if (!pending) {
-      main.innerHTML =
-        '<div class="card">' +
-          '<div class="card-header"><span class="icon">🔄</span>シフト交代フォーマット</div>' +
-          '<div class="empty-state">' +
-            '<div class="icon">📅</div>' +
-            '<div class="text">カレンダーでシフトを変更すると<br>ここにフォーマットが自動作成されます</div>' +
-          '</div>' +
-        '</div>';
-      return;
-    }
+    html += '<div id=\"shift-change-content\">';
+    if (currentTab === 'assign') html += renderAssignForm();
+    else if (currentTab === 'recruit') html += renderRecruitForm();
+    else if (currentTab === 'trouble') html += renderTroubleForm();
+    html += '</div>';
 
-    var parts = pending.date.split('-');
-    var dateDisplay = parts[0] + '.' + parts[1] + '.' + parts[2];
-
-    main.innerHTML =
-      '<div class="card">' +
-        '<div class="card-header"><span class="icon">🔄</span>シフト交代フォーマット</div>' +
-        '<table style="width:100%;border-collapse:collapse;margin-bottom:16px;font-size:0.9rem;">' +
-          '<tr><td style="padding:8px 0;color:var(--gray-500);width:80px;">交代日</td>' +
-              '<td style="padding:8px 0;font-weight:600;">' + dateDisplay + '</td></tr>' +
-          '<tr><td style="padding:8px 0;color:var(--gray-500);">交代時間</td>' +
-              '<td style="padding:8px 0;font-weight:600;">' + pending.start + '〜' + pending.end + '</td></tr>' +
-          '<tr><td style="padding:8px 0;color:var(--gray-500);">交代</td>' +
-              '<td style="padding:8px 0;font-weight:600;">' + pending.from + ' → ' + pending.to + '</td></tr>' +
-        '</table>' +
-        '<div class="form-group">' +
-          '<label class="form-label">交代理由</label>' +
-          '<textarea id="sc-reason" class="form-input" rows="3" placeholder="〇〇のため" style="resize:none;"></textarea>' +
-        '</div>' +
-        '<button class="btn btn-primary" id="sc-generate">フォーマットを生成</button>' +
-      '</div>' +
-      '<div id="sc-result" style="display:none;">' +
-        '<div class="card">' +
-          '<div class="card-header"><span class="icon">📋</span>コピー用テキスト</div>' +
-          '<div id="sc-output" style="background:var(--gray-100);border-radius:8px;padding:16px;font-size:0.9rem;white-space:pre-wrap;line-height:1.8;margin-bottom:12px;"></div>' +
-          '<button class="btn btn-outline" id="sc-copy">コピーする</button>' +
-        '</div>' +
-      '</div>';
-
-    document.getElementById('sc-generate').addEventListener('click', function () { generate(dateDisplay); });
-    document.getElementById('sc-copy').addEventListener('click', copyText);
+    html += '</div>';
+    container.innerHTML = html;
+    attachEvents();
   }
 
-  function generate(dateDisplay) {
-    var reason = document.getElementById('sc-reason').value.trim();
-    if (!reason) {
-      showToast('交代理由を入力してください', true);
-      return;
-    }
-
-    var text =
-      '【交代日】\n' + dateDisplay + '\n' +
-      '【交代時間】\n' + pending.start + '-' + pending.end + '\n' +
-      '【交代スタッフ】\n' + pending.from + '→' + pending.to + '\n' +
-      '【交代理由】\n' + reason + '\n' +
-      '【承認者】\n店長代理';
-
-    document.getElementById('sc-output').textContent = text;
-    document.getElementById('sc-result').style.display = 'block';
-    document.getElementById('sc-result').scrollIntoView({ behavior: 'smooth' });
+  function renderTab(id, label) {
+    var active = (currentTab === id);
+    var style = 'flex:1; text-align:center; padding:10px; cursor:pointer; font-size:0.85rem; transition:0.2s;';
+    if (active) style += ' border-bottom:3px solid var(--primary); color:var(--primary); font-weight:bold;';
+    else style += ' color:var(--gray-500);';
+    return '<div class=\"tab-item\" data-tab=\"' + id + '\" style=\"' + style + '\">' + label + '</div>';
   }
 
-  function copyText() {
-    var text = document.getElementById('sc-output').textContent;
-    navigator.clipboard.writeText(text).then(function () {
-      showToast('コピーしました');
-    }).catch(function () {
-      var ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed'; ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      showToast('コピーしました');
+  // --- ① 代理指名フォーム ---
+  function renderAssignForm() {
+    var html = '<div style=\"padding:0 16px 16px;\">';
+    html += '<p style=\"font-size:0.8rem; color:var(--gray-500); margin-bottom:12px;\">すでに代わりの人が決まっている場合に使用します。</p>';
+    html += renderField('交代する日', '<input type=\"date\" id=\"sc-date\" class=\"form-control\" value=\"' + todayInput() + '\">');
+    html += renderField('今の担当者', '<input type=\"text\" id=\"sc-orig-staff\" class=\"form-control\" placeholder=\"名前\">');
+    html += renderField('時間', '<input type=\"text\" id=\"sc-orig-time\" class=\"form-control\" placeholder=\"例: 10:00-14:00\">');
+    html += renderField('代わりの人', '<input type=\"text\" id=\"sc-agent-staff\" class=\"form-control\" placeholder=\"名前\">');
+    html += renderField('理由', '<textarea id=\"sc-reason\" class=\"form-control\" rows=\"2\"></textarea>');
+    html += '<label style=\"display:flex; align-items:center; gap:8px; font-size:0.9rem; margin-top:8px;\"><input type=\"checkbox\" id=\"sc-notify-agent\" checked> 代理スタッフ本人にDM通知する</label>';
+    html += '<button id=\"sc-submit-assign\" class=\"btn btn-primary\" style=\"width:100%; margin-top:16px;\">交代を通知する</button>';
+    html += '</div>';
+    return html;
+  }
+
+  // --- ② 募集フォーム ---
+  function renderRecruitForm() {
+    var html = '<div style=\"padding:0 16px 16px;\">';
+    html += '<p style=\"font-size:0.8rem; color:var(--gray-500); margin-bottom:12px;\">代わりの人を募集する場合に使用します。承認されるまでカレンダーに「募集中」と表示されます。</p>';
+    html += renderField('募集する日', '<input type=\"date\" id=\"sc-date\" class=\"form-control\" value=\"' + todayInput() + '\">');
+    html += renderField('あなたの名前', '<input type=\"text\" id=\"sc-orig-staff\" class=\"form-control\" placeholder=\"名前\">');
+    html += renderField('募集する時間', '<input type=\"text\" id=\"sc-orig-time\" class=\"form-control\" placeholder=\"例: 10:00-14:00\">');
+    html += renderField('理由', '<textarea id=\"sc-reason\" class=\"form-control\" rows=\"2\"></textarea>');
+    html += '<button id=\"sc-submit-recruit\" class=\"btn\" style=\"width:100%; margin-top:16px; background:#eab308; color:#fff;\">募集を開始する</button>';
+    html += '</div>';
+    return html;
+  }
+
+  // --- ③ 緊急連絡フォーム ---
+  function renderTroubleForm() {
+    var html = '<div style=\"padding:0 16px 16px;\">';
+    html += '<p style=\"font-size:0.8rem; color:var(--gray-500); margin-bottom:12px;\">当日の遅刻・欠勤などのトラブルを報告します。🚨マーク付きで即座に通知されます。</p>';
+    html += renderField('日付', '<input type=\"date\" id=\"sc-date\" class=\"form-control\" value=\"' + todayInput() + '\">');
+    html += renderField('名前', '<input type=\"text\" id=\"sc-orig-staff\" class=\"form-control\" placeholder=\"名前\">');
+    html += renderField('時間 (抜ける時間)', '<input type=\"text\" id=\"sc-orig-time\" class=\"form-control\" placeholder=\"例: 10:00-11:00\">');
+    html += renderField('理由 (遅延など)', '<textarea id=\"sc-reason\" class=\"form-control\" rows=\"2\"></textarea>');
+    html += '<button id=\"sc-submit-trouble\" class=\"btn\" style=\"width:100%; margin-top:16px; background:#ef4444; color:#fff;\">🚨 緊急報告を送信</button>';
+    html += '</div>';
+    return html;
+  }
+
+  function renderField(label, inputHtml) {
+    return '<div style=\"margin-bottom:12px;\"><label style=\"font-size:0.85rem; color:var(--gray-600); display:block; margin-bottom:4px;\">' + label + '</label>' + inputHtml + '</div>';
+  }
+
+  function attachEvents() {
+    container.querySelectorAll('.tab-item').forEach(function(el) {
+      el.addEventListener('click', function() {
+        currentTab = el.dataset.tab;
+        render();
+      });
     });
+
+    var submitAssign = container.querySelector('#sc-submit-assign');
+    if (submitAssign) {
+      submitAssign.addEventListener('click', function() {
+        var params = getParams();
+        if(!params.date || !params.originalStaff || !params.agentStaff) { showToast('入力が不足しています', true); return; }
+        submitAssign.disabled = true; submitAssign.textContent = '送信中...';
+        API.notifyShiftChange({ ...params, notifyAgent: container.querySelector('#sc-notify-agent').checked })
+          .then(function(res) { if(res.ok) { showToast('通知しました'); } else { throw new Error(); }})
+          .catch(function() { showToast('送信エラー', true); })
+          .finally(function() { submitAssign.disabled = false; submitAssign.textContent = '交代を通知する'; });
+      });
+    }
+
+    var submitRecruit = container.querySelector('#sc-submit-recruit');
+    if (submitRecruit) {
+      submitRecruit.addEventListener('click', function() {
+        var params = getParams();
+        if(!params.date || !params.originalStaff || !params.originalTime) { showToast('入力が不足しています', true); return; }
+        submitRecruit.disabled = true; submitRecruit.textContent = '送信中...';
+        API.requestShiftRecruitment({ date: params.date, originalStaff: params.originalStaff, originalTime: params.originalTime, reason: params.reason })
+          .then(function(res) { if(res.ok) { showToast('募集を開始しました'); } else { throw new Error(); }})
+          .catch(function() { showToast('募集エラー', true); })
+          .finally(function() { submitRecruit.disabled = false; submitRecruit.textContent = '募集を開始する'; });
+      });
+    }
+
+    var submitTrouble = container.querySelector('#sc-submit-trouble');
+    if (submitTrouble) {
+      submitTrouble.addEventListener('click', function() {
+        var params = getParams();
+        if(!params.date || !params.originalStaff || !params.originalTime || !params.reason) { showToast('入力が不足しています', true); return; }
+        if(!confirm('緊急報告を送信します。よろしいですか？')) return;
+        submitTrouble.disabled = true; submitTrouble.textContent = '送信中...';
+        API.notifyShiftTrouble({ date: params.date, staffName: params.originalStaff, start: params.originalTime.split('-')[0], end: params.originalTime.split('-')[1], reason: params.reason })
+          .then(function(res) { if(res.ok) { showToast('緊急報告を送信しました'); } else { throw new Error(); }})
+          .catch(function() { showToast('送信エラー', true); })
+          .finally(function() { submitTrouble.disabled = false; submitTrouble.textContent = '🚨 緊急報告を送信'; });
+      });
+    }
   }
+
+  function getParams() {
+    return {
+      date: container.querySelector('#sc-date').value,
+      originalStaff: container.querySelector('#sc-orig-staff').value,
+      originalTime: container.querySelector('#sc-orig-time').value,
+      agentStaff: container.querySelector('#sc-agent-staff') ? container.querySelector('#sc-agent-staff').value : '',
+      reason: container.querySelector('#sc-reason').value
+    };
+  }
+
+  function todayInput() { return new Date().toISOString().split('T')[0]; }
 
   function showToast(msg, isError) {
-    var container = document.getElementById('toast-container');
     var toast = document.createElement('div');
-    toast.className = 'toast ' + (isError ? 'error' : 'success');
+    toast.style = 'position:fixed; bottom:20px; left:50%; transform:translateX(-50%); padding:12px 24px; border-radius:30px; color:#fff; font-size:0.9rem; z-index:10000; box-shadow:0 4px 12px rgba(0,0,0,0.15); background:' + (isError ? '#ef4444' : '#10b981');
     toast.textContent = msg;
-    container.appendChild(toast);
-    setTimeout(function () { toast.remove(); }, 3000);
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 3000);
   }
 
-  return { render: render, setPending: setPending };
+  return { init: init };
 })();
