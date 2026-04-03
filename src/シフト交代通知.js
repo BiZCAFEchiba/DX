@@ -233,3 +233,20 @@ function approveShiftRecruitment_(params) {
 
   return { ok: true, updated: updated, groupSent: groupSent };
 }
+
+/**
+ * シフト交代の「承認者」候補（スタッフシートG列にチェックがあるスタッフ）を取得する
+ */
+function getShiftAgentStaff() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_STAFF);
+  if (!sheet || sheet.getLastRow() < 2) return [];
+  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).getValues(); // A-G列
+  const agents = [];
+  for (let i = 0; i < data.length; i++) {
+    if (data[i][6] === true) { // G列
+      agents.push(String(data[i][0]).trim());
+    }
+  }
+  return agents;
+}
