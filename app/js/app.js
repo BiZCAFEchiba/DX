@@ -31,9 +31,19 @@ var App = (function () {
     CalendarView.render();
   }
 
+  function openShiftChange(data) {
+    document.querySelectorAll('#bottom-nav .nav-item').forEach(function (b) {
+      b.classList.remove('active');
+      if (b.dataset.tab === 'shift-change') b.classList.add('active');
+    });
+    ShiftChangeView.render(data);
+  }
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
+
+  return { openShiftChange: openShiftChange };
 })();

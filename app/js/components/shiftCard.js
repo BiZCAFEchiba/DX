@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // components/shiftCard.js - シフト表示カード
 // ============================================================
 var ShiftCard = (function () {
@@ -80,6 +80,11 @@ var ShiftCard = (function () {
           html += '<div class=\"shift-segment-btns\">';
           html += '<button class=\"btn-edit-shift\" data-idx=\"' + seg.idx + '\">編集</button>';
           html += '<button class=\"btn-delete-shift\" data-idx=\"' + seg.idx + '\">削除</button>';
+          
+          // 募集中でないなら「交代依頼」ボタンを表示
+          if (seg.status !== '募集中') {
+            html += '<button class=\"btn-request-change\" data-idx=\"' + seg.idx + '\" style=\"padding:4px 8px; background:#3b82f6; color:#fff; border:none; border-radius:5px; font-size:0.78rem; cursor:pointer;\">🔄 交代依頼</button>';
+          }
           
           // 募集中なら「引受ける」ボタンを表示
           if (seg.status === '募集中') {

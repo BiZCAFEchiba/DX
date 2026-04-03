@@ -99,6 +99,12 @@ function doPost(e) {
         return ContentService.createTextOutput(JSON.stringify(approveResult))
           .setMimeType(ContentService.MimeType.JSON);
       }
+      // シフト交代の「承認者」候補（G列にチェックがあるスタッフ）を取得
+      if (body.action === 'getShiftAgents') {
+        var agents = getShiftAgentStaff_();
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, data: agents }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_action' }))
         .setMimeType(ContentService.MimeType.JSON);
     }

@@ -234,6 +234,17 @@ var CalendarView = (function () {
       });
     });
 
+    detail.querySelectorAll('.btn-request-change').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var s = filtered.staff[parseInt(btn.dataset.idx)];
+        App.openShiftChange({
+          date: filtered.date,
+          originalStaff: s.name,
+          originalTime: s.start + '-' + s.end
+        });
+      });
+    });
+
     detail.querySelectorAll('.btn-delete-shift').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var s = filtered.staff[parseInt(btn.dataset.idx)];
