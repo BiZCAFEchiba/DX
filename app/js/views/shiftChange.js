@@ -1,4 +1,4 @@
-﻿/**
+/**
  * シフト交代依頼画面 - 3つのモード(シフト交代・募集・緊急)をタブ切り替え
  */
 var ShiftChangeView = (function () {
@@ -76,11 +76,11 @@ var ShiftChangeView = (function () {
       approverDropdown += '<option value=\"\">読み込み中...</option>';
     }
     approverDropdown += '</select>';
-    html += renderField('承認者', approverDropdown);
+    html += renderField('シフト代理', approverDropdown);
     
     html += renderField('交代の理由', '<textarea id=\"sc-reason\" class=\"form-control\" rows=\"3\" placeholder=\"例: 体調不良のため、バスの遅延のため等\"></textarea>');
-    html += '<label style=\"display:flex; align-items:center; gap:8px; font-size:0.9rem; margin-top:8px;\"><input type=\"checkbox\" id=\"sc-notify-agent\" checked> 承認者本人へ通知する</label>';
-    html += '<button id=\"sc-submit-assign\" class=\"btn btn-primary\" style=\"width:100%; margin-top:16px;\">交代を承認依頼する</button>';
+    html += '<label style=\"display:flex; align-items:center; gap:8px; font-size:0.9rem; margin-top:8px;\"><input type=\"checkbox\" id=\"sc-notify-agent\" checked> シフト代理本人へ通知する</label>';
+    html += '<button id=\"sc-submit-assign\" class=\"btn btn-primary\" style=\"width:100%; margin-top:16px;\">交代を依頼する</button>';
     html += '</div>';
     return html;
   }

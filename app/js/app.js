@@ -2,7 +2,7 @@
 // app.js - アプリ初期化
 // ============================================================
 var App = (function () {
-  var GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzm2gjYNZPZKFXPW-jtOTWDK6_tKEbIsS01gYFGmaPNPQWo1mZuUaYEDmJk6zWxqFaS/exec';
+  var GAS_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbx9FHoG-xKKhW41ppJV5u5HrK_vZ4tt0dDBb-40p/exec';
   // ミーティング情報は最新デプロイから取得
   var MEETING_API_URL = 'https://script.google.com/macros/s/AKfycbxc5QSSH2bHqX6cuHqClVMWfkBrfqW8Zi4AY2E_wYPjO2NWUD4oJXMihgR1XtVgR0vP/exec';
 
