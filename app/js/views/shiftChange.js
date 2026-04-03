@@ -11,6 +11,12 @@ var ShiftChangeView = (function () {
   }
 
   function render() {
+    // コンテナが未着手の場合は main-content を取得
+    if (!container) {
+      container = document.getElementById('main-content');
+    }
+    if (!container) return;
+
     var html = '<div class=\"card shadow-sm\">';
     html += '<div class=\"card-header\"><span class=\"icon\">🔄</span> シフト変更・交代依頼</div>';
     
@@ -99,7 +105,18 @@ var ShiftChangeView = (function () {
         var params = getParams();
         if(!params.date || !params.originalStaff || !params.agentStaff) { showToast('入力が不足しています', true); return; }
         submitAssign.disabled = true; submitAssign.textContent = '送信中...';
-        API.notifyShiftChange({ ...params, notifyAgent: container.querySelector('#sc-notify-agent').checked })
+        
+        // ES6 スプレッド演算子を避け、明示的にオブジェクトを作成
+        var payload = {
+          date: params.date,
+          originalStaff: params.originalStaff,
+          originalTime: params.originalTime,
+          agentStaff: params.agentStaff,
+          reason: params.reason,
+          notifyAgent: container.querySelector('#sc-notify-agent').checked
+        };
+
+        API.notifyShiftChange(payload)
           .then(function(res) { if(res.ok) { showToast('通知しました'); } else { throw new Error(); }})
           .catch(function() { showToast('送信エラー', true); })
           .finally(function() { submitAssign.disabled = false; submitAssign.textContent = '交代を通知する'; });
@@ -154,5 +171,5 @@ var ShiftChangeView = (function () {
     setTimeout(function() { toast.remove(); }, 3000);
   }
 
-  return { init: init };
+  return { init: init, render: render };
 })();
