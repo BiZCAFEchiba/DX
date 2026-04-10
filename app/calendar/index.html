@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="BiZCAFE">
-  <meta name="theme-color" content="#1a3a5c">
+  <meta name="theme-color" content="#ddc8b0">
   <link rel="apple-touch-icon" href="/bizcafe-icon-512.png">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -16,7 +16,7 @@
     /* ===== スプラッシュ ===== */
     #splash {
       position: fixed; inset: 0; z-index: 99999;
-      overflow: hidden; background: #1a3a5c;
+      overflow: hidden; background: #6a5548;
       transition: opacity 0.5s ease, visibility 0.5s ease;
     }
     #splash.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
@@ -45,7 +45,7 @@
     /* ===== 読み込みトースト ===== */
     #loadingToast {
       display: none; position: fixed; top: 0; left: 0; right: 0;
-      z-index: 9999; background: #1a3a5c; color: #fff;
+      z-index: 9999; background: #6a5548; color: #fff;
       text-align: center; padding: 12px; font-size: 0.95rem; font-weight: 700;
     }
 
@@ -57,12 +57,16 @@
 
     /* ===== ヘッダー ===== */
     header {
-      background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
-      color: white; padding: 16px 20px; text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2); flex-shrink: 0;
+      background: linear-gradient(135deg, #ddc8b0, #cbb498);
+      padding: 14px 20px 12px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(120,80,40,0.18);
+      flex-shrink: 0;
     }
-    header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: 0.05em; }
-    header p  { font-size: 0.8rem; opacity: 0.85; margin-top: 3px; }
+    .header-logo {
+      height: 80px; width: auto; display: block; margin: 0 auto;
+      mix-blend-mode: multiply;
+    }
 
     /* ===== アプリレイアウト ===== */
     .app-layout {
@@ -71,24 +75,27 @@
 
     /* ===== 縦タブ（PC） ===== */
     .tab-nav {
-      width: 72px; flex-shrink: 0;
-      background: white; border-right: 1px solid #e0e7ef;
+      width: 68px; flex-shrink: 0;
+      background: #fff;
+      border-right: 1px solid #ece6df;
       display: flex; flex-direction: column;
     }
     .tab-btn {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 16px 4px; gap: 5px; cursor: pointer;
+      padding: 14px 4px; gap: 4px; cursor: pointer;
       border: none; background: none;
       border-left: 3px solid transparent;
-      font-size: 0.62rem; color: #888; font-weight: 600;
+      font-size: 0.58rem; color: #a89a8e; font-weight: 600;
       line-height: 1.3; transition: background 0.15s, color 0.15s;
       -webkit-tap-highlight-color: transparent;
     }
-    .tab-btn .tab-icon { font-size: 1.4rem; }
+    .tab-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
     .tab-btn.active {
-      border-left-color: #1a3a5c; color: #1a3a5c; background: #eaf2fb;
+      border-left-color: #8a7060; color: #8a7060; background: #faf5f0;
     }
     .tab-btn:active { opacity: 0.7; }
+    .tab-btn.tab-maintenance { opacity: 0.45; cursor: not-allowed; position: relative; }
+    .tab-btn.tab-maintenance::after { content: 'メンテ中'; position: absolute; top: 3px; right: 2px; font-size: 0.42rem; background: #c0392b; color: #fff; border-radius: 3px; padding: 1px 3px; line-height: 1.3; font-weight: 700; letter-spacing: 0; }
 
     .tab-content { flex: 1; overflow-y: auto; }
     .tab-pane { display: none; }
@@ -99,7 +106,7 @@
       max-width: 600px; margin: 0 auto; padding: 20px 16px 40px;
     }
     .congestion-title {
-      font-size: 1rem; font-weight: 700; color: #1a3a5c; margin-bottom: 6px;
+      font-size: 1rem; font-weight: 700; color: #6a5548; margin-bottom: 6px;
     }
     .congestion-updated {
       font-size: 0.75rem; color: #999; margin-bottom: 20px;
@@ -145,111 +152,161 @@
     .label-5 { color: #f44336; }
 
     /* ===== カレンダー ===== */
-    .calendar-outer { padding: 0 0 40px; }
+    .calendar-outer { padding: 0 0 48px; background: #f7f3ef; }
 
     .nav {
-      display: flex; align-items: center; justify-content: center;
-      gap: 24px; padding: 14px 20px; background: white;
-      border-bottom: 1px solid #e0e7ef;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; background: #fff;
+      border-bottom: 1px solid #ece6df;
     }
     .nav button {
-      background: #1a3a5c; color: white; border: none;
-      border-radius: 8px; padding: 8px 18px; font-size: 1rem;
-      cursor: pointer; transition: background 0.2s;
+      background: none; color: #8a7060;
+      border: 1.5px solid #d4c4b8; border-radius: 50%;
+      width: 38px; height: 38px; font-size: 1.1rem;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+      flex-shrink: 0;
     }
-    .nav button:hover { background: #2a5f8f; }
-    .month-label { font-size: 1.25rem; font-weight: 700; min-width: 140px; text-align: center; color: #1a3a5c; }
+    .nav button:hover { background: #f5ede6; }
+    .month-label {
+      font-size: 1.3rem; font-weight: 700; min-width: 150px;
+      text-align: center; color: #3a2c22; letter-spacing: 0.04em;
+    }
 
-    .calendar-wrap { max-width: 840px; margin: 16px auto 0; padding: 0 12px; }
-    .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 4px; }
-    .weekday { text-align: center; font-size: 0.78rem; font-weight: 700; padding: 6px 0; color: #666; }
-    .weekday.sun { color: #e53935; }
-    .weekday.sat { color: #1565c0; }
-    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .calendar-wrap { max-width: 840px; margin: 16px auto 0; padding: 0 10px; }
+    .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-bottom: 5px; }
+    .weekday {
+      text-align: center; font-size: 0.7rem; font-weight: 700;
+      padding: 6px 0; color: #9a8a7e; letter-spacing: 0.04em;
+    }
+    .weekday.sun { color: #c0392b; }
+    .weekday.sat { color: #2471a3; }
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 
-    .day-cell { min-height: 82px; border-radius: 10px; padding: 7px 6px; display: flex; flex-direction: column; gap: 2px; }
+    .day-cell {
+      min-height: 80px; border-radius: 12px; padding: 8px 7px;
+      display: flex; flex-direction: column; gap: 3px;
+      position: relative; overflow: hidden;
+    }
     .day-cell.empty     { background: transparent; }
-    .day-cell.closed    { background: #efefef; border: 1px solid #e0e0e0; }
-    .day-cell.normal    { background: #eaf6f0; border: 1px solid #b2dfc5; }
-    .day-cell.kashikiri { background: #fff8e1; border: 1px solid #ffd54f; }
-    .day-cell.today     { outline: 3px solid #1a3a5c; outline-offset: -2px; background: #dbeeff !important; }
-    .day-cell.today .day-num {
-      color: #fff !important; background: #1a3a5c;
-      border-radius: 50%; width: 22px; height: 22px;
-      display: flex; align-items: center; justify-content: center;
+    .day-cell.closed    { background: #ede9e4; }
+    .day-cell.normal    {
+      background: #fff;
+      border: 1px solid #e8e0d8;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
     }
-    .day-cell.selected  { outline: 3px solid #e65100 !important; outline-offset: -2px; }
+    .day-cell.normal::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 3px; background: #4caf84;
+    }
+    .day-cell.kashikiri {
+      background: #fffbf0;
+      border: 1px solid #f0d898;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .day-cell.kashikiri::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 3px; background: #e8a020;
+    }
+    .day-cell.today {
+      background: #6a5548 !important;
+      border-color: transparent !important;
+      box-shadow: 0 4px 14px rgba(26,58,92,0.28) !important;
+    }
+    .day-cell.today::before { display: none; }
+    .day-cell.today .day-num { color: #fff !important; }
+    .day-cell.today .hours  { color: rgba(255,255,255,0.82); }
+    .day-cell.today .closed-label { color: rgba(255,255,255,0.6); }
+    .day-cell.selected { outline: 2.5px solid #e65100 !important; outline-offset: -2px; }
 
-    .day-num { font-size: 0.9rem; font-weight: 700; }
-    .day-cell.closed    .day-num { color: #bdbdbd; }
-    .day-cell.normal    .day-num { color: #1a3a5c; }
-    .day-cell.kashikiri .day-num { color: #e65100; }
-    .day-sun .day-num { color: #e53935 !important; }
-    .day-sat .day-num { color: #1565c0 !important; }
+    .day-num { font-size: 0.95rem; font-weight: 800; line-height: 1; }
+    .day-cell.closed    .day-num { color: #c0b0a2; }
+    .day-cell.normal    .day-num { color: #2c2318; }
+    .day-cell.kashikiri .day-num { color: #9a5e10; }
+    .day-sun .day-num { color: #c0392b !important; }
+    .day-sat .day-num { color: #2471a3 !important; }
 
-    .hours { font-size: 0.75rem; font-weight: 600; line-height: 1.5; color: #2e7d32; }
-    .closed-label { font-size: 0.72rem; color: #9e9e9e; margin-top: auto; }
-    .closed-label.full-kashikiri { color: #e65100; font-weight: 600; }
+    .hours { font-size: 0.65rem; font-weight: 600; line-height: 1.45; color: #3d9e6e; margin-top: 2px; }
+    .closed-label { font-size: 0.65rem; color: #b0a098; margin-top: auto; }
+    .closed-label.full-kashikiri { color: #c07010; font-weight: 700; }
     .kashikiri-badge {
-      display: inline-block; background: #ff6d00; color: white;
-      font-size: 0.6rem; font-weight: 700; padding: 2px 5px;
-      border-radius: 4px; margin-top: 2px; width: fit-content;
+      display: inline-block; background: #e8a020; color: white;
+      font-size: 0.55rem; font-weight: 700; padding: 2px 5px;
+      border-radius: 4px; margin-top: 2px; width: fit-content; letter-spacing: 0.02em;
     }
-    .loading { text-align: center; padding: 48px; color: #888; grid-column: 1 / -1; }
+    .room-badge {
+      display: inline-block; background: #8a7060; color: white;
+      font-size: 0.55rem; font-weight: 700; padding: 2px 5px;
+      border-radius: 4px; margin-top: 2px; width: fit-content; letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .loading { text-align: center; padding: 48px; color: #a89a8e; grid-column: 1 / -1; }
 
-    /* 過去日は全体を薄く */
-    .day-cell.past { opacity: 0.38; }
+    /* 過去日は薄く */
+    .day-cell.past { opacity: 0.4; }
 
     /* 営業日ボタン */
     .day-open-btn {
-      display: flex; flex-direction: column; gap: 2px;
-      width: 100%; min-height: 70px;
+      display: flex; flex-direction: column; gap: 3px;
+      width: 100%; min-height: 64px;
       background: none; border: none; padding: 0; margin: 0;
       cursor: pointer; text-align: left;
-      -webkit-tap-highlight-color: rgba(26,58,92,0.15);
+      -webkit-tap-highlight-color: rgba(26,58,92,0.1);
       -webkit-appearance: none; appearance: none;
     }
     .day-open-btn:active { opacity: 0.6; }
     .day-open-btn:focus  { outline: none; }
 
     .legend {
-      max-width: 840px; margin: 14px 12px 8px;
-      padding: 10px 16px; background: white; border-radius: 10px;
+      max-width: 840px; margin: 14px 10px 8px;
+      padding: 10px 16px; background: #fff; border-radius: 12px;
       display: flex; gap: 20px; flex-wrap: wrap;
-      font-size: 0.82rem; color: #555; border: 1px solid #e0e7ef;
+      font-size: 0.8rem; color: #6a5c50;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     }
     .legend-item { display: flex; align-items: center; gap: 7px; }
-    .legend-dot { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
-    .legend-dot.normal    { background: #eaf6f0; border: 1px solid #b2dfc5; }
-    .legend-dot.kashikiri { background: #fff8e1; border: 1px solid #ffd54f; }
-    .legend-dot.closed    { background: #efefef; border: 1px solid #e0e0e0; }
-    .notice { max-width: 840px; margin: 8px auto 16px; padding: 10px 16px; font-size: 0.78rem; color: #777; text-align: center; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .legend-dot.normal    { background: #4caf84; border-radius: 2px; }
+    .legend-dot.kashikiri { background: #e8a020; border-radius: 2px; }
+    .legend-dot.closed    { background: #c0b0a2; border-radius: 2px; }
+    .notice { max-width: 840px; margin: 8px auto 16px; padding: 10px 16px; font-size: 0.78rem; color: #9a8a7e; text-align: center; }
 
     /* Meetupパネル */
     .meetup-panel { max-width: 840px; margin: 0 auto; padding: 0 12px 40px; display: none; }
     .meetup-panel.visible { display: block; }
     .meetup-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; padding-top: 16px; }
-    .meetup-panel-title { font-size: 1.05rem; font-weight: 700; color: #1a3a5c; }
+    .meetup-panel-title { font-size: 1.05rem; font-weight: 700; color: #6a5548; }
     .meetup-close { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #888; padding: 4px 8px; border-radius: 6px; line-height: 1; }
     .meetup-close:hover { background: #f0f0f0; color: #333; }
+    .kind-toggle { display: flex; gap: 0; margin-bottom: 10px; border-radius: 8px; overflow: hidden; border: 1.5px solid #d4c0aa; width: fit-content; }
+    .kind-toggle-btn { background: #f5f8fc; border: none; border-right: 1px solid #d4c0aa; color: #555; padding: 6px 16px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s; white-space: nowrap; }
+    .kind-toggle-btn:last-child { border-right: none; }
+    .kind-toggle-btn.active { background: #6a5548; color: #fff; }
+    .kind-toggle-btn.active.k-inperson { background: #c0392b; }
+    .kind-toggle-btn.active.k-online { background: #2e7d5a; }
     .grad-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-    .grad-btn { background: #eaf0f7; border: 1.5px solid #b0c4d8; color: #1a3a5c; border-radius: 20px; padding: 5px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-    .grad-btn.active { background: #1a3a5c; border-color: #1a3a5c; color: #fff; }
+    .grad-btn { background: #f5ede4; border: 1.5px solid #d4c0aa; color: #6a5548; border-radius: 20px; padding: 5px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+    .grad-btn.active { background: #6a5548; border-color: #6a5548; color: #fff; }
     .meetup-list { display: flex; flex-direction: column; gap: 12px; }
-    .meetup-card { background: #fff; border: 1px solid #dde6f0; border-radius: 12px; overflow: hidden; display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    .meetup-card { background: #fff; border: 1px solid #e8dcd0; border-radius: 12px; overflow: hidden; display: flex; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
     .meetup-card.has-remaining { border: 2px solid #43a047; box-shadow: 0 2px 10px rgba(67,160,71,0.2); }
     .meetup-card.soldout { opacity: 0.7; }
-    .meetup-img-wrap { flex-shrink: 0; width: 110px; background: #eaf0f7; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; }
+    .meetup-img-wrap { flex-shrink: 0; width: 110px; background: #f5ede4; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; position: relative; }
     .meetup-img { width: 110px; height: 110px; object-fit: cover; display: block; }
-    .meetup-img-placeholder { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: #b0c4d8; }
+    .meetup-img-placeholder { width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; color: #d4c0aa; }
     .meetup-body { flex: 1; padding: 12px 14px; min-width: 0; }
-    .meetup-company { font-size: 0.82rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .meetup-company { font-size: 0.82rem; font-weight: 700; color: #6a5548; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .meetup-theme { font-size: 0.92rem; font-weight: 600; color: #222; line-height: 1.45; margin-bottom: 8px; }
     .meetup-theme.no-theme { color: #999; font-weight: 400; font-style: italic; }
     .meetup-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.78rem; }
     .meetup-time { color: #555; }
     .meetup-kind { background: #eaf6f0; color: #2e7d32; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
+    .meetup-kind.kind-online { background: #e8f4ee; color: #2e7d5a; }
     .meetup-grad { background: #fff3e0; color: #e65100; border-radius: 4px; padding: 1px 7px; font-weight: 600; }
+    .meetup-category-header { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 700; color: #6a5548; margin: 12px 0 8px; padding: 0 2px; }
+    .meetup-category-header::before { content: ''; flex: none; width: 3px; height: 14px; border-radius: 2px; background: currentColor; }
+    .meetup-category-header.cat-online { color: #2e7d5a; }
+    .meetup-category-header.cat-online::before { background: #2e7d5a; }
     .meetup-empty { text-align: center; padding: 32px; color: #888; font-size: 0.9rem; background: #fff; border: 1px solid #e0e7ef; border-radius: 12px; }
     .meetup-seats-banner {
       width: 100%;
@@ -264,43 +321,43 @@
       gap: 2px; color: #fff; font-weight: 700; font-size: 0.78rem; text-align: center; line-height: 1.4;
     }
     .meetup-loading { text-align: center; padding: 32px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 12px; }
-    .spinner { width: 32px; height: 32px; border: 3px solid #dde6f0; border-top-color: #1a3a5c; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #e8dcd0; border-top-color: #8a7060; border-radius: 50%; animation: spin 0.8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     /* ===== 掲示板 ===== */
     .board-wrap { max-width: 840px; margin: 0 auto; padding: 20px 16px 40px; }
     .board-section { margin-bottom: 32px; }
-    .board-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; border-bottom: 2px solid #1a3a5c; padding-bottom: 8px; }
-    .board-title { font-size: 1.2rem; font-weight: 700; color: #1a3a5c; }
-    .board-more-btn { font-size: 0.85rem; font-weight: 600; color: #1a3a5c; text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: background 0.2s; }
-    .board-more-btn:hover { background: #eaf2fb; }
+    .board-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; border-bottom: 2px solid #6a5548; padding-bottom: 8px; }
+    .board-title { font-size: 1.2rem; font-weight: 700; color: #6a5548; }
+    .board-more-btn { font-size: 0.85rem; font-weight: 600; color: #6a5548; text-decoration: none; padding: 4px 8px; border-radius: 4px; transition: background 0.2s; }
+    .board-more-btn:hover { background: #f5ede4; }
     
     /* 更新一覧リスト */
     .update-list { display: flex; flex-direction: column; gap: 8px; }
-    .update-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: white; border-radius: 8px; border: 1px solid #dde6f0; text-decoration: none; color: inherit; transition: box-shadow 0.2s, transform 0.2s; }
+    .update-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: white; border-radius: 8px; border: 1px solid #e8dcd0; text-decoration: none; color: inherit; transition: box-shadow 0.2s, transform 0.2s; }
     .update-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); transform: translateY(-1px); }
     .update-meta { display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
-    .update-label { background: #eaf0f7; color: #1a3a5c; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; text-align: center;}
+    .update-label { background: #f5ede4; color: #6a5548; font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; white-space: nowrap; text-align: center;}
     .update-date { font-size: 0.75rem; color: #666; white-space: nowrap; }
     .update-title { font-size: 0.95rem; font-weight: 600; color: #333; line-height: 1.5; flex: 1; }
     
     /* 記事一覧グリッド */
     .article-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-    .article-card { display: flex; flex-direction: column; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #dde6f0; text-decoration: none; color: inherit; transition: box-shadow 0.2s, transform 0.2s; }
+    .article-card { display: flex; flex-direction: column; background: white; border-radius: 12px; overflow: hidden; border: 1px solid #e8dcd0; text-decoration: none; color: inherit; transition: box-shadow 0.2s, transform 0.2s; }
     .article-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-2px); }
-    .article-img-wrap { width: 100%; aspect-ratio: 16/9; background: #eaf0f7; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .article-img-wrap { width: 100%; aspect-ratio: 16/9; background: #f5ede4; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .article-img { width: 100%; height: 100%; object-fit: cover; }
-    .article-img-placeholder { font-size: 2.5rem; color: #b0c4d8; }
+    .article-img-placeholder { font-size: 2.5rem; color: #d4c0aa; }
     .article-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
     .article-title { font-size: 0.95rem; font-weight: 700; color: #333; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
     .article-meta { display: flex; align-items: center; gap: 8px; margin-top: auto; font-size: 0.75rem; }
     .article-date { color: #666; }
-    .article-type { color: #1a3a5c; font-weight: 600; background: #eaf2fb; padding: 2px 6px; border-radius: 4px; }
+    .article-type { color: #6a5548; font-weight: 600; background: #f5ede4; padding: 2px 6px; border-radius: 4px; }
 
 
     /* ===== Q&A チャット風 ===== */
     .qa-wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 32px; display: flex; flex-direction: column; gap: 0; }
     .qa-header { margin-bottom: 20px; }
-    .qa-title { font-size: 1rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; }
+    .qa-title { font-size: 1rem; font-weight: 700; color: #6a5548; margin-bottom: 4px; }
     .qa-subtitle { font-size: 0.78rem; color: #999; }
     .qa-submit-box { margin-bottom: 24px; }
     .qa-list { display: flex; flex-direction: column; gap: 18px; }
@@ -310,11 +367,11 @@
     /* 質問行（左寄せ・顧客） */
     .qa-q-row { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
     .qa-q-icon {
-      flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+      flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%;
       background: linear-gradient(135deg, #fce4ec, #f8bbd0);
       box-shadow: 0 2px 6px rgba(233,30,99,0.18);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.2rem; margin-top: 2px;
+      margin-top: 2px;
     }
     .qa-q-bubble {
       background: #fff; border-radius: 4px 18px 18px 18px;
@@ -336,36 +393,36 @@
     .qa-item.open .qa-a-row { display: flex; animation: qaFadeIn 0.25s ease; }
     @keyframes qaFadeIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
     .qa-a-bubble {
-      background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
+      background: linear-gradient(135deg, #6a5548, #8a7060);
       border-radius: 18px 4px 18px 18px;
       padding: 10px 14px; font-size: 0.88rem; color: white;
       flex: 1; line-height: 1.7; white-space: pre-wrap;
       box-shadow: 0 2px 8px rgba(26,58,92,0.25);
     }
     .qa-a-icon {
-      flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
-      background: linear-gradient(135deg, #1a3a5c, #2a5f8f);
+      flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(135deg, #6a5548, #8a7060);
       box-shadow: 0 2px 6px rgba(26,58,92,0.3);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.2rem; margin-top: 2px;
+      margin-top: 2px;
     }
     .qa-empty { text-align: center; padding: 40px 20px; color: #aaa; font-size: 0.9rem; }
 
     /* 質問投稿フォーム */
     .qa-submit-box {
       background: white; border-radius: 16px; padding: 16px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: 1.5px solid #dde6f0;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08); border: 1.5px solid #e8dcd0;
     }
-    .qa-submit-label { font-size: 0.82rem; font-weight: 700; color: #1a3a5c; margin-bottom: 10px; }
+    .qa-submit-label { font-size: 0.82rem; font-weight: 700; color: #6a5548; margin-bottom: 10px; }
     .qa-submit-row { display: flex; gap: 8px; align-items: flex-end; }
     .qa-submit-input {
       flex: 1; border: 1.5px solid #d0d9e4; border-radius: 10px;
       padding: 10px 12px; font-size: 0.9rem; font-family: inherit;
       background: #f8fafc; resize: none; min-height: 44px; max-height: 120px;
     }
-    .qa-submit-input:focus { outline: none; border-color: #1a3a5c; background: white; }
+    .qa-submit-input:focus { outline: none; border-color: #6a5548; background: white; }
     .qa-submit-btn {
-      flex-shrink: 0; background: #1a3a5c; color: white; border: none;
+      flex-shrink: 0; background: #6a5548; color: white; border: none;
       border-radius: 10px; padding: 10px 16px; font-size: 0.88rem; font-weight: 700;
       cursor: pointer; white-space: nowrap;
     }
@@ -485,7 +542,7 @@
     .corner-section-link-title {
       font-size: 0.88rem;
       font-weight: 800;
-      color: #1a3a5c;
+      color: #6a5548;
       margin-bottom: 4px;
     }
     .corner-section-link-note {
@@ -509,7 +566,7 @@
       align-items: center;
       gap: 8px;
       text-decoration: none;
-      color: #1a3a5c;
+      color: #6a5548;
       font-size: 0.82rem;
       font-weight: 700;
       margin-bottom: 10px;
@@ -517,7 +574,7 @@
     .corner-section-shell-title {
       font-size: 1.2rem;
       font-weight: 800;
-      color: #1a3a5c;
+      color: #6a5548;
       margin-bottom: 6px;
     }
     .corner-section-shell-note {
@@ -562,7 +619,7 @@
     .corner-card-header { margin-bottom: 14px; }
     .corner-card-title {
       font-size: 1.2rem;
-      color: #1a3a5c;
+      color: #6a5548;
       font-weight: 800;
       letter-spacing: 0.02em;
       margin-bottom: 6px;
@@ -615,7 +672,7 @@
     }
     .corner-q-label {
       background: #edf4fb;
-      color: #1a3a5c;
+      color: #6a5548;
     }
     .corner-a-label {
       background: #fff2bf;
@@ -648,7 +705,7 @@
       color: #314354;
       background: #f8fbff;
     }
-    .corner-region-tag.blue { background: #e8f0fe; }
+    .corner-region-tag.blue { background: #e8f4ee; }
     .corner-region-tag.teal { background: #e6f7f4; }
     .corner-region-tag.yellow { background: #fff7db; }
     .corner-region-tag.pink { background: #ffeff4; }
@@ -692,9 +749,9 @@
       transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
     }
     .corner-chip.active {
-      background: #1a3a5c;
+      background: #6a5548;
       color: #fff;
-      border-color: #1a3a5c;
+      border-color: #6a5548;
       transform: translateY(-1px);
     }
     .corner-chip.static {
@@ -726,7 +783,7 @@
     .corner-column-title {
       font-size: 0.96rem;
       font-weight: 800;
-      color: #1a3a5c;
+      color: #6a5548;
     }
     .corner-industry-comment {
       font-size: 0.8rem;
@@ -784,7 +841,7 @@
     .corner-live-title {
       font-size: 1.15rem;
       font-weight: 800;
-      color: #1a3a5c;
+      color: #6a5548;
       margin-bottom: 6px;
     }
     .corner-live-subtitle {
@@ -824,7 +881,7 @@
     .corner-form-select:focus,
     .corner-form-textarea:focus {
       outline: none;
-      border-color: #1a3a5c;
+      border-color: #6a5548;
       background: #fff;
     }
     .corner-form-actions {
@@ -835,7 +892,7 @@
       margin-top: 4px;
     }
     .corner-submit-btn {
-      background: #1a3a5c;
+      background: #6a5548;
       color: #fff;
       border: none;
       border-radius: 10px;
@@ -919,7 +976,7 @@
     .corner-question-item-title {
       font-size: 1rem;
       font-weight: 800;
-      color: #1a3a5c;
+      color: #6a5548;
       line-height: 1.5;
       margin-bottom: 8px;
     }
@@ -982,7 +1039,7 @@
       align-items: center;
       gap: 6px;
       text-decoration: none;
-      color: #1a3a5c;
+      color: #6a5548;
       font-size: 0.82rem;
       font-weight: 700;
       background: #edf4fb;
@@ -1003,7 +1060,7 @@
     .corner-question-group-title {
       font-size: 0.95rem;
       font-weight: 800;
-      color: #1a3a5c;
+      color: #6a5548;
       margin-bottom: 12px;
     }
     .corner-inline-list {
@@ -1035,9 +1092,9 @@
       .tab-nav { width: 100%; flex-direction: row; border-right: none; border-bottom: 2px solid #e0e7ef; overflow-x: auto; }
       .tab-nav::-webkit-scrollbar { display: none; } /* スクロールバー非表示 */
       .tab-btn { flex: 1 0 16.66%; flex-direction: row; padding: 10px 4px; gap: 4px; border-left: none; border-bottom: 3px solid transparent; font-size: 0.7rem; white-space: nowrap; }
-      .tab-btn.active { border-left-color: transparent; border-bottom-color: #1a3a5c; }
-      .tab-btn .tab-icon { font-size: 1.05rem; }
-      header h1 { font-size: 1.05rem; }
+      .tab-btn.active { border-left-color: transparent; border-bottom-color: #8a7060; }
+      .tab-btn svg { width: 16px; height: 16px; }
+      .header-logo { height: 64px; }
       .calendar-wrap { padding: 0 6px; }
       .weekdays, .calendar-grid { gap: 2px; }
       .day-cell { min-height: 74px; padding: 4px 2px; }
@@ -1072,41 +1129,52 @@
     /* ===== ルーム予約 ===== */
     .room-wrap { max-width: 600px; margin: 0 auto; padding: 20px 16px 40px; display: flex; flex-direction: column; gap: 16px; }
     .room-header-bar { }
-    .room-section-title { font-size: 1.1rem; font-weight: 700; color: #1a3a5c; margin-bottom: 4px; }
+    .room-section-title { font-size: 1.1rem; font-weight: 700; color: #6a5548; margin-bottom: 4px; }
     .room-section-note { font-size: 0.8rem; color: #888; }
-    .room-card { background: #fff; border-radius: 14px; padding: 18px 16px; box-shadow: 0 2px 10px rgba(0,0,0,.07); display: flex; flex-direction: column; gap: 12px; }
+    .room-card { background: #fff; border-radius: 14px; padding: 18px 16px; box-shadow: 0 2px 10px rgba(0,0,0,.07); display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
     .room-card-success { align-items: center; gap: 10px; }
     .room-my-card { }
-    .room-card-label { font-size: 0.9rem; font-weight: 700; color: #1a3a5c; }
-    .room-date-input { border: 1.5px solid #d7e0ea; border-radius: 8px; padding: 10px 12px; font-size: 1rem; width: 100%; outline: none; }
-    .room-date-input:focus { border-color: #1a3a5c; }
-    .room-btn-primary { background: linear-gradient(135deg,#1a3a5c,#2a5f8f); color: #fff; border: none; border-radius: 10px; padding: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; width: 100%; }
+    .room-card-label { font-size: 0.9rem; font-weight: 700; color: #6a5548; }
+    .room-date-input { border: 1.5px solid #d7e0ea; border-radius: 8px; padding: 10px 12px; font-size: 1rem; max-width: 100%; min-width: 0; outline: none; box-sizing: border-box; }
+    .room-date-input:focus { border-color: #6a5548; }
+    .room-btn-primary { background: linear-gradient(135deg,#6a5548,#8a7060); color: #fff; border: none; border-radius: 10px; padding: 12px; font-size: 0.95rem; font-weight: 700; cursor: pointer; width: 100%; }
     .room-btn-primary:active { opacity: 0.8; }
     .room-btn-primary:disabled { background: #aaa; cursor: not-allowed; }
-    .room-btn-secondary { background: #e8f4fd; color: #1a3a5c; border: none; border-radius: 10px; padding: 11px; font-size: 0.9rem; font-weight: 700; cursor: pointer; width: 100%; }
+    .room-btn-secondary { background: #e8f4fd; color: #6a5548; border: none; border-radius: 10px; padding: 11px; font-size: 0.9rem; font-weight: 700; cursor: pointer; width: 100%; }
     .room-btn-ghost { background: none; color: #666; border: 1.5px solid #d7e0ea; border-radius: 10px; padding: 10px; font-size: 0.88rem; cursor: pointer; width: 100%; }
-    .room-slot-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
-    .room-slot-btn { border: 1.5px solid #1a3a5c; border-radius: 8px; padding: 10px 6px; font-size: 0.85rem; font-weight: 600; background: #fff; color: #1a3a5c; cursor: pointer; text-align: center; }
-    .room-slot-btn.unavailable { border-color: #ddd; color: #bbb; cursor: not-allowed; background: #f7f7f7; }
-    .room-slot-btn.selected { background: #1a3a5c; color: #fff; }
-    .room-selected-slot { font-size: 1rem; font-weight: 700; color: #1a3a5c; text-align: center; padding: 10px; background: #eaf2fb; border-radius: 8px; }
+    .room-slot-select {
+      width: 100%; max-width: 100%; min-width: 0;
+      border: 1.5px solid #d4c0aa; border-radius: 8px;
+      padding: 11px 14px; font-size: 1rem; font-family: inherit;
+      background: #fff; color: #3a2c22;
+      outline: none; cursor: pointer; appearance: auto;
+    }
+    .room-slot-select:focus { border-color: #8a7060; }
+    .room-loading-spinner {
+      width: 32px; height: 32px; margin: 0 auto;
+      border: 3px solid #e8d5bb; border-top-color: #8a7060;
+      border-radius: 50%;
+      animation: roomSpin 0.8s linear infinite;
+    }
+    @keyframes roomSpin { to { transform: rotate(360deg); } }
+    .room-selected-slot { font-size: 1rem; font-weight: 700; color: #6a5548; text-align: center; padding: 10px; background: #f5ede4; border-radius: 8px; }
     .room-form-row { display: flex; flex-direction: column; gap: 4px; }
     .room-form-label { font-size: 0.82rem; color: #555; font-weight: 600; }
     .room-required { color: #e55; font-size: 0.78rem; }
     .room-form-input { border: 1.5px solid #d7e0ea; border-radius: 8px; padding: 10px 12px; font-size: 0.95rem; outline: none; }
-    .room-form-input:focus { border-color: #1a3a5c; }
+    .room-form-input:focus { border-color: #6a5548; }
     .room-duration-btns { display: flex; gap: 8px; flex-wrap: wrap; }
-    .room-dur-btn { border: 1.5px solid #1a3a5c; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600; background: #fff; color: #1a3a5c; cursor: pointer; }
-    .room-dur-btn.selected { background: #1a3a5c; color: #fff; }
+    .room-dur-btn { border: 1.5px solid #6a5548; border-radius: 8px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600; background: #fff; color: #6a5548; cursor: pointer; }
+    .room-dur-btn.selected { background: #6a5548; color: #fff; }
     .room-msg { padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; }
     .room-msg.error { background: #fdecea; color: #c0392b; }
     .room-msg.success { background: #eafaf1; color: #1e8449; }
-    .room-success-title { font-size: 1.1rem; font-weight: 700; color: #1a3a5c; text-align: center; }
+    .room-success-title { font-size: 1.1rem; font-weight: 700; color: #6a5548; text-align: center; }
     .room-success-note { font-size: 0.85rem; color: #666; text-align: center; line-height: 1.6; }
     .room-success-detail { font-size: 0.85rem; color: #333; text-align: center; background: #f5f7fa; padding: 10px; border-radius: 8px; width: 100%; }
     .room-my-item { background: #f5f7fa; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
     .room-my-item-header { display: flex; justify-content: space-between; align-items: center; }
-    .room-my-item-date { font-weight: 700; color: #1a3a5c; font-size: 0.95rem; }
+    .room-my-item-date { font-weight: 700; color: #6a5548; font-size: 0.95rem; }
     .room-my-item-status { font-size: 0.78rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; }
     .room-status-pending { background: #fff3cd; color: #856404; }
     .room-status-approved { background: #d4edda; color: #155724; }
@@ -1131,8 +1199,7 @@
 <div id="loadingToast"></div>
 
 <header>
-  <h1>🏪 BiZCAFE 千葉大学店</h1>
-  <p>営業カレンダー・混雑状況</p>
+  <img src="/bizcafe-logo.png" alt="BiZCAFE 千葉大学店" class="header-logo">
 </header>
 
 <div class="app-layout">
@@ -1140,28 +1207,36 @@
   <!-- 縦タブ（PC）/ 横タブ（モバイル） -->
   <nav class="tab-nav">
     <button class="tab-btn active" id="tabBtnCongestion" onclick="switchTab('congestion')">
-      <span class="tab-icon">👥</span>混雑状況
+      <svg viewBox="0 0 24 24"><circle cx="8" cy="7" r="3"/><path d="M2 21c0-3.3 2.7-5 6-5h1"/><circle cx="16" cy="7" r="3"/><path d="M11 21c0-3.3 2.7-5 6-5h1"/></svg>
+      混雑状況
     </button>
     <button class="tab-btn" id="tabBtnCalendar" onclick="switchTab('calendar')">
-      <span class="tab-icon">📅</span>カレンダー
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      カレンダー
     </button>
     <button class="tab-btn" id="tabBtnQA" onclick="switchTab('qa')">
-      <span class="tab-icon">💬</span>Q&amp;A
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Q&amp;A
     </button>
     <button class="tab-btn" id="tabBtnBoard" onclick="switchTab('board')">
-      <span class="tab-icon">📋</span>掲示板
+      <svg viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+      お知らせ
     </button>
     <button class="tab-btn" id="tabBtnCorner" onclick="switchTab('corner')">
-      <span class="tab-icon">🧷</span>コーナー
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+      掲示板
     </button>
     <button class="tab-btn" id="tabBtnRoom" onclick="switchTab('room')">
-      <span class="tab-icon">🚪</span>ルーム予約
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      ルーム予約
     </button>
     <button class="tab-btn" id="tabBtnRecruit" onclick="window.open('https://recruit.shirucafe.com/','_blank')">
-      <span class="tab-icon">✨</span>採用
+      <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      採用
     </button>
     <button class="tab-btn" id="tabBtnSweets" onclick="window.open('https://mcstudy.mynavi.jp/conts/shirucafe/sweets/index.html?utm_source=ig&utm_medium=social&utm_content=link_in_bio','_blank')">
-      <span class="tab-icon">🍬</span>お菓子もらう
+      <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      お菓子もらう
     </button>
   </nav>
 
@@ -1218,6 +1293,7 @@
             <div class="meetup-panel-title" id="meetupPanelTitle"></div>
             <button class="meetup-close" id="meetupClose">✕</button>
           </div>
+          <div class="kind-toggle" id="kindToggle" style="display:none;"></div>
           <div class="grad-filter" id="gradFilter"></div>
           <div class="meetup-list" id="meetupList"></div>
         </div>
@@ -1375,18 +1451,44 @@
           <p class="room-section-note">個室ルームを予約できます。利用は30分単位（最大2時間）です。</p>
         </div>
 
+        <!-- 予約手順ガイド -->
+        <div style="display:flex;gap:0;align-items:center;justify-content:center;padding:4px 0 2px;">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+            <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#6a5548,#8a7060);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">📅</div>
+            <div style="font-size:0.65rem;color:#8a7060;font-weight:700;text-align:center;line-height:1.4;">①利用日<br>を選択</div>
+          </div>
+          <div style="flex:0 0 18px;height:2px;background:linear-gradient(90deg,#c4a98a,#d4b99a);border-radius:2px;margin-bottom:14px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+            <div style="width:34px;height:34px;border-radius:50%;background:#ede0d4;color:#8a7060;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">🕐</div>
+            <div style="font-size:0.65rem;color:#aaa;font-weight:700;text-align:center;line-height:1.4;">②時刻<br>を選択</div>
+          </div>
+          <div style="flex:0 0 18px;height:2px;background:#e8ddd5;border-radius:2px;margin-bottom:14px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+            <div style="width:34px;height:34px;border-radius:50%;background:#ede0d4;color:#8a7060;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">✏️</div>
+            <div style="font-size:0.65rem;color:#aaa;font-weight:700;text-align:center;line-height:1.4;">③情報入力<br>・申し込み</div>
+          </div>
+        </div>
+
         <!-- 日付選択 -->
         <div class="room-card">
           <div class="room-card-label">📅 利用日を選択</div>
-          <input type="date" id="roomDateInput" class="room-date-input">
-          <button class="room-btn-primary" onclick="loadRoomSlots()">空き状況を確認</button>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="date" id="roomDateInput" class="room-date-input" style="width:auto;flex:0 0 auto;">
+            <button class="room-btn-primary" onclick="loadRoomSlots()" style="flex:1;min-width:120px;padding:11px 12px;">空き状況を確認</button>
+          </div>
         </div>
 
         <!-- スロット一覧 -->
         <div id="roomSlotsSection" style="display:none;">
           <div class="room-card">
             <div class="room-card-label">⏰ 開始時刻を選択</div>
-            <div id="roomSlotList" class="room-slot-grid"></div>
+            <div id="roomSlotsLoading" style="display:none;text-align:center;padding:18px 0;">
+              <div class="room-loading-spinner"></div>
+              <div style="color:#8a7060;font-size:0.85rem;margin-top:8px;">読み込み中...</div>
+            </div>
+            <select id="roomSlotList" class="room-slot-select">
+              <option value="">-- 時刻を選んでください --</option>
+            </select>
           </div>
         </div>
 
@@ -1401,6 +1503,13 @@
             </div>
             <div class="room-form-row">
               <label class="room-form-label" for="roomShiruPassId">知るパスID <span class="room-required">必須</span></label>
+              <div style="background:#fdf6ee;border:1.5px solid #e8d5bb;border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start;">
+                <span style="font-size:1.1rem;flex-shrink:0;line-height:1.4;">ℹ️</span>
+                <div style="font-size:0.78rem;color:#7a5c3a;line-height:1.7;">
+                  知るパスIDはMeetup（1on1予約）をご利用いただくと発行されます。<br>
+                  <span style="color:#6a5548;font-weight:700;">知るカフェアプリ</span>からMeetupをご予約ください。
+                </div>
+              </div>
               <input class="room-form-input" id="roomShiruPassId" type="text" placeholder="例: A7K3P9" maxlength="6" style="text-transform:uppercase;letter-spacing:0.15em;font-family:monospace;font-weight:700;">
               <div id="roomPassMsg" style="font-size:0.78rem;margin-top:2px;min-height:1em;"></div>
             </div>
@@ -1579,11 +1688,30 @@
       var wrap = document.createElement('div'); wrap.className = 'qa-item';
 
       var qRow = document.createElement('div'); qRow.className = 'qa-q-row';
-      qRow.innerHTML = '<div class="qa-q-icon">🙋</div>'
+      qRow.innerHTML = '<div class="qa-q-icon">'
+        + '<svg viewBox="0 0 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<ellipse cx="14" cy="10.5" rx="5" ry="5.5" fill="#f06292"/>'
+        + '<path d="M7 26c0-3.9 3.1-7 7-7s7 3.1 7 7" fill="#f06292" opacity="0.85"/>'
+        + '<path d="M7 10.5 Q6 7 9 5.5 Q11 4 14 4.5 Q17 4 19 5.5 Q22 7 21 10.5" fill="#b05c50"/>'
+        + '<ellipse cx="12" cy="11.5" rx="0.8" ry="0.8" fill="#c62828"/>'
+        + '<ellipse cx="16" cy="11.5" rx="0.8" ry="0.8" fill="#c62828"/>'
+        + '<path d="M11.5 13.5 Q14 15.5 16.5 13.5" stroke="#c62828" stroke-width="1" fill="none" stroke-linecap="round"/>'
+        + '</svg>'
+        + '</div>'
         + '<div class="qa-q-bubble">' + escQA(item.question) + '</div>';
 
       var aRow = document.createElement('div'); aRow.className = 'qa-a-row';
-      aRow.innerHTML = '<div class="qa-a-icon">☕</div>'
+      aRow.innerHTML = '<div class="qa-a-icon">'
+        + '<svg viewBox="0 0 28 28" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        + '<path d="M9 7 Q9.8 5.5 9 4" stroke="rgba(255,255,255,0.7)" stroke-width="1.3" stroke-linecap="round"/>'
+        + '<path d="M13 6 Q13.8 4.2 13 2.5" stroke="rgba(255,255,255,0.7)" stroke-width="1.3" stroke-linecap="round"/>'
+        + '<path d="M17 7 Q17.8 5.5 17 4" stroke="rgba(255,255,255,0.7)" stroke-width="1.3" stroke-linecap="round"/>'
+        + '<path d="M5 9h18l-2 12H7L5 9z" fill="white" opacity="0.92"/>'
+        + '<path d="M23 11h2a2.5 2.5 0 0 1 0 5h-2" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none"/>'
+        + '<ellipse cx="14" cy="21.5" rx="8" ry="1.5" fill="white" opacity="0.5"/>'
+        + '<ellipse cx="14" cy="14" rx="4" ry="2" fill="#c8a882" opacity="0.45"/>'
+        + '</svg>'
+        + '</div>'
         + '<div class="qa-a-bubble">' + escQA(item.answer) + '</div>';
 
       qRow.addEventListener('click', function() { wrap.classList.toggle('open'); });
@@ -1691,6 +1819,18 @@
   loadCongestion();
   setInterval(loadCongestion, 30000);
 
+  // スタッフアプリが更新したら即時反映（同一オリジン間 BroadcastChannel）
+  try {
+    var _congestionChannel = new BroadcastChannel('bizcafe_congestion');
+    _congestionChannel.onmessage = function(e) {
+      if (e.data && e.data.updatedAt !== undefined) {
+        renderCongestion(e.data.level || 0, e.data.updatedAt || '');
+      } else {
+        loadCongestion();
+      }
+    };
+  } catch (e) {}
+
   // ===== カレンダー =====
   var today = new Date();
   var currentYear  = today.getFullYear();
@@ -1700,6 +1840,7 @@
     + String(today.getDate()).padStart(2,'0');
   var selectedDateISO = null;
   var allMeetups = [];
+  var currentKindFilter = 'all';
 
   document.getElementById('prevBtn').addEventListener('click', function() {
     currentMonth--; if (currentMonth < 1) { currentMonth = 12; currentYear--; }
@@ -1799,6 +1940,25 @@
     }
     grid.appendChild(cell);
   });
+  // ルーム予約済みバッジを非同期で重ねる
+  loadRoomReservationDates(currentYear, currentMonth);
+}
+
+function loadRoomReservationDates(year, month) {
+  fetch(GAS_API_URL + '?page=calendar&action=roomReservationDates&year=' + year + '&month=' + month)
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      (d.dates || []).forEach(function(dateISO) {
+        var cell = document.querySelector('.calendar-grid [data-date="' + dateISO + '"]');
+        if (!cell || cell.querySelector('.room-badge')) return;
+        var badge = document.createElement('div');
+        badge.className = 'room-badge';
+        badge.textContent = 'ルーム予約';
+        var btn = cell.querySelector('.day-open-btn');
+        if (btn) btn.appendChild(badge);
+      });
+    })
+    .catch(function() {});
 }
 
 window.onDayClick = function(dateISO) {
@@ -1811,13 +1971,16 @@ window.onDayClick = function(dateISO) {
     var toast = document.getElementById('loadingToast');
     toast.textContent = '📅 ' + label + ' のMeetup情報を読み込み中...'; toast.style.display = 'block';
     document.getElementById('meetupPanelTitle').textContent = label + ' のMeetup';
+    document.getElementById('kindToggle').style.display = 'none';
+    document.getElementById('kindToggle').innerHTML = '';
     document.getElementById('gradFilter').innerHTML = '';
+    currentKindFilter = 'all';
     document.getElementById('meetupList').innerHTML = '<div class="meetup-loading"><div class="spinner"></div>読み込み中...</div>';
     document.getElementById('meetupPanel').classList.add('visible');
     document.getElementById('meetupPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
     fetch(GAS_API_URL + '?page=calendar&action=meetups&date=' + dateISO)
       .then(function(r) { return r.json(); })
-      .then(function(data) { toast.style.display = 'none'; allMeetups = data; renderGradFilter(data); renderMeetups(data, 'all'); })
+      .then(function(data) { toast.style.display = 'none'; allMeetups = (data || []).filter(function(m) { return !m.kind || !m.kind.includes('席利用'); }); renderKindToggle(allMeetups); renderGradFilter(allMeetups); renderMeetups(allMeetups, 'all', 'all'); })
       .catch(function() { toast.style.display = 'none'; document.getElementById('meetupList').innerHTML = '<div class="meetup-empty">データの取得に失敗しました。</div>'; });
   };
 
@@ -1845,27 +2008,69 @@ window.onDayClick = function(dateISO) {
     document.querySelectorAll('.grad-btn').forEach(function(btn) {
       btn.classList.toggle('active', btn.textContent === grad || (grad === 'all' && btn.textContent === 'すべて'));
     });
-    renderMeetups(allMeetups, grad);
+    renderMeetups(allMeetups, grad, currentKindFilter);
   }
 
-  function renderMeetups(meetups, gradFilter) {
+  function renderKindToggle(meetups) {
+    var hasInPerson = meetups.some(function(m) { return !isOnlineMeetup(m); });
+    var hasOnline   = meetups.some(function(m) { return isOnlineMeetup(m); });
+    var container = document.getElementById('kindToggle');
+    container.innerHTML = '';
+    if (!hasInPerson || !hasOnline) { container.style.display = 'none'; return; }
+    container.style.display = 'flex';
+    [
+      { key: 'all',      label: 'すべて',        cls: '' },
+      { key: 'inperson', label: '🔴 対面',        cls: 'k-inperson' },
+      { key: 'online',   label: '🔵 オンライン',  cls: 'k-online' }
+    ].forEach(function(item) {
+      var btn = document.createElement('button');
+      btn.className = 'kind-toggle-btn' + (item.cls ? ' ' + item.cls : '') + (item.key === 'all' ? ' active' : '');
+      btn.textContent = item.label;
+      btn.addEventListener('click', function() { setKindFilter(item.key); });
+      container.appendChild(btn);
+    });
+  }
+
+  function setKindFilter(k) {
+    currentKindFilter = k;
+    document.querySelectorAll('.kind-toggle-btn').forEach(function(btn) {
+      var map = { 'すべて': 'all', '🔴 対面': 'inperson', '🔵 オンライン': 'online' };
+      btn.classList.toggle('active', map[btn.textContent] === k);
+    });
+    var activeGrad = (function() {
+      var a = document.querySelector('.grad-btn.active'); return a ? (a.textContent === 'すべて' ? 'all' : a.textContent) : 'all';
+    })();
+    renderMeetups(allMeetups, activeGrad, k);
+  }
+
+  function isOnlineMeetup(m) { return m.kind && m.kind.includes('オンライン'); }
+
+  function renderMeetups(meetups, gradFilter, kindFilter) {
     var list = document.getElementById('meetupList'); list.innerHTML = '';
     var filtered = meetups.filter(function(m) {
-      if (gradFilter === 'all') return true;
-      if (!m.gradYear) return false;
-      return String(m.gradYear).split(/[\s,、]+/).indexOf(gradFilter) !== -1;
+      if (gradFilter !== 'all') {
+        if (!m.gradYear) return false;
+        if (String(m.gradYear).split(/[\s,、]+/).indexOf(gradFilter) === -1) return false;
+      }
+      if (kindFilter === 'inperson') return !isOnlineMeetup(m);
+      if (kindFilter === 'online')   return isOnlineMeetup(m);
+      return true;
     });
     if (filtered.length === 0) { list.innerHTML = '<div class="meetup-empty">この日のMeetup予定はありません。</div>'; return; }
-    // 満席は末尾へ
-    filtered.sort(function(a, b) { return isMeetupSoldOut(a.remaining) - isMeetupSoldOut(b.remaining); });
-    filtered.forEach(function(m) {
+
+    function isOnline(m) { return isOnlineMeetup(m); }
+    // 対面を先、オンラインを後。各グループ内は満席を末尾へ
+    function sortGroup(arr) { arr.sort(function(a, b) { return isMeetupSoldOut(a.remaining) - isMeetupSoldOut(b.remaining); }); return arr; }
+    var inPerson = sortGroup(filtered.filter(function(m) { return !isOnline(m); }));
+    var online   = sortGroup(filtered.filter(function(m) { return isOnline(m); }));
+
+    function appendCard(m) {
       var soldOut = isMeetupSoldOut(m.remaining);
       var rm = !soldOut && m.remaining ? m.remaining.match(/残席 (\d+)\/(\d+)/) : null;
       var hasRemaining = !!rm;
       var card = document.createElement('div');
       card.className = 'meetup-card' + (soldOut ? ' soldout' : hasRemaining ? ' has-remaining' : '');
 
-      // 画像エリア（オーバーレイ付き）
       var imgWrap = document.createElement('div'); imgWrap.className = 'meetup-img-wrap';
       if (m.imageUrl) {
         var img = document.createElement('img'); img.className = 'meetup-img'; img.src = m.imageUrl; img.alt = 'Meetup';
@@ -1885,14 +2090,32 @@ window.onDayClick = function(dateISO) {
         imgWrap.appendChild(banner);
       }
 
+      var kindIsOnline = isOnline(m);
       var body = document.createElement('div'); body.className = 'meetup-body';
       body.innerHTML = '<div class="meetup-company">' + esc(m.company) + '</div>'
         + '<div class="meetup-theme' + (m.theme ? '' : ' no-theme') + '">' + esc(m.theme || 'テーマ未登録') + '</div>'
         + '<div class="meetup-meta"><span class="meetup-time">' + esc(m.time) + '</span>'
-        + (m.kind ? '<span class="meetup-kind">' + esc(m.kind) + '</span>' : '')
+        + (m.kind ? '<span class="meetup-kind' + (kindIsOnline ? ' kind-online' : '') + '">' + esc(m.kind) + '</span>' : '')
         + (m.gradYear ? '<span class="meetup-grad">🎓 ' + esc(m.gradYear) + '</span>' : '') + '</div>';
       card.appendChild(imgWrap); card.appendChild(body); list.appendChild(card);
-    });
+    }
+
+    if (inPerson.length > 0) {
+      if (online.length > 0) {
+        var h1 = document.createElement('div');
+        h1.className = 'meetup-category-header';
+        h1.textContent = '🔴 対面 Meetup';
+        list.appendChild(h1);
+      }
+      inPerson.forEach(appendCard);
+    }
+    if (online.length > 0) {
+      var h2 = document.createElement('div');
+      h2.className = 'meetup-category-header cat-online';
+      h2.textContent = '🔵 オンライン Meetup';
+      list.appendChild(h2);
+      online.forEach(appendCard);
+    }
   }
 
   function isMeetupSoldOut(remaining) {
@@ -2445,7 +2668,7 @@ window.onDayClick = function(dateISO) {
       if (voted) {
         return '<div class="corner-industry-item">'
           + '<div class="corner-industry-head"><span class="corner-industry-name">' + esc(option.label || '') + '</span><span class="corner-industry-comment">' + percent + '% / ' + votes + '票</span></div>'
-          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#1a3a5c,#2a5f8f);"></div></div></div>'
+          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#6a5548,#8a7060);"></div></div></div>'
           + '</div>';
       }
       return '<button type="button" class="corner-section-link" style="text-align:left;" onclick="voteCornerParticipation(\'' + esc(activeTheme.id) + '\',\'' + esc(option.id) + '\')">'
@@ -2608,7 +2831,7 @@ window.onDayClick = function(dateISO) {
       + '.congestion-poll-section{margin-top:18px;}'
       + '.congestion-poll-section .corner-card{margin:0;}'
       + '.sns-link-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;}'
-      + '.sns-link-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid #d7e0ea;border-radius:14px;background:#fff;color:#1a3a5c;text-decoration:none;box-shadow:0 1px 4px rgba(0,0,0,.05);}'
+      + '.sns-link-card{display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid #d7e0ea;border-radius:14px;background:#fff;color:#6a5548;text-decoration:none;box-shadow:0 1px 4px rgba(0,0,0,.05);}'
       + '.sns-link-card:hover{background:#f7fafc;}'
       + '.sns-link-icon{width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}'
       + '.sns-link-icon svg{width:22px;height:22px;}'
@@ -2697,7 +2920,7 @@ window.onDayClick = function(dateISO) {
       if (voted || !canVote) {
         return '<div class="corner-industry-item">'
           + '<div class="corner-industry-head"><span class="corner-industry-name">' + esc(option.label || '') + '</span><span class="corner-industry-comment">' + percent + '% / ' + votes + '票</span></div>'
-          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#1a3a5c,#2a5f8f);"></div></div></div>'
+          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#6a5548,#8a7060);"></div></div></div>'
           + '</div>';
       }
       return '<button type="button" class="corner-section-link" style="text-align:left;" onclick="voteCornerParticipation(\'' + esc(activeTheme.id) + '\',\'' + esc(option.id) + '\')">'
@@ -2711,7 +2934,7 @@ window.onDayClick = function(dateISO) {
       + themeTabs
       + '<div class="corner-worry-head other" style="margin-bottom:12px;">' + esc(activeTheme.title || '') + '</div>'
       + '<div class="corner-card-note" style="margin-bottom:8px;">' + esc(activeTheme.description || '') + '</div>'
-      + '<div class="corner-card-note" style="margin-bottom:14px;font-weight:600;color:#1a3a5c;">' + esc(getParticipationPeriodLabel(activeTheme)) + '</div>'
+      + '<div class="corner-card-note" style="margin-bottom:14px;font-weight:600;color:#6a5548;">' + esc(getParticipationPeriodLabel(activeTheme)) + '</div>'
       + '<div class="corner-industry-list">' + optionHtml + '</div>'
       + '<div class="corner-sticky">' + esc(section.stickyNote || '') + (voted ? ' 投票ありがとうございました。' : (canVote ? '' : ' 開始までは結果のみ表示しています。')) + '</div>'
       + '</section>';
@@ -2757,6 +2980,7 @@ window.onDayClick = function(dateISO) {
 
   var originalSwitchTab = switchTab;
   switchTab = function(name) {
+    if (maintenanceStatus[name] && !isPreviewMode) return; // メンテ中タブは切り替え無効
     originalSwitchTab(name);
     if (name === 'congestion') {
       if (!cornerContentLoaded) {
@@ -2769,29 +2993,22 @@ window.onDayClick = function(dateISO) {
     if (name === 'room') {
       renderMyReservationsCard();
     }
-    applyMaintenanceOverlay(name);
   };
 
-  // ===== メンテナンスオーバーレイ =====
+  // ===== メンテナンス =====
   var maintenanceStatus = {};
   var isPreviewMode = new URLSearchParams(window.location.search).get('preview') === '1';
 
-  function applyMaintenanceOverlay(tabName) {
-    var overlay = document.getElementById('maintenanceOverlay');
-    if (!overlay) return;
-    if (!isPreviewMode && maintenanceStatus[tabName]) {
-      var tabContent = document.querySelector('.tab-content');
-      if (tabContent) {
-        var rect = tabContent.getBoundingClientRect();
-        overlay.style.top    = rect.top + 'px';
-        overlay.style.left   = rect.left + 'px';
-        overlay.style.width  = rect.width + 'px';
-        overlay.style.height = (window.innerHeight - rect.top) + 'px';
+  function applyMaintenanceTabs() {
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      var m = (btn.getAttribute('onclick') || '').match(/switchTab\('(\w+)'\)/);
+      if (!m) return;
+      if (!isPreviewMode && maintenanceStatus[m[1]]) {
+        btn.classList.add('tab-maintenance');
+      } else {
+        btn.classList.remove('tab-maintenance');
       }
-      overlay.style.display = 'flex';
-    } else {
-      overlay.style.display = 'none';
-    }
+    });
   }
 
   // DOMからタブIDを自動収集してGASに渡す
@@ -2804,11 +3021,14 @@ window.onDayClick = function(dateISO) {
     .then(function(r) { return r.json(); })
     .then(function(data) {
       maintenanceStatus = data;
-      // スプラッシュが消える前にオーバーレイを適用
+      applyMaintenanceTabs();
+      // メンテ中タブがアクティブなら混雑状況に戻す
       var activeBtn = document.querySelector('.tab-btn.active');
       if (activeBtn) {
         var m = (activeBtn.getAttribute('onclick') || '').match(/switchTab\('(\w+)'\)/);
-        if (m) applyMaintenanceOverlay(m[1]);
+        if (m && maintenanceStatus[m[1]] && !isPreviewMode) {
+          originalSwitchTab('congestion');
+        }
       }
       checkSplashReady();
     })
@@ -2873,7 +3093,7 @@ window.onDayClick = function(dateISO) {
       if (voted || !canVote) {
         return '<div class="corner-industry-item">'
           + '<div class="corner-industry-head"><span class="corner-industry-name">' + esc(option.label || '') + '</span><span class="corner-industry-comment">' + percent + '% / ' + votes + '票</span></div>'
-          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#1a3a5c,#2a5f8f);"></div></div></div>'
+          + '<div class="corner-industry-answer"><div style="height:10px;border-radius:999px;background:#e6edf5;overflow:hidden;"><div style="width:' + percent + '%;height:100%;background:linear-gradient(135deg,#6a5548,#8a7060);"></div></div></div>'
           + '</div>';
       }
       return '<button type="button" class="corner-section-link" style="text-align:left;" onclick="voteCornerParticipation(\'' + esc(activeTheme.id) + '\',\'' + esc(option.id) + '\')">'
@@ -2887,7 +3107,7 @@ window.onDayClick = function(dateISO) {
       + themeTabs
       + '<div class="corner-worry-head other" style="margin-bottom:12px;">' + esc(activeTheme.title || '') + '</div>'
       + '<div class="corner-card-note" style="margin-bottom:8px;">' + esc(activeTheme.description || '') + '</div>'
-      + '<div class="corner-card-note" style="margin-bottom:14px;font-weight:600;color:#1a3a5c;">' + esc(getParticipationPeriodLabel(activeTheme)) + '</div>'
+      + '<div class="corner-card-note" style="margin-bottom:14px;font-weight:600;color:#6a5548;">' + esc(getParticipationPeriodLabel(activeTheme)) + '</div>'
       + '<div class="corner-industry-list">' + optionHtml + '</div>'
       + '<div class="corner-sticky">' + esc(section.stickyNote || '') + (voted ? ' 投票ありがとうございました。' : (canVote ? '' : ' 開始までは結果のみ表示しています。')) + '</div>'
       + '</section>';
@@ -2937,13 +3157,21 @@ window.onDayClick = function(dateISO) {
     var yyyy = today.getFullYear();
     var mm = ('0' + (today.getMonth() + 1)).slice(-2);
     var dd = ('0' + today.getDate()).slice(-2);
-    var el = document.getElementById('roomDateInput');
-    if (el) {
-      el.value = yyyy + '-' + mm + '-' + dd;
-      el.min = yyyy + '-' + mm + '-' + dd;
-      var maxD = new Date(today.getTime() + 14 * 86400000);
-      el.max = maxD.getFullYear() + '-' + ('0'+(maxD.getMonth()+1)).slice(-2) + '-' + ('0'+maxD.getDate()).slice(-2);
+    var todayStr = yyyy + '-' + mm + '-' + dd;
+    var ROOM_OPEN = '2026-06-01';
+
+    function applyRoomDateRange(daysAhead) {
+      var el = document.getElementById('roomDateInput');
+      if (!el) return;
+      var minDate = todayStr > ROOM_OPEN ? todayStr : ROOM_OPEN;
+      el.min = minDate;
+      el.value = minDate;
+      var maxD = new Date(today.getTime() + daysAhead * 86400000);
+      var maxDate = maxD.getFullYear() + '-' + ('0'+(maxD.getMonth()+1)).slice(-2) + '-' + ('0'+maxD.getDate()).slice(-2);
+      el.max = maxDate > ROOM_OPEN ? maxDate : ROOM_OPEN;
     }
+
+    applyRoomDateRange(60);
     // 知るパスID: 入力時にリアルタイム検証
     var passEl = document.getElementById('roomShiruPassId');
     var passMsg = document.getElementById('roomPassMsg');
@@ -2964,6 +3192,7 @@ window.onDayClick = function(dateISO) {
                 if (data.valid) {
                   passMsg.textContent = '✅ 有効です（有効期限: ' + data.expiry + '）';
                   passMsg.style.color = '#28a745';
+                  try { localStorage.setItem('bizcafe_shiru_pass_id', v); } catch(e) {}
                 } else {
                   var msgs = { not_found: '❌ IDが見つかりません', expired: '❌ 有効期限切れです' };
                   passMsg.textContent = msgs[data.reason] || '❌ 無効なIDです';
@@ -2984,8 +3213,11 @@ window.onDayClick = function(dateISO) {
 
     var slotSection = document.getElementById('roomSlotsSection');
     var slotList = document.getElementById('roomSlotList');
+    var slotLoading = document.getElementById('roomSlotsLoading');
     slotSection.style.display = 'block';
-    slotList.innerHTML = '<div style="color:#888;font-size:.85rem;">読み込み中...</div>';
+    slotList.style.display = 'none';
+    slotList.innerHTML = '<option value="">-- 時刻を選んでください --</option>';
+    slotLoading.style.display = 'block';
     document.getElementById('roomFormSection').style.display = 'none';
     document.getElementById('roomSuccessSection').style.display = 'none';
     roomSelectedStart = '';
@@ -2993,47 +3225,57 @@ window.onDayClick = function(dateISO) {
     fetch(GAS_API_URL + '?page=calendar&action=roomAvailability&date=' + encodeURIComponent(roomSelectedDate))
       .then(function(r) { return r.json(); })
       .then(function(data) {
+        slotLoading.style.display = 'none';
+        slotList.style.display = 'block';
         roomCheckinMode = data.checkinMode || 'staff';
         if (data.closed || !data.slots || !data.slots.length) {
-          slotList.innerHTML = '<div style="color:#888;font-size:.85rem;text-align:center;">この日は営業していないか、スロットがありません。</div>';
+          slotList.innerHTML = '<option value="" disabled selected>この日は利用できるスロットがありません</option>';
           return;
         }
         roomAvailableSlots = data.slots;
         renderRoomSlots(data.slots);
       })
       .catch(function() {
-        slotList.innerHTML = '<div style="color:#c0392b;font-size:.85rem;">読み込みに失敗しました。</div>';
+        slotLoading.style.display = 'none';
+        slotList.style.display = 'block';
+        slotList.innerHTML = '<option value="" disabled selected>読み込みに失敗しました</option>';
       });
   }
 
   function renderRoomSlots(slots) {
     var slotList = document.getElementById('roomSlotList');
-    slotList.innerHTML = '';
-    if (!slots.length) {
-      slotList.innerHTML = '<div style="color:#888;font-size:.85rem;text-align:center;">利用可能なスロットがありません。</div>';
+    slotList.innerHTML = '<option value="">-- 時刻を選んでください --</option>';
+    var hasAvailable = false;
+    slots.forEach(function(slot) {
+      if (!slot.available) return; // 予約済み・過去は表示しない
+      var opt = document.createElement('option');
+      opt.value = slot.start;
+      opt.textContent = slot.start;
+      slotList.appendChild(opt);
+      hasAvailable = true;
+    });
+    if (!hasAvailable) {
+      slotList.innerHTML = '<option value="" disabled>利用可能な時刻がありません</option>';
       return;
     }
-    slots.forEach(function(slot) {
-      var btn = document.createElement('button');
-      btn.className = 'room-slot-btn' + (slot.available ? '' : ' unavailable');
-      btn.textContent = slot.start;
-      btn.disabled = !slot.available;
-      if (slot.available) {
-        btn.onclick = function() { selectRoomSlot(slot.start); };
-      }
-      slotList.appendChild(btn);
-    });
+    slotList.onchange = function() {
+      if (slotList.value) selectRoomSlot(slotList.value);
+    };
   }
 
   function selectRoomSlot(startTime) {
     roomSelectedStart = startTime;
-    document.querySelectorAll('.room-slot-btn').forEach(function(b) { b.classList.remove('selected'); });
-    document.querySelectorAll('.room-slot-btn').forEach(function(b) {
-      if (b.textContent === startTime) b.classList.add('selected');
-    });
     roomSelectedDuration = 15;
     renderRoomDurationBtns();
     updateRoomFormHeader();
+    // 保存済み知るパスIDを自動入力
+    var passEl = document.getElementById('roomShiruPassId');
+    if (passEl && !passEl.value) {
+      try {
+        var saved = localStorage.getItem('bizcafe_shiru_pass_id');
+        if (saved) { passEl.value = saved; passEl.dispatchEvent(new Event('input')); }
+      } catch(e) {}
+    }
     document.getElementById('roomFormSection').style.display = 'block';
     document.getElementById('roomFormSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
@@ -3124,7 +3366,7 @@ window.onDayClick = function(dateISO) {
             shiru_pass_required: '知るパスIDを入力してください。',
             shiru_pass_invalid: '知るパスIDが正しくありません。カードに記載のIDを確認してください。',
             shiru_pass_expired: '知るパスIDの有効期限が切れています。スタッフにお声がけください。',
-            date_out_of_range: '指定の日付は予約できません（本日から14日以内）。',
+            date_out_of_range: '指定の日付は予約できません（予約可能期間外）。',
             invalid_time: '時刻の指定が正しくありません。',
             too_long: '最大2時間まで予約できます。',
             time_conflict: 'この時間帯はすでに予約が入っています。別の時間を選択してください。',
@@ -3227,7 +3469,7 @@ window.onDayClick = function(dateISO) {
       item.style.cssText = 'padding:10px 0;border-bottom:1px solid #e8ecf0;';
       var safeId = r.id.replace(/'/g, "\\'");
       item.innerHTML = ''
-        + '<div style="font-size:0.88rem;font-weight:700;color:#1a3a5c;">' + r.date + '&nbsp;&nbsp;' + r.start + ' 〜 ' + r.end + '</div>'
+        + '<div style="font-size:0.88rem;font-weight:700;color:#6a5548;">' + r.date + '&nbsp;&nbsp;' + r.start + ' 〜 ' + r.end + '</div>'
         + '<div style="font-size:0.80rem;color:#555;margin:2px 0 6px;">' + r.name + '　' + (r.purpose || '') + '</div>'
         + '<div style="font-size:0.75rem;color:#999;margin-bottom:6px;">予約ID: ' + r.id + '</div>'
         + '<button class="room-cancel-btn" style="font-size:0.8rem;padding:4px 14px;" onclick="cancelMyReservation(\'' + safeId + '\')">キャンセル</button>';
@@ -3261,12 +3503,6 @@ window.onDayClick = function(dateISO) {
   }
 </script>
 
-<!-- メンテナンスオーバーレイ（position:fixed でコンテンツエリアを覆う） -->
-<div id="maintenanceOverlay" style="display:none;position:fixed;z-index:500;background:#f5f7fa;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px 24px;text-align:center;">
-  <div style="font-size:3rem;">🔧</div>
-  <div style="font-size:1.2rem;font-weight:700;color:#1a3a5c;">メンテナンス中</div>
-  <div style="font-size:0.9rem;color:#666;max-width:280px;line-height:1.6;">ただいまこのページはメンテナンス中です。<br>しばらくお待ちください。</div>
-</div>
 <script>
   var cornerSettingsData = { freeBoardVisible: true };
 

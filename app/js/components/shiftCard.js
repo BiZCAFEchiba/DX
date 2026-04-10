@@ -81,11 +81,12 @@ var ShiftCard = (function () {
           html += '<button class=\"btn-edit-shift\" data-idx=\"' + seg.idx + '\">編集</button>';
           html += '<button class=\"btn-delete-shift\" data-idx=\"' + seg.idx + '\">削除</button>';
           
-          // 募集中でないなら「交代依頼」ボタンを表示
+          // 募集中でないなら「交代」「募集」ボタンを表示
           if (seg.status !== '募集中') {
-            html += '<button class=\"btn-request-change\" data-idx=\"' + seg.idx + '\" style=\"padding:4px 8px; background:#3b82f6; color:#fff; border:none; border-radius:5px; font-size:0.78rem; cursor:pointer;\">🔄 交代依頼</button>';
+            html += '<button class=\"btn-request-change\" data-idx=\"' + seg.idx + '\" style=\"padding:4px 8px; background:#3b82f6; color:#fff; border:none; border-radius:5px; font-size:0.78rem; cursor:pointer;\">🔄 交代</button>';
+            html += '<button class=\"btn-recruit-shift\" data-idx=\"' + seg.idx + '\" style=\"padding:4px 8px; background:#f59e0b; color:#fff; border:none; border-radius:5px; font-size:0.78rem; cursor:pointer;\">📢 募集</button>';
           }
-          
+
           // 募集中なら「引受ける」ボタンを表示
           if (seg.status === '募集中') {
             html += '<button class=\"btn-approve-shift\" data-idx=\"' + seg.idx + '\" style=\"padding:4px 8px; background:#eab308; color:#fff; border:none; border-radius:5px; font-size:0.78rem; cursor:pointer;\">引受ける</button>';

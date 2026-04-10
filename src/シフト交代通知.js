@@ -61,6 +61,13 @@ function notifyShiftChange_(params) {
     const dow = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
     const dateLabel = (d.getMonth() + 1) + '月' + d.getDate() + '日（' + dow + '）';
 
+    // ── スプレッドシート更新 ─────────────────────────────────
+    if (params.mode === 'assign' && params.date && params.originalStaff && params.agentStaff) {
+      updateShiftStaff(params.date, params.originalStaff, params.agentStaff, params.newStart || null, params.newEnd || null);
+    } else if (params.mode === 'edit' && params.date && params.originalStaff && params.newStart && params.newEnd) {
+      updateShiftInSheet(new Date(params.date + 'T00:00:00+09:00'), params.originalStaff, params.newStart + '〜' + params.newEnd);
+    }
+
     // 通知テキスト作成
     const text = buildShiftChangeText_(dateLabel, params);
 
@@ -75,32 +82,24 @@ function notifyShiftChange_(params) {
       Logger.log('グループ通知: ' + (groupSent ? '成功' : '失敗'));
     }
 
-    // ── 代理スタッフへ個別DM送信 ───────────────────────────
-    if (params.notifyAgent && params.agentStaff) {
+    // ── 承認者へ個別DM送信（交代モード時） ───────────────────────────
+    if (params.mode === 'assign') {
       const isTestMode = (typeof SHIFT_CHANGE_CHANNEL_ID_TEST !== 'undefined' && SHIFT_CHANGE_CHANNEL_ID === SHIFT_CHANGE_CHANNEL_ID_TEST);
-      const agents = getShiftAgentStaff();
-      const agentInfo = agents.find(function(a) { return a.name === params.agentStaff; });
+      const approvers = getShiftAgentStaff(); // G列チェックのスタッフ（承認者）
+      const dmText = '📩 【シフト交代の承認依頼】\n\n' + text;
 
-      if (agentInfo && agentInfo.sendId) {
-        // 代理スタッフ宛のDMテキスト（より個人的な文面）
-        let dmText = '📩 シフト交代の依頼があなた宛に届いています。\n\n' + text;
-        dmText += '\n\n💡 交代後、ジョブカンへの反映をお願いします。';
-
+      approvers.forEach(function(approver) {
+        if (!approver.sendId) return;
         if (isTestMode) {
-          // テストモード時は本人ではなくテストグループへ流す
-          const testGroupText = '【テスト環境】 個別DM送信テスト\n本来は (' + params.agentStaff + ') さん個人のDM宛に以下の通知が届きます:\n---\n' + dmText;
+          const testGroupText = '【テスト環境】 承認者DM送信テスト\n本来は (' + approver.name + ') さん個人のDM宛に以下の通知が届きます:\n---\n' + dmText;
           const groupUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + SHIFT_CHANGE_CHANNEL_ID_TEST + '/messages';
-          agentSent = sendLineWorksText_(token, groupUrl, testGroupText, SHIFT_CHANGE_BOT_ID);
-          Logger.log('代理スタッフDM(テスト代替): ' + params.agentStaff + ' → テストグループへ送信');
+          sendLineWorksText_(token, groupUrl, testGroupText, SHIFT_CHANGE_BOT_ID);
         } else {
-          // 本番時は通常の個人の個別トーク画面へDM
-          const agentUrl = LINEWORKS_API_BASE + '/bots/' + LINEWORKS_BOT_ID + '/users/' + agentInfo.sendId + '/messages';
-          agentSent = sendLineWorksText_(token, agentUrl, dmText, LINEWORKS_BOT_ID);
-          Logger.log('代理スタッフDM: ' + params.agentStaff + ' → ' + (agentSent ? '成功' : '失敗'));
+          const approverUrl = LINEWORKS_API_BASE + '/bots/' + LINEWORKS_BOT_ID + '/users/' + approver.sendId + '/messages';
+          sendLineWorksText_(token, approverUrl, dmText, LINEWORKS_BOT_ID);
         }
-      } else {
-        Logger.log('代理スタッフのLINE WORKS IDが未登録: ' + params.agentStaff);
-      }
+        agentSent = true;
+      });
     }
 
     return { ok: true, groupSent: groupSent, agentSent: agentSent };
@@ -115,10 +114,22 @@ function notifyShiftChange_(params) {
  * @private
  */
 function buildShiftChangeText_(dateLabel, params) {
-  let text = '🔄 【シフト交代のお知らせ】\n\n';
+  const isEdit = (params.mode === 'edit');
+  let title = isEdit ? '📝 【シフト時間変更・延長のお知らせ】' : '🔄 【シフト交代のお知らせ】';
+  
+  let text = title + '\n\n';
   text += '📅 ' + dateLabel + '\n';
-  text += '⏰ ' + (params.originalTime || '') + '\n';
-  text += '👤 ' + (params.originalStaff || '') + ' → ' + (params.agentStaff || '') + '\n';
+  
+  if (isEdit) {
+    // 編集・延長モード
+    text += '👤 担当者: ' + (params.originalStaff || '') + '\n';
+    text += '⏰ 時間変更: ' + (params.originalTime || '') + ' → ' + (params.newStart || '') + '〜' + (params.newEnd || '') + '\n';
+  } else {
+    // 交代モード
+    text += '⏰ 時間: ' + (params.newStart || params.originalTime || '') + '〜' + (params.newEnd || '') + '\n';
+    text += '👤 担当者: ' + (params.originalStaff || '') + ' → ' + (params.agentStaff || '') + '\n';
+  }
+  
   if (params.reason) {
     text += '📝 理由: ' + params.reason + '\n';
   }
@@ -164,7 +175,7 @@ function sendLineWorksText_(token, url, text, botId) {
  */
 function notifyShiftTrouble_(params) {
   initChannelId_();
-  const token = getLineWorksToken_();
+  const token = getLineWorksAccessToken();
   if (!token) return { error: 'token_error' };
 
   let text = '🚨\n【FMT】\n';
@@ -185,7 +196,7 @@ function notifyShiftTrouble_(params) {
  */
 function requestShiftRecruitment_(params) {
   initChannelId_();
-  const token = getLineWorksToken_();
+  const token = getLineWorksAccessToken();
   if (!token) return { error: 'token_error' };
 
   // スプレッドシートのステータス更新
@@ -199,7 +210,7 @@ function requestShiftRecruitment_(params) {
   text += '📝 理由: ' + (params.reason || '記載なし') + '\n\n';
   text += 'シフトにご協力いただける方は、アプリのカレンダーから引き受けをお願いします🙏';
 
-  const groupUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + SHIFT_CHANGE_CHANNEL_ID + '/messages';
+  const groupUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + TROUBLE_REPORT_CHANNEL_ID + '/messages';
   const groupSent = sendLineWorksText_(token, groupUrl, text, SHIFT_CHANGE_BOT_ID);
 
   return { ok: true, updated: updated, groupSent: groupSent };
@@ -210,7 +221,7 @@ function requestShiftRecruitment_(params) {
  */
 function approveShiftRecruitment_(params) {
   initChannelId_();
-  const token = getLineWorksToken_();
+  const token = getLineWorksAccessToken();
   if (!token) return { error: 'token_error' };
 
   // シフトDBのスタッフ名書き換え＆ステータスクリア
@@ -231,22 +242,103 @@ function approveShiftRecruitment_(params) {
   const changeUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + SHIFT_CHANGE_CHANNEL_ID + '/messages';
   const groupSent = sendLineWorksText_(token, changeUrl, text, SHIFT_CHANGE_BOT_ID);
 
+  // 交代される人・する人それぞれにDM通知
+  const mappings = loadStaffMappingFromSheets_();
+  const sendMap = mappings ? mappings.send : {};
+  const isTestMode = (SHIFT_CHANGE_CHANNEL_ID === SHIFT_CHANGE_CHANNEL_ID_TEST);
+
+  const dmTargets = [
+    {
+      name: params.originalStaff,
+      text: '🔄 【シフト交代 完了のお知らせ】\n\n' + params.originalStaff + ' さんのシフトが交代されました。\n\n📅 ' + params.date + '\n⏰ ' + params.originalTime + '\n👤 ' + params.originalStaff + ' → ' + params.agentStaff + '\n\nジョブカンへの反映をご確認ください🙏'
+    },
+    {
+      name: params.agentStaff,
+      text: '🔄 【シフト交代 完了のお知らせ】\n\n' + params.agentStaff + ' さんがシフトを引き受けました。\n\n📅 ' + params.date + '\n⏰ ' + params.originalTime + '\n👤 ' + params.originalStaff + ' → ' + params.agentStaff + '\n\nジョブカンへの反映をご確認ください🙏'
+    }
+  ];
+
+  dmTargets.forEach(function(target) {
+    const sendId = sendMap[target.name];
+    if (!sendId) { Logger.log('sendId未登録: ' + target.name); return; }
+    if (isTestMode) {
+      const url = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + SHIFT_CHANGE_CHANNEL_ID_TEST + '/messages';
+      sendLineWorksText_(token, url, '【テスト】' + target.name + 'さん宛:\n' + target.text, SHIFT_CHANGE_BOT_ID);
+    } else {
+      const url = LINEWORKS_API_BASE + '/bots/' + LINEWORKS_BOT_ID + '/users/' + sendId + '/messages';
+      sendLineWorksText_(token, url, target.text, LINEWORKS_BOT_ID);
+    }
+    Logger.log('交代DM送信: ' + target.name);
+  });
+
   return { ok: true, updated: updated, groupSent: groupSent };
 }
 
 /**
- * シフト交代の「承認者」候補（スタッフシートG列にチェックがあるスタッフ）を取得する
+ * シフト不足時間帯への補充を承認者へDM通知する
+ * @param {{ date: string, staffName: string, start: string, end: string }} params
  */
-function getShiftAgentStaff() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_STAFF);
-  if (!sheet || sheet.getLastRow() < 2) return [];
-  const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).getValues(); // A-G列
-  const agents = [];
-  for (let i = 0; i < data.length; i++) {
-    if (data[i][6] === true) { // G列
-      agents.push(String(data[i][0]).trim());
+function notifyShiftFill_(params) {
+  try {
+    initChannelId_();
+    const token = getLineWorksAccessToken();
+    if (!token) return { ok: false, error: 'token_error' };
+
+    const d = new Date(params.date + 'T00:00:00+09:00');
+    const dow = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+    const dateLabel = (d.getMonth() + 1) + '月' + d.getDate() + '日（' + dow + '）';
+
+    // 承認者向けテキスト
+    let approverText = '✅ 【シフト補充のお知らせ】\n\n';
+    approverText += '📅 ' + dateLabel + '\n';
+    approverText += '⏰ ' + params.start + '〜' + params.end + '\n';
+    approverText += '👤 ' + params.staffName + '\n';
+    approverText += '\nご確認よろしくお願いします🙏';
+
+    // 追加されたスタッフ本人向けテキスト
+    let staffText = '📋 【シフト追加のお知らせ】\n\n';
+    staffText += params.staffName + ' さん、以下のシフトが追加されました。\n\n';
+    staffText += '📅 ' + dateLabel + '\n';
+    staffText += '⏰ ' + params.start + '〜' + params.end + '\n\n';
+    staffText += 'ジョブカンへの反映をご確認ください🙏';
+
+    const isTestMode = (SHIFT_CHANGE_CHANNEL_ID === SHIFT_CHANGE_CHANNEL_ID_TEST);
+    const mappings = loadStaffMappingFromSheets_();
+    const sendMap = mappings ? mappings.send : {};
+
+    // 承認者へDM
+    const approvers = getShiftAgentStaff();
+    approvers.forEach(function(approver) {
+      if (!approver.sendId) return;
+      if (isTestMode) {
+        const url = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + SHIFT_CHANGE_CHANNEL_ID_TEST + '/messages';
+        sendLineWorksText_(token, url, '【テスト】' + approver.name + 'さん宛:\n' + approverText, SHIFT_CHANGE_BOT_ID);
+      } else {
+        const url = LINEWORKS_API_BASE + '/bots/' + LINEWORKS_BOT_ID + '/users/' + approver.sendId + '/messages';
+        sendLineWorksText_(token, url, approverText, LINEWORKS_BOT_ID);
+      }
+    });
+
+    // 追加されたスタッフ本人へDM
+    const staffSendId = sendMap[params.staffName];
+    if (staffSendId) {
+      if (isTestMode) {
+        const url = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + SHIFT_CHANGE_CHANNEL_ID_TEST + '/messages';
+        sendLineWorksText_(token, url, '【テスト】' + params.staffName + 'さん宛:\n' + staffText, SHIFT_CHANGE_BOT_ID);
+      } else {
+        const url = LINEWORKS_API_BASE + '/bots/' + LINEWORKS_BOT_ID + '/users/' + staffSendId + '/messages';
+        sendLineWorksText_(token, url, staffText, LINEWORKS_BOT_ID);
+      }
+      Logger.log('追加スタッフへDM送信: ' + params.staffName);
+    } else {
+      Logger.log('追加スタッフのsendId未登録: ' + params.staffName);
     }
+
+    Logger.log('シフト補充通知完了: ' + params.staffName + ' ' + params.start + '〜' + params.end);
+    return { ok: true };
+  } catch (e) {
+    Logger.log('notifyShiftFill_ エラー: ' + e.message);
+    return { ok: false, error: e.message };
   }
-  return agents;
 }
+

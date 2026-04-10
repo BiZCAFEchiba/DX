@@ -88,12 +88,20 @@ function readAllRoomReservations_() {
 
 function getRoomSlots_(dateStr) {
   try {
+    // 予約開始日前 or 予約不可日は空を返す
+    if (dateStr < getRoomOpenDate_()) return [];
+    if (isDateBlocked_(dateStr)) return [];
     var d = new Date(dateStr + 'T00:00:00+09:00');
     var hours = getBusinessHours(d);
     if (!hours) return [];
+    var tr = getRoomTimeRange_();
+    var useCustom = tr.start && tr.end && (!tr.startDate || dateStr >= tr.startDate);
+    var sMin = roomTimeToMin_(useCustom ? tr.start : hours.start);
+    var eMin = roomTimeToMin_(useCustom ? tr.end   : hours.end);
+    // 営業時間の範囲内にクリップ
+    sMin = Math.max(sMin, roomTimeToMin_(hours.start));
+    eMin = Math.min(eMin, roomTimeToMin_(hours.end));
     var slots = [];
-    var sMin = roomTimeToMin_(hours.start);
-    var eMin = roomTimeToMin_(hours.end);
     for (var m = sMin; m + 15 <= eMin; m += 15) {
       slots.push({ start: roomMinToTime_(m), end: roomMinToTime_(m + 15) });
     }
@@ -166,6 +174,12 @@ function setShiruPassValidDays_(days) {
   return { ok: true, days: d };
 }
 
+// 発行日の月＋翌月末日 23:59:59 を返す（例: 4/9発行 → 5/31 23:59:59）
+function getShiruPassExpiry_() {
+  var now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59);
+}
+
 function getRoomMaxHours_() {
   var v = parseFloat(PropertiesService.getScriptProperties().getProperty('ROOM_MAX_HOURS') || '');
   return isNaN(v) || v <= 0 ? ROOM_MAX_HOURS_DEFAULT : v;
@@ -176,6 +190,73 @@ function setRoomMaxHours_(hours) {
   if (isNaN(h) || h <= 0) return { ok: false, error: 'invalid_hours' };
   PropertiesService.getScriptProperties().setProperty('ROOM_MAX_HOURS', String(h));
   return { ok: true, hours: h };
+}
+
+// ===== 予約開始日・受付時間帯設定 =====
+
+var ROOM_OPEN_DATE_DEFAULT = '2026-06-01';
+
+function getRoomOpenDate_() {
+  return PropertiesService.getScriptProperties().getProperty('ROOM_OPEN_DATE') || ROOM_OPEN_DATE_DEFAULT;
+}
+
+function setRoomOpenDate_(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return { ok: false, error: 'invalid_date' };
+  PropertiesService.getScriptProperties().setProperty('ROOM_OPEN_DATE', dateStr);
+  return { ok: true, openDate: dateStr };
+}
+
+function getRoomTimeRange_() {
+  var props = PropertiesService.getScriptProperties();
+  return {
+    start:     props.getProperty('ROOM_TIME_START')      || '',
+    end:       props.getProperty('ROOM_TIME_END')        || '',
+    startDate: props.getProperty('ROOM_TIME_START_DATE') || ''
+  };
+}
+
+function setRoomTimeRange_(start, end, startDate) {
+  if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return { ok: false, error: 'invalid_time' };
+  if (roomTimeToMin_(start) >= roomTimeToMin_(end)) return { ok: false, error: 'start_after_end' };
+  if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return { ok: false, error: 'invalid_date' };
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('ROOM_TIME_START', start);
+  props.setProperty('ROOM_TIME_END',   end);
+  if (startDate) props.setProperty('ROOM_TIME_START_DATE', startDate);
+  else props.deleteProperty('ROOM_TIME_START_DATE');
+  return { ok: true, start: start, end: end, startDate: startDate || '' };
+}
+
+// ===== 予約不可日設定 =====
+
+function getBlockedDates_() {
+  try {
+    var raw = PropertiesService.getScriptProperties().getProperty('ROOM_BLOCKED_DATES');
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function setBlockedDates_(dates) {
+  if (!Array.isArray(dates)) return { ok: false, error: 'invalid' };
+  var valid = dates.filter(function(d) { return /^\d{4}-\d{2}-\d{2}$/.test(d); });
+  PropertiesService.getScriptProperties().setProperty('ROOM_BLOCKED_DATES', JSON.stringify(valid));
+  return { ok: true, dates: valid };
+}
+
+function isDateBlocked_(dateStr) {
+  return getBlockedDates_().indexOf(dateStr) !== -1;
+}
+
+function getRoomSettings_() {
+  var tr = getRoomTimeRange_();
+  return {
+    openDate:      getRoomOpenDate_(),
+    timeStart:     tr.start,
+    timeEnd:       tr.end,
+    timeStartDate: tr.startDate,
+    maxHours:      getRoomMaxHours_(),
+    blockedDates:  getBlockedDates_()
+  };
 }
 
 // 知るパスIDが現在使用中の予約合計分数（未来 or 本日の終了前の approved のみ）
@@ -200,9 +281,7 @@ function renewShiruPassId_(id) {
   if (!id) return { ok: false, error: 'missing_id' };
   var sheet = getShiruPassSheet_();
   var data = sheet.getDataRange().getValues();
-  var now = new Date();
-  var days = getShiruPassValidDays_();
-  var newExpiry = new Date(now.getTime() + days * 86400000);
+  var newExpiry = getShiruPassExpiry_();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
       sheet.getRange(i + 1, 3).setValue(newExpiry); // C列: 有効期限
@@ -212,25 +291,55 @@ function renewShiruPassId_(id) {
   return { ok: false, error: 'not_found' };
 }
 
-function issueShiruPassId_(note) {
+// 複数IDをまとめて翌月末日に更新
+function bulkRenewShiruPassIds_(ids) {
+  if (!Array.isArray(ids) || !ids.length) return { ok: false, error: 'missing_ids' };
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var newExpiry = getShiruPassExpiry_();
+  var expiryStr = Utilities.formatDate(newExpiry, TIMEZONE, 'yyyy-MM-dd');
+  var updated = [];
+  var notFound = [];
+  ids.forEach(function(id) {
+    var found = false;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
+        sheet.getRange(i + 1, 3).setValue(newExpiry);
+        updated.push(String(data[i][0]));
+        found = true;
+        break;
+      }
+    }
+    if (!found) notFound.push(id);
+  });
+  return { ok: true, updated: updated, notFound: notFound, expiry: expiryStr };
+}
+
+function issueShiruPassId_(note, count) {
   var sheet = getShiruPassSheet_();
   var data = sheet.getDataRange().getValues();
   var now = new Date();
-  var days = getShiruPassValidDays_();
-  var expiry = new Date(now.getTime() + days * 86400000);
-
-  // ID重複チェック（既存IDと被らないように再生成）
-  var existingIds = data.slice(1).map(function(r) { return String(r[0]); });
-  var id;
-  var tries = 0;
-  do {
-    id = generateShiruPassId_();
-    tries++;
-  } while (existingIds.indexOf(id) !== -1 && tries < 100);
-
+  var expiry = getShiruPassExpiry_();
   var expiryStr = Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd');
-  sheet.appendRow([id, now, expiry, note || '']);
-  return { ok: true, id: id, expiry: expiryStr, days: days };
+  var num = Math.min(Math.max(parseInt(count) || 1, 1), 20); // 最大20枚
+
+  // 既存ID一覧（重複チェック用）
+  var existingIds = data.slice(1).map(function(r) { return String(r[0]); });
+  var issued = [];
+
+  for (var n = 0; n < num; n++) {
+    var id;
+    var tries = 0;
+    do {
+      id = generateShiruPassId_();
+      tries++;
+    } while ((existingIds.indexOf(id) !== -1 || issued.indexOf(id) !== -1) && tries < 100);
+    existingIds.push(id);
+    issued.push(id);
+    sheet.appendRow([id, now, expiry, note || '']);
+  }
+
+  return { ok: true, ids: issued, expiry: expiryStr };
 }
 
 function validateShiruPassId_(id) {
@@ -284,8 +393,11 @@ function reserveRoom_(p) {
 
   var now = new Date();
   var todayStr = Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd');
-  var maxDate  = Utilities.formatDate(new Date(now.getTime() + ROOM_MAX_DAYS_AHEAD * 86400000), TIMEZONE, 'yyyy-MM-dd');
+  var daysAhead = 60;
+  var maxDate  = Utilities.formatDate(new Date(now.getTime() + daysAhead * 86400000), TIMEZONE, 'yyyy-MM-dd');
   if (p.date < todayStr || p.date > maxDate) return { ok: false, error: 'date_out_of_range' };
+  if (p.date < getRoomOpenDate_()) return { ok: false, error: 'date_out_of_range' };
+  if (isDateBlocked_(p.date)) return { ok: false, error: 'date_blocked' };
 
   var sMin = roomTimeToMin_(p.start), eMin = roomTimeToMin_(p.end);
   if (eMin <= sMin)            return { ok: false, error: 'invalid_time' };

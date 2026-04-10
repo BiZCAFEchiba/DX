@@ -53,10 +53,13 @@ function doPost(e) {
       // シフト交代通知
       if (body.action === 'notifyShiftChange') {
         var notifyResult = notifyShiftChange_({
+          mode:          body.mode          || 'assign',
           date:          body.date          || '',
           originalStaff: body.originalStaff || '',
           originalTime:  body.originalTime  || '',
           agentStaff:    body.agentStaff    || '',
+          newStart:      body.newStart      || '',
+          newEnd:        body.newEnd        || '',
           reason:        body.reason        || '',
           notifyGroup:   body.notifyGroup   !== false,
           notifyAgent:   body.notifyAgent   === true
@@ -105,7 +108,37 @@ function doPost(e) {
         return ContentService.createTextOutput(JSON.stringify({ ok: true, data: agents }))
           .setMimeType(ContentService.MimeType.JSON);
       }
+      // シフト補充通知（不足時間帯への追加通知）
+      if (body.action === 'notifyShiftFill') {
+        var fillResult = notifyShiftFill_({
+          date:      body.date      || '',
+          staffName: body.staffName || '',
+          start:     body.start     || '',
+          end:       body.end       || ''
+        });
+        return ContentService.createTextOutput(JSON.stringify(fillResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_action' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // シフト削除（PWAカレンダー用）
+    if (body.action === 'deleteShift') {
+      var delResult = deleteShiftByName_(body.date || '', body.staffName || '');
+      return ContentService.createTextOutput(JSON.stringify(delResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // シフト追加（PWAカレンダー用）
+    if (body.action === 'addShift') {
+      var addResult = addShiftRow_(body.date || '', body.dayOfWeek || '', body.staffName || '', body.start || '', body.end || '');
+      return ContentService.createTextOutput(JSON.stringify(addResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // シフト更新（PWAカレンダー用）
+    if (body.action === 'updateShift') {
+      var updResult = updateShiftRow_(body.date || '', body.origName || '', body.newName || '', body.newStart || '', body.newEnd || '');
+      return ContentService.createTextOutput(JSON.stringify(updResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -467,6 +500,25 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(roomStatusResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // ルーム予約: 設定取得/更新（スタッフ用）
+    if (param.action === 'roomSettings') {
+      if (param.set === 'timeRange') {
+        return ContentService.createTextOutput(JSON.stringify(setRoomTimeRange_(param.start || '', param.end || '', param.startDate || '')))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      if (param.set === 'openDate') {
+        return ContentService.createTextOutput(JSON.stringify(setRoomOpenDate_(param.openDate || '')))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      if (param.set === 'blockedDates') {
+        var dates = [];
+        try { dates = JSON.parse(param.dates || '[]'); } catch(e) {}
+        return ContentService.createTextOutput(JSON.stringify(setBlockedDates_(dates)))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify(getRoomSettings_()))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // ルーム予約: チェックインモード取得/設定
     if (param.action === 'roomCheckinMode') {
       if (param.set) {
@@ -481,6 +533,32 @@ function doGet(e) {
     if (param.action === 'roomMyReservations') {
       var roomMyResult = getMyRoomReservations_(param.contact || '');
       return ContentService.createTextOutput(JSON.stringify(roomMyResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: 月単位の予約済み日一覧（顧客カレンダー表示用）
+    if (param.action === 'roomReservationDates') {
+      var rdYear  = parseInt(param.year  || new Date().getFullYear());
+      var rdMonth = parseInt(param.month || (new Date().getMonth() + 1));
+      var rdPrefix = rdYear + '-' + String(rdMonth).padStart(2, '0') + '-';
+      var rdDates = [];
+      var rdSet = {};
+      readAllRoomReservations_().forEach(function(r) {
+        if (!r.date || r.date.indexOf(rdPrefix) !== 0) return;
+        if (r.status !== 'approved' && r.status !== 'pending' && r.status !== 'checked_in') return;
+        if (!rdSet[r.date]) { rdSet[r.date] = true; rdDates.push(r.date); }
+      });
+      return ContentService.createTextOutput(JSON.stringify({ dates: rdDates }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // ルーム予約: 特定日の予約時間帯一覧（顧客カレンダー表示用）
+    if (param.action === 'roomReservationsForDate') {
+      var rfdDate = param.date || '';
+      var rfdList = rfdDate ? readAllRoomReservations_().filter(function(r) {
+        return r.date === rfdDate && (r.status === 'approved' || r.status === 'pending' || r.status === 'checked_in');
+      }).map(function(r) {
+        return { start: r.start, end: r.end };
+      }).sort(function(a, b) { return a.start > b.start ? 1 : -1; }) : [];
+      return ContentService.createTextOutput(JSON.stringify({ reservations: rfdList }))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // ルーム予約: 利用者一覧（スタッフ用）
@@ -501,7 +579,7 @@ function doGet(e) {
     }
     // 知るパスID発行（スタッフ用）
     if (param.action === 'shiruPassIssue') {
-      var issueResult = issueShiruPassId_(param.note || '');
+      var issueResult = issueShiruPassId_(param.note || '', param.count || '1');
       return ContentService.createTextOutput(JSON.stringify(issueResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -517,10 +595,18 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(listResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
-    // 知るパすID更新（スタッフ用）
+    // 知るパスID更新（スタッフ用）
     if (param.action === 'shiruPassRenew') {
       var renewResult = renewShiruPassId_(param.id || '');
       return ContentService.createTextOutput(JSON.stringify(renewResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 知るパスID一括更新（スタッフ用）
+    if (param.action === 'shiruPassBulkRenew') {
+      var bulkIds = [];
+      try { bulkIds = JSON.parse(param.ids || '[]'); } catch(e) {}
+      var bulkRenewResult = bulkRenewShiruPassIds_(bulkIds);
+      return ContentService.createTextOutput(JSON.stringify(bulkRenewResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // 知るパスID有効日数 取得/設定（スタッフ用）
@@ -593,6 +679,86 @@ function doGet(e) {
     return calTemplate.evaluate()
       .setTitle('営業カレンダー | BizCAFE 千葉大学店')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // 対面Meetup一覧（シフトカレンダー用）
+  if (param.action === 'getInPersonMeetups') {
+    return ContentService.createTextOutput(JSON.stringify(getInPersonMeetups_(param.from || '', param.to || '')))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // シフト不足時間帯取得（PWAカレンダー用）
+  if (param.action === 'getShiftShortage') {
+    var shortageDate = new Date((param.date || formatDateToISO_(new Date())) + 'T00:00:00+09:00');
+    // シフトが1件も登録されていない日は不足なしとして返す
+    var existingShifts = getShiftsForDate(shortageDate);
+    if (!existingShifts || existingShifts.length === 0) {
+      return ContentService.createTextOutput(JSON.stringify({ success: true, data: { shortages: [] } }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var shortages = checkShiftShortageForDate(shortageDate);
+    return ContentService.createTextOutput(JSON.stringify({ success: true, data: { shortages: shortages } }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // シフト一覧取得（PWA用・日付範囲指定）
+  if (param.action === 'getShifts') {
+    var fromDate = param.from ? new Date(param.from + 'T00:00:00') : new Date('2000-01-01');
+    var toDate   = param.to   ? new Date(param.to   + 'T23:59:59') : new Date('2099-12-31');
+    var shiftsSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
+    var dayMap = {};
+    if (shiftsSheet && shiftsSheet.getLastRow() > 1) {
+      var shiftsData = shiftsSheet.getDataRange().getValues();
+      for (var si = 1; si < shiftsData.length; si++) {
+        var rawDate = shiftsData[si][0];
+        if (!rawDate) continue;
+        var sd = rawDate instanceof Date ? rawDate : new Date(rawDate);
+        if (isNaN(sd.getTime()) || sd < fromDate || sd > toDate) continue;
+        var dateStr = formatDateToISO_(sd);
+        if (!dayMap[dateStr]) {
+          dayMap[dateStr] = { date: dateStr, staff: [] };
+        }
+        dayMap[dateStr].staff.push({
+          name:  String(shiftsData[si][2]).trim(),
+          start: formatCellTime_(shiftsData[si][3]),
+          end:   formatCellTime_(shiftsData[si][4]),
+          tasks: shiftsData[si][5] ? String(shiftsData[si][5]).split(' / ').filter(Boolean) : [],
+          status: shiftsData[si][9] ? String(shiftsData[si][9]).trim() : ''
+        });
+      }
+    }
+    var shifts = Object.keys(dayMap).sort().map(function(k) {
+      dayMap[k].staff.sort(function(a, b) { return a.start.localeCompare(b.start); });
+      // 不足時間帯をシフトデータと一緒に返す（追加API呼び出し不要にする）
+      try {
+        dayMap[k].shortages = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), dayMap[k].staff);
+      } catch(e) {
+        dayMap[k].shortages = [];
+      }
+      return dayMap[k];
+    });
+    return ContentService.createTextOutput(JSON.stringify({ success: true, data: { shifts: shifts } }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // スタッフ一覧（PWAシフト交代画面用）isAgent=G列チェック
+  if (param.action === 'getStaff') {
+    var staffSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_STAFF);
+    var staffList = [];
+    if (staffSheet && staffSheet.getLastRow() > 1) {
+      var staffRows = staffSheet.getRange(2, 1, staffSheet.getLastRow() - 1, 7).getValues();
+      staffList = staffRows
+        .filter(function(row) { return String(row[0]).trim(); })
+        .map(function(row) {
+          return {
+            name: String(row[0]).trim(),
+            active: true,
+            isAgent: row[6] === true || String(row[6]).toUpperCase() === 'TRUE'
+          };
+        });
+    }
+    return ContentService.createTextOutput(JSON.stringify({ success: true, data: { staff: staffList } }))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   return ContentService.createTextOutput('Shift Reminder Bot is active.');

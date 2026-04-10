@@ -3,12 +3,14 @@
 // ============================================================
 var CalendarView = (function () {
   var currentYear, currentMonth, selectedDate, shiftDates, selectedName, allStaff;
-  // ミーティングデータ
+  // 店舗ミーティングデータ
   var meetingByDate = {};   // { 'YYYY-MM-DD': { rowIndex, startTime, endTime, note } }
   var meetingStaff = [];    // スタッフ名リスト
   var attendanceCache = {}; // { 'YYYY-MM-DD': [...] }
   var selectedMtgStatus = {};  // { 'YYYY-MM-DD': status }
   var meetingStaffLoaded = false;
+  // 対面Meetupデータ
+  var inPersonMeetupByDate = {}; // { 'YYYY-MM-DD': [{company, time, kind}] }
 
   function render() {
     var now = new Date();
@@ -39,12 +41,12 @@ var CalendarView = (function () {
     document.getElementById('cal-prev').addEventListener('click', function () {
       currentMonth--;
       if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-      loadMonth(); loadMeetings();
+      loadMonth(); loadMeetings(); loadInPersonMeetups();
     });
     document.getElementById('cal-next').addEventListener('click', function () {
       currentMonth++;
       if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-      loadMonth(); loadMeetings();
+      loadMonth(); loadMeetings(); loadInPersonMeetups();
     });
     document.getElementById('cal-name-filter').addEventListener('change', function () {
       selectedName = this.value;
@@ -70,6 +72,7 @@ var CalendarView = (function () {
 
     loadMonth();
     loadMeetings();
+    loadInPersonMeetups();
   }
 
   function loadMeetings() {
@@ -79,7 +82,7 @@ var CalendarView = (function () {
       rows.forEach(function (r) {
         if (r.date) meetingByDate[r.date] = r;
       });
-      renderGrid(); // バッジを再描画
+      renderGrid();
     }).catch(function () {});
 
     if (!meetingStaffLoaded) {
@@ -88,6 +91,16 @@ var CalendarView = (function () {
         meetingStaffLoaded = true;
       }).catch(function () {});
     }
+  }
+
+  function loadInPersonMeetups() {
+    var from = currentYear + '-' + pad(currentMonth + 1) + '-01';
+    var lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+    var to = currentYear + '-' + pad(currentMonth + 1) + '-' + pad(lastDay);
+    API.getInPersonMeetups(from, to).then(function (res) {
+      inPersonMeetupByDate = res.meetups || {};
+      renderGrid();
+    }).catch(function () {});
   }
 
   function populateNameFilter() {
@@ -171,6 +184,8 @@ var CalendarView = (function () {
         return !selectedName || s.name === selectedName;
       });
       if (hasShift) classes += ' has-shift';
+      var myShift = !!(selectedName && hasShift);
+      if (myShift) classes += ' my-shift';
       
       // 曜日のクラス (0:日, 6:土)
       var dowIdx = new Date(dateStr + 'T00:00:00').getDay();
@@ -182,8 +197,21 @@ var CalendarView = (function () {
         classes += ' has-recruit';
       }
 
-      if (meetingByDate[dateStr]) classes += ' has-meeting';
-      html += '<div class="' + classes + '" data-date="' + dateStr + '">' + d + '</div>';
+      var hasShortageFlag = !!(dayData && dayData.shortages && dayData.shortages.length > 0);
+      if (hasShortageFlag) classes += ' has-shortage';
+
+      var hasMeeting = !!meetingByDate[dateStr];
+      var hasInPerson = !!(inPersonMeetupByDate[dateStr] && inPersonMeetupByDate[dateStr].length > 0);
+      if (hasMeeting) classes += ' has-meeting';
+      if (hasInPerson) classes += ' has-inperson';
+      var badges = '';
+      if (hasShortageFlag) badges += '<span class="shortage-badge">不足</span>';
+      if (hasInPerson) badges += '<span class="inperson-badge">対面</span>';
+      if (hasMeeting) badges += '<span class="meeting-badge">MTG</span>';
+      html += '<div class="' + classes + '" data-date="' + dateStr + '">' +
+        '<span class="day-num">' + d + '</span>' +
+        '<div class="day-badges">' + badges + '</div>' +
+        '</div>';
     }
 
     grid.innerHTML = html;
@@ -211,7 +239,7 @@ var CalendarView = (function () {
 
     detail.innerHTML = ShiftCard.render(filtered);
 
-    // ミーティングカードを挿入（シフト一覧の上に表示）
+    // 店舗ミーティングカードを挿入
     var meeting = meetingByDate[selectedDate];
     if (meeting) {
       var mtgEl = document.createElement('div');
@@ -221,9 +249,31 @@ var CalendarView = (function () {
       initMeetingCard(meeting);
     }
 
+    // 対面Meetupカードを挿入（最上部）
+    var inPersonMeetups = inPersonMeetupByDate[selectedDate];
+    if (inPersonMeetups && inPersonMeetups.length > 0) {
+      var ipEl = document.createElement('div');
+      ipEl.className = 'inperson-meetup-card';
+      ipEl.innerHTML =
+        '<div class="inperson-meetup-header">🏢 対面Meetup</div>' +
+        inPersonMeetups.map(function (m) {
+          return '<div class="inperson-meetup-row">' +
+            '<span class="inperson-meetup-company">' + m.company + '</span>' +
+            (m.time ? '<span class="inperson-meetup-time">' + m.time + '</span>' : '') +
+            '</div>';
+        }).join('');
+      detail.insertBefore(ipEl, detail.firstChild);
+    }
+
     detail.querySelectorAll('.btn-edit-shift').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        openEditModal(filtered, parseInt(btn.dataset.idx));
+        var s = filtered.staff[parseInt(btn.dataset.idx)];
+        App.openShiftChange({
+          mode: 'edit',
+          date: filtered.date,
+          originalStaff: s.name,
+          originalTime: s.start + '-' + s.end
+        });
       });
     });
 
@@ -238,6 +288,19 @@ var CalendarView = (function () {
       btn.addEventListener('click', function () {
         var s = filtered.staff[parseInt(btn.dataset.idx)];
         App.openShiftChange({
+          mode: 'assign',
+          date: filtered.date,
+          originalStaff: s.name,
+          originalTime: s.start + '-' + s.end
+        });
+      });
+    });
+
+    detail.querySelectorAll('.btn-recruit-shift').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var s = filtered.staff[parseInt(btn.dataset.idx)];
+        App.openShiftChange({
+          mode: 'recruit',
           date: filtered.date,
           originalStaff: s.name,
           originalTime: s.start + '-' + s.end
@@ -249,24 +312,118 @@ var CalendarView = (function () {
       btn.addEventListener('click', function () {
         var s = filtered.staff[parseInt(btn.dataset.idx)];
         if (!confirm(s.name + ' のシフトを削除しますか？')) return;
+        removeFromLocal(filtered.date, s.name);
+        showToast('削除しました');
+        loadDayDetail();
+        renderGrid();
         API.deleteShift(filtered.date, s.name)
           .then(function (res) {
-            if (res.success) {
-              removeFromLocal(filtered.date, s.name);
-              showToast('削除しました');
-              loadDayDetail();
-              renderGrid();
-            } else {
+            if (!res.success) {
               showToast('エラー: ' + (res.error || '削除に失敗しました'), true);
+              loadMonth();
             }
           })
-          .catch(function () { showToast('通信エラー', true); });
+          .catch(function () { showToast('通信エラー', true); loadMonth(); });
       });
     });
 
     detail.querySelector('.btn-add-shift').addEventListener('click', function () {
       openAddModal(dayData);
     });
+
+    // シフト不足表示（APIなし・同期）
+    renderShortages(detail, dayData);
+  }
+
+  function renderShortages(detail, dayData) {
+    var shortages = dayData.shortages;
+    if (!shortages || shortages.length === 0) return;
+
+    var html = '<div id="shortage-section" style="margin-top:12px; padding:12px; background:#fef3c7; border:1px solid #fbbf24; border-radius:10px;">';
+    html += '<div style="font-size:0.85rem; font-weight:bold; color:#d97706; margin-bottom:8px;">⚠️ シフト不足時間帯</div>';
+    shortages.forEach(function(slot) {
+      html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">';
+      html += '<span style="font-size:0.9rem; color:#92400e; font-weight:500;">' + slot + '</span>';
+      html += '<button class="btn-shortage-fill" data-slot="' + slot + '" style="font-size:0.8rem; padding:5px 14px; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;">シフトに入る</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+
+    detail.insertAdjacentHTML('beforeend', html);
+
+    detail.querySelectorAll('.btn-shortage-fill').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var parts = btn.dataset.slot.split('〜');
+        openShortageModal(dayData, parts[0], parts[1]);
+      });
+    });
+  }
+
+  function openShortageModal(dayData, start, end) {
+    var overlay = document.getElementById('modal-overlay');
+    var container = document.getElementById('modal-container');
+
+    container.innerHTML =
+      '<div class="modal-title">⚠️ シフト補充</div>' +
+      '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">' +
+        dayData.date.replace(/-/g, '/') + '（' + (dayData.dayOfWeek || getDow(dayData.date)) + '）' +
+      '</div>' +
+      '<div style="margin-bottom:12px;">' +
+        '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">スタッフ名</label>' +
+        staffSelectHtml('shortage-name', '') +
+      '</div>' +
+      '<div style="display:flex;gap:12px;margin-bottom:16px;">' +
+        '<div style="flex:1;">' +
+          '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">開始時刻</label>' +
+          timeSelectHtml('shortage-start', start) +
+        '</div>' +
+        '<div style="flex:1;">' +
+          '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">終了時刻</label>' +
+          timeSelectHtml('shortage-end', end) +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn" id="shortage-cancel">キャンセル</button>' +
+        '<button class="btn btn-primary" id="shortage-save">追加して承認者に通知</button>' +
+      '</div>';
+
+    overlay.hidden = false;
+
+    document.getElementById('shortage-cancel').addEventListener('click', function() { overlay.hidden = true; });
+    document.getElementById('shortage-save').addEventListener('click', function() {
+      var name = document.getElementById('shortage-name').value;
+      var s    = document.getElementById('shortage-start').value;
+      var e    = document.getElementById('shortage-end').value;
+      if (!name) { showToast('名前を選択してください', true); return; }
+
+      var dow = dayData.dayOfWeek || getDow(dayData.date);
+      addToLocal(dayData.date, dow, name, s, e);
+      overlay.hidden = true;
+      showToast('追加しました');
+      loadDayDetail(); renderGrid();
+      API.addShift(dayData.date, dow, name, s, e)
+        .then(function(res) {
+          if (!res.success) { removeFromLocal(dayData.date, name); showToast('エラー: ' + (res.error || '追加失敗'), true); loadDayDetail(); renderGrid(); return; }
+          API.notifyShiftFill({ date: dayData.date, staffName: name, start: s, end: e }).catch(function () {});
+        })
+        .catch(function() { removeFromLocal(dayData.date, name); showToast('通信エラー', true); loadDayDetail(); renderGrid(); });
+    });
+  }
+
+  function timeSelectHtml(id, defaultValue) {
+    var defH = defaultValue ? parseInt(defaultValue.split(':')[0]) : 10;
+    var defM = defaultValue ? parseInt(defaultValue.split(':')[1]) : 0;
+    defM = Math.floor(defM / 10) * 10;
+    var html = '<select id="' + id + '" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;">';
+    for (var h = 0; h < 24; h++) {
+      for (var m = 0; m < 60; m += 10) {
+        var t = (h < 10 ? '0' + h : h) + ':' + (m < 10 ? '0' + m : m);
+        var sel = (h === defH && m === defM) ? ' selected' : '';
+        html += '<option value="' + t + '"' + sel + '>' + t + '</option>';
+      }
+    }
+    html += '</select>';
+    return html;
   }
 
   // 全スタッフ名を収集（月内の全データから）
@@ -289,65 +446,7 @@ var CalendarView = (function () {
     return html;
   }
 
-  function openEditModal(dayData, staffIdx) {
-    var s = dayData.staff[staffIdx];
-    var overlay = document.getElementById('modal-overlay');
-    var container = document.getElementById('modal-container');
 
-    container.innerHTML =
-      '<div class="modal-title">シフト編集</div>' +
-      '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">' +
-        dayData.date.replace(/-/g, '/') + '（' + dayData.dayOfWeek + '）' +
-      '</div>' +
-      '<div style="margin-bottom:12px;">' +
-        '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">スタッフ名</label>' +
-        staffSelectHtml('edit-name', s.name) +
-      '</div>' +
-      '<div style="display:flex;gap:12px;margin-bottom:16px;">' +
-        '<div style="flex:1;">' +
-          '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">開始時刻</label>' +
-          '<input id="edit-start" type="time" value="' + s.start + '" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;">' +
-        '</div>' +
-        '<div style="flex:1;">' +
-          '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">終了時刻</label>' +
-          '<input id="edit-end" type="time" value="' + s.end + '" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;">' +
-        '</div>' +
-      '</div>' +
-      '<div class="modal-actions">' +
-        '<button class="btn" id="edit-cancel">キャンセル</button>' +
-        '<button class="btn btn-primary" id="edit-save">保存</button>' +
-      '</div>';
-
-    overlay.hidden = false;
-
-    document.getElementById('edit-cancel').addEventListener('click', function () { overlay.hidden = true; });
-    document.getElementById('edit-save').addEventListener('click', function () {
-      var newName = document.getElementById('edit-name').value.trim();
-      var newStart = document.getElementById('edit-start').value;
-      var newEnd = document.getElementById('edit-end').value;
-      if (!newName || !newStart || !newEnd) { showToast('全項目を入力してください', true); return; }
-
-      var saveBtn = document.getElementById('edit-save');
-      saveBtn.disabled = true; saveBtn.textContent = '保存中...';
-
-      var origName = s.name;
-      API.updateShift(dayData.date, origName, newName, newStart, newEnd)
-        .then(function (res) {
-          overlay.hidden = true;
-          if (res.success) {
-            updateLocal(dayData.date, origName, newName, newStart, newEnd);
-            if (newName !== origName) {
-              ShiftChangeView.setPending({ date: dayData.date, start: newStart, end: newEnd, from: origName, to: newName });
-            }
-            showToast('変更しました');
-            loadDayDetail(); renderGrid();
-          } else {
-            showToast('エラー: ' + (res.error || '変更に失敗しました'), true);
-          }
-        })
-        .catch(function () { overlay.hidden = true; showToast('通信エラー', true); });
-    });
-  }
 
   function openAddModal(dayData) {
     var overlay = document.getElementById('modal-overlay');
@@ -386,45 +485,54 @@ var CalendarView = (function () {
       var end = document.getElementById('add-end').value;
       if (!name || !start || !end) { showToast('全項目を入力してください', true); return; }
 
-      var saveBtn = document.getElementById('add-save');
-      saveBtn.disabled = true; saveBtn.textContent = '追加中...';
-
+      addToLocal(dayData.date, dayData.dayOfWeek, name, start, end);
+      overlay.hidden = true;
+      showToast('追加しました');
+      loadDayDetail(); renderGrid();
       API.addShift(dayData.date, dayData.dayOfWeek, name, start, end)
         .then(function (res) {
-          overlay.hidden = true;
-          if (res.success) {
-            addToLocal(dayData.date, dayData.dayOfWeek, name, start, end);
-            showToast('追加しました');
-            loadDayDetail(); renderGrid();
-          } else {
-            showToast('エラー: ' + (res.error || '追加に失敗しました'), true);
-          }
+          if (!res.success) { removeFromLocal(dayData.date, name); showToast('エラー: ' + (res.error || '追加に失敗しました'), true); loadDayDetail(); renderGrid(); return; }
+          API.notifyShiftFill({ date: dayData.date, staffName: name, start: start, end: end }).catch(function () {});
         })
-        .catch(function () { overlay.hidden = true; showToast('通信エラー', true); });
+        .catch(function () { removeFromLocal(dayData.date, name); showToast('通信エラー', true); loadDayDetail(); renderGrid(); });
     });
   }
 
   function openApproveModal(dayData, shift) {
     var overlay = document.getElementById('modal-overlay');
     var container = document.getElementById('modal-container');
-    container.innerHTML = '<div class="modal-title">シフト交代の引受け</div>' +
-      '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">' + dayData.date.replace(/-/g, '/') + ' ' + shift.start + '〜' + shift.end + '<br>元の担当: ' + shift.name + '</div>' +
-      '<div style="margin-bottom:12px;"><label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">引受けるあなたの名前</label>' +
-      staffSelectHtml('approve-name', '') + '</div>' +
+    container.innerHTML =
+      '<div class="modal-title">シフト交代の引受け</div>' +
+      '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">元の担当: ' + shift.name + '　' + dayData.date.replace(/-/g, '/') + '</div>' +
+      '<div style="margin-bottom:12px;">' +
+        '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">あなたの名前</label>' +
+        staffSelectHtml('approve-name', '') +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin-bottom:16px;">' +
+        '<div style="flex:1;">' +
+          '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">開始時刻</label>' +
+          timeSelectHtml('approve-start', shift.start) +
+        '</div>' +
+        '<div style="flex:1;">' +
+          '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">終了時刻</label>' +
+          timeSelectHtml('approve-end', shift.end) +
+        '</div>' +
+      '</div>' +
       '<div class="modal-actions"><button class="btn" id="approve-cancel">キャンセル</button><button class="btn" style="background:#eab308;color:#fff;" id="approve-save">引受ける</button></div>';
-    
+
     overlay.hidden = false;
     document.getElementById('approve-cancel').addEventListener('click', function () { overlay.hidden = true; });
     document.getElementById('approve-save').addEventListener('click', function () {
       var agent = document.getElementById('approve-name').value;
+      var newStart = document.getElementById('approve-start').value;
+      var newEnd   = document.getElementById('approve-end').value;
       if (!agent) { showToast('名前を選択してください', true); return; }
       var btn = document.getElementById('approve-save'); btn.disabled = true; btn.textContent = '送信中...';
-      API.approveShiftRecruitment({ date: dayData.date, originalStaff: shift.name, originalTime: shift.start+'-'+shift.end, agentStaff: agent })
+      API.approveShiftRecruitment({ date: dayData.date, originalStaff: shift.name, originalTime: newStart + '-' + newEnd, agentStaff: agent })
         .then(function(res) {
           overlay.hidden = true;
           if (res.ok) {
-            updateLocal(dayData.date, shift.name, agent, shift.start, shift.end);
-            // 募集中フラグを消す
+            updateLocal(dayData.date, shift.name, agent, newStart, newEnd);
             shiftDates[dayData.date].staff.forEach(function(s) { if(s.name===agent) { s.status = ''; } });
             showToast('引受け完了しました！'); loadDayDetail(); renderGrid();
           } else { throw new Error(res.error || 'エラー'); }
@@ -440,9 +548,16 @@ var CalendarView = (function () {
     });
   }
 
+  function syncShiftCache() {
+    var cacheKey = 'cache_shifts_' + currentYear + '_' + pad(currentMonth + 1);
+    var shifts = Object.keys(shiftDates).map(function (k) { return shiftDates[k]; });
+    localStorage.setItem(cacheKey, JSON.stringify(shifts));
+  }
+
   function removeFromLocal(date, name) {
     if (!shiftDates[date]) return;
     shiftDates[date].staff = shiftDates[date].staff.filter(function (s) { return s.name !== name; });
+    syncShiftCache();
   }
 
   function addToLocal(date, dow, name, start, end) {
@@ -451,6 +566,7 @@ var CalendarView = (function () {
     }
     shiftDates[date].staff.push({ name: name, start: start, end: end, tasks: [] });
     shiftDates[date].staff.sort(function (a, b) { return a.start.localeCompare(b.start); });
+    syncShiftCache();
   }
 
   function getDow(dateStr) {
@@ -483,8 +599,6 @@ var CalendarView = (function () {
   }
 
   function buildMeetingCard(m) {
-    var bufStart = addMtgMin(m.startTime, -60);
-    var bufEnd   = addMtgMin(m.endTime, 60);
     var nameOpts = '<option value="">-- 名前を選択 --</option>'
       + meetingStaff.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
 
@@ -495,7 +609,6 @@ var CalendarView = (function () {
       + '</div>'
       + '<div class="meeting-card-body">'
       +   '<div class="meeting-time-row">⏰ ' + esc(m.startTime) + ' 〜 ' + esc(m.endTime) + '</div>'
-      +   '<div class="meeting-buffer">🔒 貸切: ' + bufStart + ' 〜 ' + bufEnd + '</div>'
       +   (m.note ? '<div class="meeting-note">📝 ' + esc(m.note) + '</div>' : '')
       +   '<div class="meeting-att-summary" id="mtg-att-summary">読み込み中...</div>'
       +   '<div class="meeting-form">'

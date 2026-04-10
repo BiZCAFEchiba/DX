@@ -283,12 +283,15 @@ body {
   font-weight: 600; padding: 4px 0;
 }
 .cal-day {
-  aspect-ratio: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  border-radius: 50%; font-size: 0.9rem;
+  aspect-ratio: 3/4; display: flex; flex-direction: column;
+  align-items: center; justify-content: space-between;
+  padding: 5px 2px 4px;
+  border-radius: 10px; font-size: 0.9rem;
   cursor: pointer; position: relative;
   transition: background 0.15s;
 }
+.day-num { line-height: 1; }
+.day-badges { display: flex; flex-direction: column; gap: 2px; align-items: center; min-height: 13px; }
 .cal-day:hover { background: var(--gray-100); }
 .cal-day.today { font-weight: 700; color: var(--primary); }
 .cal-day.selected { background: var(--primary); color: #fff; }
@@ -301,22 +304,61 @@ body {
 .cal-day.dow-sun { color: #ea580c; background: #fff7ed; font-weight: 600; }
 .cal-day.dow-sun:hover { background: #ffedd5; }
 
-/* シフトありバッジ */
-.cal-day.has-shift::after {
-  content: ''; position: absolute; bottom: 4px;
-  width: 5px; height: 5px; border-radius: 50%;
+/* シフトあり（日付を太字・青色で強調） */
+.cal-day.has-shift .day-num { color: var(--primary); font-weight: 700; }
+.cal-day.selected.has-shift .day-num { color: #fff; }
+
+/* 絞り込み時：自分のシフトがある日に青ドット */
+.cal-day.my-shift .day-num::after {
+  content: '';
+  display: block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+  margin: 2px auto 0;
+}
+.cal-day.selected.my-shift .day-num::after { background: #fff; }
+
+/* シフト不足（赤枠） */
+.cal-day.has-shortage {
+  border: 2px solid #ef4444;
+  background: #fef2f2;
+}
+.cal-day.has-shortage.dow-sat { background: #fef2f2; }
+.cal-day.has-shortage.dow-sun { background: #fef2f2; }
+.cal-day.selected.has-shortage {
+  border-color: rgba(255,255,255,0.6);
   background: var(--primary);
 }
-.cal-day.selected.has-shift::after { background: #fff; }
-
-/* 募集中バッジ */
-.cal-day.has-recruit::before {
-  content: ''; position: absolute; bottom: 4px; right: 4px;
-  width: 5px; height: 5px; border-radius: 50%;
-  background: #f43f5e;
-  box-shadow: 0 0 0 1px #fff;
+.shortage-badge {
+  font-size: 0.55rem; font-weight: 700; line-height: 1;
+  background: #ef4444; color: #fff;
+  border-radius: 4px; padding: 1px 4px;
 }
-.cal-day.selected.has-recruit::before { border-color: var(--primary); }
+.cal-day.selected .shortage-badge {
+  background: rgba(255,255,255,0.85); color: #dc2626;
+}
+
+/* 募集中 - 左上斜めバナー */
+.cal-day.has-recruit { overflow: hidden; }
+.cal-day.has-recruit::before {
+  content: '募集';
+  position: absolute;
+  top: 5px; left: -13px;
+  width: 44px;
+  text-align: center;
+  background: #f59e0b;
+  color: #fff;
+  font-size: 0.42rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 2px 0;
+  transform: rotate(-45deg);
+  transform-origin: center;
+  pointer-events: none;
+  z-index: 1;
+}
+.cal-day.selected.has-recruit::before { background: #d97706; }
 
 /* --- Upload --- */
 .upload-zone {
@@ -454,18 +496,56 @@ body {
 .empty-state .icon { font-size: 2.5rem; margin-bottom: 8px; }
 .empty-state .text { font-size: 0.9rem; }
 
-/* --- ミーティングバッジ（カレンダー日付セル） --- */
-.cal-day.has-meeting::before {
-  content: '';
-  position: absolute;
-  top: 4px; right: 4px;
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: #f59e0b;
-  box-shadow: 0 0 0 1.5px #fff;
-  z-index: 1;
+/* --- 対面Meetupバッジ（カレンダー日付セル） --- */
+.inperson-badge {
+  font-size: 0.55rem; font-weight: 700; line-height: 1;
+  background: #10b981; color: #fff;
+  border-radius: 4px; padding: 1px 4px;
+  letter-spacing: 0;
 }
-.cal-day.selected.has-meeting::before { box-shadow: 0 0 0 1.5px var(--primary); }
+.cal-day.selected .inperson-badge {
+  background: rgba(255,255,255,0.85); color: #059669;
+}
+
+/* --- 対面Meetupカード（日付詳細） --- */
+.inperson-meetup-card {
+  background: #f0fdf4;
+  border: 2px solid #6ee7b7;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 10px;
+}
+.inperson-meetup-header {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #059669;
+  margin-bottom: 6px;
+}
+.inperson-meetup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 2px 0;
+}
+.inperson-meetup-company {
+  color: #064e3b;
+  font-weight: 500;
+}
+.inperson-meetup-time {
+  color: #6b7280;
+  font-size: 0.78rem;
+}
+
+/* --- 店舗ミーティングバッジ --- */
+.meeting-badge {
+  font-size: 0.55rem; font-weight: 700; line-height: 1;
+  background: #f59e0b; color: #fff;
+  border-radius: 4px; padding: 1px 4px;
+}
+.cal-day.selected .meeting-badge {
+  background: rgba(255,255,255,0.85); color: #d97706;
+}
 
 /* --- ミーティングカード --- */
 .meeting-card {

@@ -86,6 +86,22 @@ var API = (function () {
       meetingDate: meetingDate, staffName: staffName, status: status, reason: reason || '' });
   }
 
+  function getRoomSettings() {
+    return get({ action: 'roomSettings' });
+  }
+
+  function setRoomTimeRange(start, end) {
+    return get({ action: 'roomSettings', set: 'timeRange', start: start, end: end });
+  }
+
+  function setRoomOpenDate(openDate) {
+    return get({ action: 'roomSettings', set: 'openDate', openDate: openDate });
+  }
+
+  function setRoomBlockedDates(dates) {
+    return get({ action: 'roomSettings', set: 'blockedDates', dates: JSON.stringify(dates) });
+  }
+
   function notifyShiftChange(params) {
     params.page = 'calendar';
     params.action = 'notifyShiftChange';
@@ -94,6 +110,20 @@ var API = (function () {
 
   function getShiftAgents() {
     return meetingGet({ page: 'calendar', action: 'getShiftAgents' });
+  }
+
+  function getShiftShortage(date) {
+    return get({ action: 'getShiftShortage', date: date });
+  }
+
+  function getInPersonMeetups(from, to) {
+    return get({ action: 'getInPersonMeetups', from: from, to: to });
+  }
+
+  function notifyShiftFill(params) {
+    params.page = 'calendar';
+    params.action = 'notifyShiftFill';
+    return meetingPost(params);
   }
 
   function notifyShiftTrouble(params) {
@@ -119,8 +149,10 @@ var API = (function () {
     getShifts: getShifts, getStaff: getStaff,
     updateShift: updateShift, addShift: addShift, deleteShift: deleteShift,
     notifyShiftChange: notifyShiftChange, getShiftAgents: getShiftAgents,
+    getShiftShortage: getShiftShortage, getInPersonMeetups: getInPersonMeetups, notifyShiftFill: notifyShiftFill,
     notifyShiftTrouble: notifyShiftTrouble, requestShiftRecruitment: requestShiftRecruitment, approveShiftRecruitment: approveShiftRecruitment,
     getMeetings: getMeetings, getMeetingAttendance: getMeetingAttendance,
-    getMeetingStaffList: getMeetingStaffList, saveMeetingAttendance: saveMeetingAttendance
+    getMeetingStaffList: getMeetingStaffList, saveMeetingAttendance: saveMeetingAttendance,
+    getRoomSettings: getRoomSettings, setRoomTimeRange: setRoomTimeRange, setRoomOpenDate: setRoomOpenDate, setRoomBlockedDates: setRoomBlockedDates
   };
 })();
