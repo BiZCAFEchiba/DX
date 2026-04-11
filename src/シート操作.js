@@ -402,9 +402,9 @@ function updateShiftStatus(targetDateStr, staffName, statusStr) {
 }
 
 /**
- * シフトの担当スタッフ名とステータスを更新する（承認用）
+ * シフトの担当スタッフ名、時間、ステータスを更新する（交代・編集用）
  */
-function updateShiftStaff(targetDateStr, oldStaffName, newStaffName) {
+function updateShiftStaff(targetDateStr, oldStaffName, newStaffName, newStart, newEnd) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
   if (!sheet) return false;
 
@@ -414,7 +414,9 @@ function updateShiftStaff(targetDateStr, oldStaffName, newStaffName) {
   for (let i = 1; i < data.length; i++) {
     const rowDate = data[i][0] instanceof Date ? Utilities.formatDate(data[i][0], TIMEZONE, 'yyyy/MM/dd') : String(data[i][0]);
     if (rowDate === targetDateFmt && String(data[i][2]).trim() === oldStaffName) {
-      sheet.getRange(i + 1, 3).setValue(newStaffName); // C列: 新スタッフ名
+      if (newStaffName) sheet.getRange(i + 1, 3).setValue(newStaffName); // C列: スタッフ名
+      if (newStart)     sheet.getRange(i + 1, 4).setValue(newStart);     // D列: 開始時間
+      if (newEnd)       sheet.getRange(i + 1, 5).setValue(newEnd);       // E列: 終了時間
       sheet.getRange(i + 1, 10).clearContent(); // J列: ステータスクリア
       return true;
     }
@@ -472,6 +474,114 @@ function checkShiftShortageForDate(targetDate) {
   // 連続するスロットを結合して読みやすくする
   // 例: 10:00-10:30, 10:30-11:00 -> 10:00-11:00
   return mergeShortageSlots_(shortageSlots);
+}
+
+/**
+ * 「必要オペ数」シートから時間帯別の必要オペ数を取得する
+ * シート形式: ヘッダー行 + [開始時刻, 終了時刻, 必要オペ数] の行
+ * シートがなければ空配列を返す（フォールバック: 従来の0オペ判定のみ）
+ * @returns {{ start: string, end: string, required: number }[]}
+ */
+function getRequiredOpeSlots_() {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(REQUIRED_OPE_SHEET_NAME);
+    if (!sheet || sheet.getLastRow() < 2) return [];
+
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+    const result = [];
+    rows.forEach(function(row) {
+      const start = row[0] instanceof Date ? formatTime_(row[0]) : String(row[0]).trim();
+      const end   = row[1] instanceof Date ? formatTime_(row[1]) : String(row[1]).trim();
+      const req   = parseInt(row[2], 10) || 0;
+      if (start && end && req > 0) result.push({ start: start, end: end, required: req });
+    });
+    return result;
+  } catch(e) {
+    Logger.log('getRequiredOpeSlots_ エラー: ' + e.message);
+    return [];
+  }
+}
+
+/**
+ * 渡されたスタッフリストを使ってシフト不足をチェック（シート再読み込みなし）
+ * getShifts の一括処理用
+ *
+ * 「必要オペ数」シートがある場合:
+ *   - shortages: 実オペ数が必要数より少ない（1以上だが不足）時間帯
+ *   - zeroSlots: 実オペ数が0の時間帯
+ * シートがない場合: 従来通り shortages = 0オペ時間帯、zeroSlots = []
+ *
+ * @returns {{ shortages: string[], zeroSlots: string[] }}
+ */
+function checkShiftShortageFromStaff_(targetDate, staffList) {
+  const requiredSlots = getRequiredOpeSlots_();
+
+  // --- 必要オペ数シートあり ---
+  if (requiredSlots.length > 0) {
+    // 必要オペ数シートの時間帯を30分スロットに展開
+    const slots = [];
+    requiredSlots.forEach(function(req) {
+      let cur = stringToDate_(req.start);
+      const reqEnd = stringToDate_(req.end);
+      while (cur < reqEnd) {
+        const nxt = new Date(cur.getTime() + 30 * 60 * 1000);
+        if (nxt > reqEnd) break;
+        slots.push({ start: formatTime_(cur), end: formatTime_(nxt), required: req.required, count: 0 });
+        cur = nxt;
+      }
+    });
+
+    // 実オペ数をカウント
+    staffList.forEach(function(shift) {
+      if (!shift.start || !shift.end) return;
+      const shiftStart = stringToDate_(shift.start);
+      const shiftEnd   = stringToDate_(shift.end);
+      slots.forEach(function(slot) {
+        const slotStart = stringToDate_(slot.start);
+        if (shiftStart <= slotStart && slotStart < shiftEnd) slot.count++;
+      });
+    });
+
+    const underSlots = slots.filter(function(s) { return s.count > 0 && s.count < s.required; });
+    const zeroSlots  = slots.filter(function(s) { return s.count === 0; });
+
+    return {
+      shortages: mergeShortageSlots_(underSlots),
+      zeroSlots: mergeShortageSlots_(zeroSlots)
+    };
+  }
+
+  // --- 必要オペ数シートなし: 従来通り0オペのみ ---
+  const businessHours = getStaffHours(targetDate);
+  if (!businessHours || !businessHours.start || !businessHours.end) {
+    return { shortages: [], zeroSlots: [] };
+  }
+
+  const slots = [];
+  let current = stringToDate_(businessHours.start);
+  const end = stringToDate_(businessHours.end);
+  while (current < end) {
+    const next = new Date(current.getTime() + 30 * 60 * 1000);
+    if (next > end) break;
+    slots.push({ start: formatTime_(current), end: formatTime_(next), count: 0 });
+    current = next;
+  }
+
+  staffList.forEach(function(shift) {
+    if (!shift.start || !shift.end) return;
+    const shiftStart = stringToDate_(shift.start);
+    const shiftEnd   = stringToDate_(shift.end);
+    slots.forEach(function(slot) {
+      const slotStart = stringToDate_(slot.start);
+      if (shiftStart <= slotStart && slotStart < shiftEnd) slot.count++;
+    });
+  });
+
+  return {
+    shortages: [],
+    zeroSlots: mergeShortageSlots_(slots.filter(function(s) { return s.count === 0; }))
+  };
 }
 
 // --- Helper for Time Calculation ---
@@ -559,4 +669,77 @@ function updateStaffId_(staffName, userId) {
     Logger.log('スタッフID構成エラー: ' + e.message);
   }
   return false;
+}
+
+/**
+ * 指定日・スタッフのシフト行を削除する（PWAカレンダー用）
+ * @returns {{ success: boolean, error?: string }}
+ */
+function deleteShiftByName_(date, staffName) {
+  if (!date || !staffName) return { success: false, error: 'パラメータ不足' };
+  try {
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
+    if (!sheet) return { success: false, error: 'シートが見つかりません' };
+    const data = sheet.getDataRange().getValues();
+    let deleted = 0;
+    for (let i = data.length - 1; i >= 1; i--) {
+      const rd = data[i][0];
+      if (!rd) continue;
+      const d = rd instanceof Date ? rd : new Date(rd);
+      if (isNaN(d.getTime()) || formatDateToISO_(d) !== date) continue;
+      if (String(data[i][2]).trim() !== staffName) continue;
+      sheet.deleteRow(i + 1);
+      deleted++;
+    }
+    if (deleted === 0) return { success: false, error: '対象のシフトが見つかりませんでした' };
+    return { success: true, data: { deleted: deleted } };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * シフト行を追加する（PWAカレンダー用）
+ * @returns {{ success: boolean, error?: string }}
+ */
+function addShiftRow_(date, dayOfWeek, staffName, start, end) {
+  if (!date || !staffName || !start || !end) return { success: false, error: 'パラメータ不足' };
+  try {
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
+    if (!sheet) return { success: false, error: 'シートが見つかりません' };
+    const dow = dayOfWeek || ['日','月','火','水','木','金','土'][new Date(date + 'T00:00:00').getDay()];
+    sheet.appendRow([new Date(date + 'T00:00:00'), dow, staffName, start, end, '', new Date(), 'manual']);
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * シフト行のスタッフ名・時刻を更新する（PWAカレンダー用）
+ * @returns {{ success: boolean, error?: string }}
+ */
+function updateShiftRow_(date, origName, newName, newStart, newEnd) {
+  if (!date || !origName || !newName || !newStart || !newEnd) return { success: false, error: 'パラメータ不足' };
+  try {
+    const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
+    if (!sheet) return { success: false, error: 'シートが見つかりません' };
+    const data = sheet.getDataRange().getValues();
+    let updated = 0;
+    for (let i = 1; i < data.length; i++) {
+      const rd = data[i][0];
+      if (!rd) continue;
+      const d = rd instanceof Date ? rd : new Date(rd);
+      if (isNaN(d.getTime()) || formatDateToISO_(d) !== date) continue;
+      if (String(data[i][2]).trim() !== origName) continue;
+      sheet.getRange(i + 1, 3).setValue(newName);
+      sheet.getRange(i + 1, 4).setValue(newStart);
+      sheet.getRange(i + 1, 5).setValue(newEnd);
+      updated++;
+    }
+    if (updated === 0) return { success: false, error: '対象のシフトが見つかりませんでした' };
+    return { success: true, data: { updated: updated } };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
 }

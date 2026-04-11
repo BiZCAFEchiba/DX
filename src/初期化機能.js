@@ -998,6 +998,42 @@ function testDiagnose() {
   Logger.log('=== 診断終了 ===');
 }
 
+/**
+ * 「必要オペ数」シートを作成してデフォルトデータを投入する（手動実行）
+ */
+function createRequiredOpeSheet() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(REQUIRED_OPE_SHEET_NAME);
+
+  if (sheet) {
+    Logger.log('「必要オペ数」シートは既に存在します。内容を確認してください。');
+    return;
+  }
+
+  sheet = ss.insertSheet(REQUIRED_OPE_SHEET_NAME);
+
+  // ヘッダー
+  sheet.getRange(1, 1, 1, 3).setValues([['開始時刻', '終了時刻', '必要オペ数']]);
+  sheet.getRange(1, 1, 1, 3).setFontWeight('bold').setBackground('#d9ead3');
+
+  // デフォルトデータ
+  const data = [
+    ['10:00', '12:00', 1],
+    ['12:00', '13:00', 2],
+    ['13:00', '16:00', 3],
+    ['16:00', '17:30', 2],
+    ['17:30', '19:30', 1]
+  ];
+  sheet.getRange(2, 1, data.length, 3).setValues(data);
+
+  // 列幅調整
+  sheet.setColumnWidth(1, 100);
+  sheet.setColumnWidth(2, 100);
+  sheet.setColumnWidth(3, 120);
+
+  Logger.log('✅ 「必要オペ数」シートを作成しました。内容を確認・編集してください。');
+}
+
 
 /**
  * 設定シートから値を取得する
@@ -1041,4 +1077,34 @@ function ensureMissingSettings_(rows) {
   } catch (e) {
     Logger.log('ensureMissingSettings_ エラー: ' + e.message);
   }
+}
+
+// ============================================================
+// GAS ウォームアップ（コールドスタート防止）
+// ============================================================
+
+/**
+ * 一度だけ手動実行してトリガーを登録する。
+ * 既に同名トリガーがあれば何もしない。
+ */
+function setupWarmupTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'warmup') {
+      Logger.log('ウォームアップトリガーは既に登録済みです');
+      return;
+    }
+  }
+  ScriptApp.newTrigger('warmup')
+    .timeBased()
+    .everyMinutes(5)
+    .create();
+  Logger.log('ウォームアップトリガーを登録しました（5分ごと）');
+}
+
+/**
+ * 5分ごとに自動実行される。GASインスタンスを起こすだけで何もしない。
+ */
+function warmup() {
+  // no-op: コールドスタートを防ぐためだけに存在する
 }

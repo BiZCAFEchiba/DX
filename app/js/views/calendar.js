@@ -197,17 +197,20 @@ var CalendarView = (function () {
         classes += ' has-recruit';
       }
 
-      var hasShortageFlag = !!(dayData && dayData.shortages && dayData.shortages.length > 0);
-      if (hasShortageFlag) classes += ' has-shortage';
+      var hasZero     = !!(dayData && dayData.zeroSlots && dayData.zeroSlots.length > 0);
+      var hasShortage = !!(dayData && dayData.shortages && dayData.shortages.length > 0);
+      if (hasZero)     classes += ' has-zero';
+      if (hasShortage) classes += ' has-shortage';
 
       var hasMeeting = !!meetingByDate[dateStr];
       var hasInPerson = !!(inPersonMeetupByDate[dateStr] && inPersonMeetupByDate[dateStr].length > 0);
       if (hasMeeting) classes += ' has-meeting';
       if (hasInPerson) classes += ' has-inperson';
       var badges = '';
-      if (hasShortageFlag) badges += '<span class="shortage-badge">不足</span>';
+      if (hasZero)     badges += '<span class="zero-badge">0オペ</span>';
+      if (hasShortage) badges += '<span class="shortage-badge">不足</span>';
       if (hasInPerson) badges += '<span class="inperson-badge">対面</span>';
-      if (hasMeeting) badges += '<span class="meeting-badge">MTG</span>';
+      if (hasMeeting)  badges += '<span class="meeting-badge">MTG</span>';
       html += '<div class="' + classes + '" data-date="' + dateStr + '">' +
         '<span class="day-num">' + d + '</span>' +
         '<div class="day-badges">' + badges + '</div>' +
@@ -336,19 +339,39 @@ var CalendarView = (function () {
   }
 
   function renderShortages(detail, dayData) {
-    var shortages = dayData.shortages;
-    if (!shortages || shortages.length === 0) return;
+    var zeroSlots = dayData.zeroSlots || [];
+    var shortages = dayData.shortages || [];
+    if (zeroSlots.length === 0 && shortages.length === 0) return;
 
-    var html = '<div id="shortage-section" style="margin-top:12px; padding:12px; background:#fef3c7; border:1px solid #fbbf24; border-radius:10px;">';
-    html += '<div style="font-size:0.85rem; font-weight:bold; color:#d97706; margin-bottom:8px;">⚠️ シフト不足時間帯</div>';
-    shortages.forEach(function(slot) {
-      html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">';
-      html += '<span style="font-size:0.9rem; color:#92400e; font-weight:500;">' + slot + '</span>';
-      html += '<button class="btn-shortage-fill" data-slot="' + slot + '" style="font-size:0.8rem; padding:5px 14px; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;">シフトに入る</button>';
+    var html = '<div id="shortage-section" style="margin-top:12px; border-radius:10px; overflow:hidden;">';
+
+    // 0オペ（赤）
+    if (zeroSlots.length > 0) {
+      html += '<div style="padding:10px 12px; background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; margin-bottom:6px;">';
+      html += '<div style="font-size:0.82rem; font-weight:bold; color:#dc2626; margin-bottom:6px;">🔴 0オペ時間帯（要員なし）</div>';
+      zeroSlots.forEach(function(slot) {
+        html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">';
+        html += '<span style="font-size:0.88rem; color:#7f1d1d; font-weight:500;">' + slot + '</span>';
+        html += '<button class="btn-shortage-fill" data-slot="' + slot + '" style="font-size:0.78rem; padding:4px 12px; background:#ef4444; color:#fff; border:none; border-radius:6px; cursor:pointer;">シフトに入る</button>';
+        html += '</div>';
+      });
       html += '</div>';
-    });
-    html += '</div>';
+    }
 
+    // 不足（黄）
+    if (shortages.length > 0) {
+      html += '<div style="padding:10px 12px; background:#fef3c7; border:1px solid #fbbf24; border-radius:10px;">';
+      html += '<div style="font-size:0.82rem; font-weight:bold; color:#d97706; margin-bottom:6px;">🟡 人数不足時間帯</div>';
+      shortages.forEach(function(slot) {
+        html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">';
+        html += '<span style="font-size:0.88rem; color:#92400e; font-weight:500;">' + slot + '</span>';
+        html += '<button class="btn-shortage-fill" data-slot="' + slot + '" style="font-size:0.78rem; padding:4px 12px; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;">シフトに入る</button>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>';
     detail.insertAdjacentHTML('beforeend', html);
 
     detail.querySelectorAll('.btn-shortage-fill').forEach(function(btn) {

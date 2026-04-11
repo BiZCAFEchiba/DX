@@ -731,9 +731,12 @@ function doGet(e) {
       dayMap[k].staff.sort(function(a, b) { return a.start.localeCompare(b.start); });
       // 不足時間帯をシフトデータと一緒に返す（追加API呼び出し不要にする）
       try {
-        dayMap[k].shortages = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), dayMap[k].staff);
+        var shortageResult = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), dayMap[k].staff);
+        dayMap[k].shortages = shortageResult.shortages || []; // 不足（1以上だが必要数未満）
+        dayMap[k].zeroSlots = shortageResult.zeroSlots || []; // 0オペ
       } catch(e) {
         dayMap[k].shortages = [];
+        dayMap[k].zeroSlots = [];
       }
       return dayMap[k];
     });

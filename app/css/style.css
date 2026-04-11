@@ -320,23 +320,36 @@ body {
 .cal-day.selected.my-shift .day-num::after { background: #fff; }
 
 /* シフト不足（赤枠） */
-.cal-day.has-shortage {
+/* 0オペ（赤） */
+.cal-day.has-zero {
   border: 2px solid #ef4444;
   background: #fef2f2;
 }
-.cal-day.has-shortage.dow-sat { background: #fef2f2; }
-.cal-day.has-shortage.dow-sun { background: #fef2f2; }
-.cal-day.selected.has-shortage {
+.cal-day.has-zero.dow-sat { background: #fef2f2; }
+.cal-day.has-zero.dow-sun { background: #fef2f2; }
+.cal-day.selected.has-zero {
   border-color: rgba(255,255,255,0.6);
   background: var(--primary);
 }
-.shortage-badge {
+.zero-badge {
   font-size: 0.55rem; font-weight: 700; line-height: 1;
   background: #ef4444; color: #fff;
   border-radius: 4px; padding: 1px 4px;
 }
-.cal-day.selected .shortage-badge {
+.cal-day.selected .zero-badge {
   background: rgba(255,255,255,0.85); color: #dc2626;
+}
+/* 人数不足（黄バッジのみ・枠なし） */
+.cal-day.selected.has-shortage {
+  border-color: rgba(255,255,255,0.6);
+}
+.shortage-badge {
+  font-size: 0.55rem; font-weight: 700; line-height: 1;
+  background: #f59e0b; color: #fff;
+  border-radius: 4px; padding: 1px 4px;
+}
+.cal-day.selected .shortage-badge {
+  background: rgba(255,255,255,0.85); color: #d97706;
 }
 
 /* 募集中 - 左上斜めバナー */
