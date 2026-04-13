@@ -66,10 +66,11 @@ function extractShiftBandBlocksFromPdf_(pdfFile) {
     var pdfBytes = pdfFile.getBlob().getBytes();
     var streams = extractFlateStreamsFromPdfBytes_(pdfBytes);
     var blocks = [];
+    Logger.log('塗り帯解析ストリーム数: ' + streams.length + ' (' + pdfFile.getName() + ')');
 
     for (var i = 0; i < streams.length; i++) {
       var rects = parseColoredRectsFromPdfContent_(streams[i]);
-      var page = analyzePdfRectPage_(rects);
+      var page = analyzePdfRectPage_(rects, pdfFile.getName(), i + 1);
       if (!page || !page.dayBlocks || page.dayBlocks.length === 0) continue;
       blocks = blocks.concat(page.dayBlocks);
     }
@@ -172,9 +173,17 @@ function extractOcrRowsFromBlock_(blockLines) {
 function mergeBandRowsWithOcrRows_(ocrBlock, rowMeta, bandBlock) {
   var shifts = [];
   var rowCount = Math.min(rowMeta.length, bandBlock.rows.length);
+  var inferredStartHour = inferPdfBandStartHourFromShiftAlignment_(ocrBlock.lines, rowMeta, bandBlock);
+  if (inferredStartHour === null) {
+    inferredStartHour = inferPdfBandStartHourFromOcrBlock_(ocrBlock.lines);
+  }
+  var startHour = inferredStartHour !== null ? inferredStartHour : PDF_BAND_START_HOUR;
 
   if (rowMeta.length !== bandBlock.rows.length) {
     Logger.log('塗り帯/OCR 行数差異: ' + ocrBlock.date + ' OCR=' + rowMeta.length + ', BAND=' + bandBlock.rows.length);
+  }
+  if (startHour !== PDF_BAND_START_HOUR) {
+    Logger.log('時間軸開始時刻を補正: ' + ocrBlock.date + ' ' + PDF_BAND_START_HOUR + ':00 -> ' + startHour + ':00');
   }
 
   for (var i = 0; i < rowCount; i++) {
@@ -185,8 +194,8 @@ function mergeBandRowsWithOcrRows_(ocrBlock, rowMeta, bandBlock) {
     for (var j = 0; j < bandRow.intervals.length; j++) {
       shifts.push({
         name: row.name,
-        start: bandRow.intervals[j].start,
-        end: bandRow.intervals[j].end,
+        start: slotIndexToBandTime_(bandRow.intervals[j].startSlot, startHour),
+        end: slotIndexToBandTime_(bandRow.intervals[j].endSlot, startHour),
         tasks: row.tasks || []
       });
     }
@@ -196,18 +205,26 @@ function mergeBandRowsWithOcrRows_(ocrBlock, rowMeta, bandBlock) {
   return shifts;
 }
 
-function analyzePdfRectPage_(rects) {
+function analyzePdfRectPage_(rects, fileName, pageIndex) {
+  var pageLabel = (fileName || 'PDF') + ' p' + (pageIndex || 1);
+  Logger.log('塗り帯矩形数: ' + rects.length + ' (' + pageLabel + ')');
+
   var grid = inferPdfBandGrid_(rects);
-  if (!grid) return null;
+  if (!grid) {
+    Logger.log('塗り帯グリッド検出失敗: ' + pageLabel);
+    return null;
+  }
   var candidateRects = rects.filter(function(rect) {
-    return isActiveBandColor_(rect.color) && rect.h > 10 && rect.h < 25;
+    return isActiveBandColor_(rect.color) && rect.h >= 8 && rect.h < 30;
   });
+  Logger.log('塗り帯候補数: ' + candidateRects.length + ' (' + pageLabel + ')');
   extendPdfBandGridToCoverRects_(grid, candidateRects);
   var minBandWidth = Math.max(3, grid.slotWidth * 0.35);
 
   var activeRects = candidateRects.filter(function(rect) {
     return rect.w >= minBandWidth;
   });
+  Logger.log('塗り帯採用数: ' + activeRects.length + ' (' + pageLabel + ', minWidth=' + minBandWidth.toFixed(2) + ')');
   if (activeRects.length === 0) return null;
 
   var rows = groupPdfBandRows_(activeRects);
@@ -216,8 +233,8 @@ function analyzePdfRectPage_(rects) {
       rows: block.map(function(row) {
         var rawIntervals = row.rects.map(function(rect) {
           return {
-            startSlot: findNearestPdfBandLineIndex_(rect.x1, grid.xLines),
-            endSlot: findNearestPdfBandLineIndex_(rect.x2, grid.xLines),
+            startSlot: findPdfBandStartSlotIndex_(rect.x1, grid.xLines, grid.slotWidth),
+            endSlot: findPdfBandEndSlotIndex_(rect.x2, grid.xLines, grid.slotWidth),
             colors: [rect.color]
           };
         }).filter(function(interval) {
@@ -228,8 +245,8 @@ function analyzePdfRectPage_(rects) {
           y: row.y,
           intervals: merged.map(function(interval) {
             return {
-              start: slotIndexToBandTime_(interval.startSlot),
-              end: slotIndexToBandTime_(interval.endSlot)
+              startSlot: interval.startSlot,
+              endSlot: interval.endSlot
             };
           })
         };
@@ -258,10 +275,12 @@ function extendPdfBandGridToCoverRects_(grid, rects) {
 
 function inferPdfBandGrid_(rects) {
   var verticals = rects.filter(function(rect) {
-    return isPdfBandBlack_(rect.color) && rect.w <= 2.0 && rect.h >= 15;
+    return isPdfBandGridLineColor_(rect.color) && rect.w <= 3.5 && rect.h >= 12;
   });
   var xs = uniqueSortedPdfValues_(verticals.map(function(rect) { return rect.x2; }), 1.2);
-  if (xs.length < 4) return null;
+  if (xs.length < 4) {
+    return inferPdfBandGridFromRects_(rects);
+  }
 
   var bestStart = -1;
   var bestEnd = -1;
@@ -278,20 +297,63 @@ function inferPdfBandGrid_(rects) {
     }
   }
 
-  if (bestStart < 0 || bestEnd - bestStart < 3) return null;
+  if (bestStart < 0 || bestEnd - bestStart < 3) {
+    return inferPdfBandGridFromRects_(rects);
+  }
   var scheduleXs = xs.slice(bestStart, bestEnd + 1);
   var diffs = [];
   for (var di = 0; di < scheduleXs.length - 1; di++) {
     var step = scheduleXs[di + 1] - scheduleXs[di];
     if (step >= 8 && step <= 20) diffs.push(step);
   }
-  if (diffs.length === 0) return null;
+  if (diffs.length === 0) {
+    return inferPdfBandGridFromRects_(rects);
+  }
   diffs.sort(function(a, b) { return a - b; });
 
   return {
     startX: scheduleXs[0],
     slotWidth: diffs[Math.floor(diffs.length / 2)],
     xLines: scheduleXs
+  };
+}
+
+function inferPdfBandGridFromRects_(rects) {
+  var activeRects = rects.filter(function(rect) {
+    return isActiveBandColor_(rect.color) && rect.h >= 8 && rect.h < 30 && rect.w >= 3;
+  });
+  if (activeRects.length === 0) return null;
+
+  var widths = activeRects.map(function(rect) { return rect.w; }).filter(function(width) {
+    return width >= 3 && width <= 40;
+  }).sort(function(a, b) { return a - b; });
+  if (widths.length === 0) return null;
+
+  var slotWidth = widths[0];
+  for (var i = 0; i < widths.length; i++) {
+    if (widths[i] >= 6) {
+      slotWidth = widths[i];
+      break;
+    }
+  }
+
+  var startX = Math.min.apply(null, activeRects.map(function(rect) { return rect.x1; }));
+  var endX = Math.max.apply(null, activeRects.map(function(rect) { return rect.x2; }));
+  var xLines = [];
+  var x = startX;
+  var safety = 0;
+
+  while (x <= endX + (slotWidth * 0.6) && safety < 96) {
+    xLines.push(Math.round(x * 1000000) / 1000000);
+    x += slotWidth;
+    safety++;
+  }
+
+  if (xLines.length < 2) return null;
+  return {
+    startX: xLines[0],
+    slotWidth: slotWidth,
+    xLines: xLines
   };
 }
 
@@ -355,8 +417,9 @@ function mergePdfBandIntervals_(intervals) {
   return merged;
 }
 
-function slotIndexToBandTime_(slotIndex) {
-  var totalMinutes = PDF_BAND_START_HOUR * 60 + slotIndex * PDF_BAND_MINUTES_PER_SLOT;
+function slotIndexToBandTime_(slotIndex, startHour) {
+  var baseHour = typeof startHour === 'number' ? startHour : PDF_BAND_START_HOUR;
+  var totalMinutes = baseHour * 60 + slotIndex * PDF_BAND_MINUTES_PER_SLOT;
   var hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
   var minutes = String(totalMinutes % 60).padStart(2, '0');
   return hours + ':' + minutes;
@@ -375,6 +438,30 @@ function findNearestPdfBandLineIndex_(x, xLines) {
   return bestIndex;
 }
 
+function findPdfBandStartSlotIndex_(x, xLines, slotWidth) {
+  if (!xLines || xLines.length === 0) return 0;
+  var tolerance = Math.max(0.8, (slotWidth || 0) * 0.18);
+
+  for (var i = xLines.length - 1; i >= 0; i--) {
+    if (x >= xLines[i] - tolerance) {
+      return i;
+    }
+  }
+  return 0;
+}
+
+function findPdfBandEndSlotIndex_(x, xLines, slotWidth) {
+  if (!xLines || xLines.length === 0) return 0;
+  var tolerance = Math.max(0.8, (slotWidth || 0) * 0.18);
+
+  for (var i = 0; i < xLines.length; i++) {
+    if (x <= xLines[i] + tolerance) {
+      return i;
+    }
+  }
+  return xLines.length - 1;
+}
+
 function uniqueSortedPdfValues_(values, epsilon) {
   var sorted = values.slice().sort(function(a, b) { return a - b; });
   var result = [];
@@ -391,7 +478,8 @@ function parseColoredRectsFromPdfContent_(content) {
   var currentPath = [];
   var subpaths = [];
   var rects = [];
-  var lines = String(content || '').split(/\r?\n/);
+  var operandStack = [];
+  var tokens = tokenizePdfContent_(String(content || ''));
 
   function flushFill_() {
     if (currentPath.length > 0) {
@@ -415,79 +503,119 @@ function parseColoredRectsFromPdfContent_(content) {
     subpaths = [];
   }
 
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i].trim();
-    if (!line) continue;
-
-    var colorMatch = line.match(/^([0-9.]+) ([0-9.]+) ([0-9.]+) rg$/);
-    if (colorMatch) {
-      color = normalizePdfBandColor_([Number(colorMatch[1]), Number(colorMatch[2]), Number(colorMatch[3])]);
-      currentPath = [];
-      subpaths = [];
+  for (var i = 0; i < tokens.length; i++) {
+    var token = tokens[i];
+    if (isPdfNumberToken_(token)) {
+      operandStack.push(Number(token));
       continue;
     }
 
-    var grayFillMatch = line.match(/^([0-9.]+) g$/);
-    if (grayFillMatch) {
-      var gray = Number(grayFillMatch[1]);
-      color = normalizePdfBandColor_([gray, gray, gray]);
-      currentPath = [];
-      subpaths = [];
+    if (token === 'rg') {
+      if (operandStack.length >= 3) {
+        color = normalizePdfBandColor_([
+          operandStack[operandStack.length - 3],
+          operandStack[operandStack.length - 2],
+          operandStack[operandStack.length - 1]
+        ]);
+      }
+      operandStack = [];
       continue;
     }
 
-    var cmykFillMatch = line.match(/^([0-9.]+) ([0-9.]+) ([0-9.]+) ([0-9.]+) k$/);
-    if (cmykFillMatch) {
-      color = normalizePdfBandColor_(convertPdfCmykToRgb_([
-        Number(cmykFillMatch[1]),
-        Number(cmykFillMatch[2]),
-        Number(cmykFillMatch[3]),
-        Number(cmykFillMatch[4])
-      ]));
-      currentPath = [];
-      subpaths = [];
+    if (token === 'g') {
+      if (operandStack.length >= 1) {
+        var gray = operandStack[operandStack.length - 1];
+        color = normalizePdfBandColor_([gray, gray, gray]);
+      }
+      operandStack = [];
       continue;
     }
 
-    var moveMatch = line.match(/^([0-9.]+) ([0-9.]+) m$/);
-    if (moveMatch) {
-      if (currentPath.length > 0) subpaths.push(currentPath);
-      currentPath = [[Number(moveMatch[1]), Number(moveMatch[2])]];
+    if (token === 'k') {
+      if (operandStack.length >= 4) {
+        color = normalizePdfBandColor_(convertPdfCmykToRgb_([
+          operandStack[operandStack.length - 4],
+          operandStack[operandStack.length - 3],
+          operandStack[operandStack.length - 2],
+          operandStack[operandStack.length - 1]
+        ]));
+      }
+      operandStack = [];
       continue;
     }
 
-    var lineMatch = line.match(/^([0-9.]+) ([0-9.]+) l$/);
-    if (lineMatch) {
-      currentPath.push([Number(lineMatch[1]), Number(lineMatch[2])]);
+    if (token === 'm') {
+      if (operandStack.length >= 2) {
+        if (currentPath.length > 0) subpaths.push(currentPath);
+        currentPath = [[
+          operandStack[operandStack.length - 2],
+          operandStack[operandStack.length - 1]
+        ]];
+      }
+      operandStack = [];
       continue;
     }
 
-    var rectMatch = line.match(/^([0-9.]+) ([0-9.]+) ([0-9.]+) ([0-9.]+) re$/);
-    if (rectMatch) {
-      if (currentPath.length > 0) subpaths.push(currentPath);
-      var x = Number(rectMatch[1]);
-      var y = Number(rectMatch[2]);
-      var w = Number(rectMatch[3]);
-      var h = Number(rectMatch[4]);
-      currentPath = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+    if (token === 'l') {
+      if (operandStack.length >= 2) {
+        currentPath.push([
+          operandStack[operandStack.length - 2],
+          operandStack[operandStack.length - 1]
+        ]);
+      }
+      operandStack = [];
       continue;
     }
 
-    if (line === 'h') {
+    if (token === 're') {
+      if (operandStack.length >= 4) {
+        if (currentPath.length > 0) subpaths.push(currentPath);
+        var x = operandStack[operandStack.length - 4];
+        var y = operandStack[operandStack.length - 3];
+        var w = operandStack[operandStack.length - 2];
+        var h = operandStack[operandStack.length - 1];
+        currentPath = [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+      }
+      operandStack = [];
+      continue;
+    }
+
+    if (token === 'h') {
       if (currentPath.length > 0) {
         subpaths.push(currentPath);
         currentPath = [];
       }
+      operandStack = [];
       continue;
     }
 
-    if (line === 'f' || line === 'f*' || line === 'B' || line === 'B*') {
+    if (token === 'f' || token === 'f*' || token === 'B' || token === 'B*') {
       flushFill_();
+      operandStack = [];
+      continue;
     }
+
+    if (token === 'n') {
+      currentPath = [];
+      subpaths = [];
+      operandStack = [];
+      continue;
+    }
+
+    operandStack = [];
   }
 
   flushFill_();
   return rects;
+}
+
+function tokenizePdfContent_(content) {
+  var matches = String(content || '').match(/\/[^\s]+|%[^\r\n]*|[^\s]+/g);
+  return matches || [];
+}
+
+function isPdfNumberToken_(token) {
+  return /^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(token);
 }
 
 function getPdfPathBoundingBox_(points) {
@@ -532,6 +660,14 @@ function isPdfBandGray_(color) {
   var min = Math.min(color[0], color[1], color[2]);
   var avg = (color[0] + color[1] + color[2]) / 3;
   return (max - min) < 0.02 && avg > 0.7 && avg < 0.95;
+}
+
+function isPdfBandGridLineColor_(color) {
+  if (isPdfBandBlack_(color)) return true;
+  var max = Math.max(color[0], color[1], color[2]);
+  var min = Math.min(color[0], color[1], color[2]);
+  var avg = (color[0] + color[1] + color[2]) / 3;
+  return (max - min) < 0.08 && avg < 0.7;
 }
 
 function isActiveBandColor_(color) {
@@ -812,6 +948,106 @@ function getOcrNamePatterns_() {
     unspaced: new RegExp('^' + chars + '{3,8}$', 'u'),
     valid: new RegExp('^' + chars + '+$', 'u')
   };
+}
+
+function inferPdfBandStartHourFromShiftAlignment_(blockLines, rowMeta, bandBlock) {
+  if (!rowMeta || !bandBlock || !bandBlock.rows) return null;
+
+  var parsed = parseStaffLines(blockLines).shifts || [];
+  if (parsed.length === 0) return null;
+
+  var earliestStartByName = {};
+  for (var i = 0; i < parsed.length; i++) {
+    var shift = parsed[i];
+    if (!shift || !shift.name || !shift.start) continue;
+    var startMinutes = parseClockToMinutes_(shift.start);
+    if (startMinutes === null) continue;
+    if (!(shift.name in earliestStartByName) || startMinutes < earliestStartByName[shift.name]) {
+      earliestStartByName[shift.name] = startMinutes;
+    }
+  }
+
+  var hourVotes = {};
+  var rowCount = Math.min(rowMeta.length, bandBlock.rows.length);
+  for (var ri = 0; ri < rowCount; ri++) {
+    var row = rowMeta[ri];
+    var bandRow = bandBlock.rows[ri];
+    if (!row || !bandRow || !bandRow.intervals || bandRow.intervals.length === 0) continue;
+    if (!(row.name in earliestStartByName)) continue;
+
+    var bandStartSlot = bandRow.intervals[0].startSlot;
+    if (typeof bandStartSlot !== 'number') continue;
+
+    var baseMinutes = earliestStartByName[row.name] - bandStartSlot * PDF_BAND_MINUTES_PER_SLOT;
+    var roundedHour = Math.round(baseMinutes / 60);
+    if (roundedHour < 0 || roundedHour > 23) continue;
+    if (Math.abs(baseMinutes - roundedHour * 60) > 15) continue;
+
+    hourVotes[roundedHour] = (hourVotes[roundedHour] || 0) + 1;
+  }
+
+  var bestHour = null;
+  var bestVotes = 0;
+  for (var key in hourVotes) {
+    if (!Object.prototype.hasOwnProperty.call(hourVotes, key)) continue;
+    var votes = hourVotes[key];
+    var hour = parseInt(key, 10);
+    if (votes > bestVotes || (votes === bestVotes && bestHour !== null && hour < bestHour)) {
+      bestVotes = votes;
+      bestHour = hour;
+    }
+  }
+
+  return bestVotes >= 2 ? bestHour : null;
+}
+
+function inferPdfBandStartHourFromOcrBlock_(blockLines) {
+  var hourValues = [];
+  for (var hi = 0; hi < blockLines.length; hi++) {
+    var hourLine = normalizePdfLine_(blockLines[hi]);
+    if (!/^\d{1,2}$/.test(hourLine)) continue;
+
+    var hour = parseInt(hourLine, 10);
+    if (hour >= 0 && hour <= 23) {
+      if (hourValues.length === 0 || hourValues[hourValues.length - 1] !== hour) {
+        hourValues.push(hour);
+      }
+    }
+  }
+
+  if (hourValues.length === 0) return null;
+
+  var bestRun = [];
+  var currentRun = [hourValues[0]];
+  for (var ri = 1; ri < hourValues.length; ri++) {
+    if (hourValues[ri] === currentRun[currentRun.length - 1] + 1) {
+      currentRun.push(hourValues[ri]);
+    } else if (hourValues[ri] !== currentRun[currentRun.length - 1]) {
+      if (currentRun.length > bestRun.length) bestRun = currentRun.slice();
+      currentRun = [hourValues[ri]];
+    }
+  }
+  if (currentRun.length > bestRun.length) bestRun = currentRun.slice();
+
+  if (bestRun.length >= 4) return bestRun[0];
+
+  for (var ei = 0; ei < hourValues.length; ei++) {
+    if (hourValues[ei] >= 6 && hourValues[ei] <= 18) {
+      return hourValues[ei];
+    }
+  }
+
+  return null;
+}
+
+function parseClockToMinutes_(timeText) {
+  if (!timeText || timeText.indexOf(':') === -1) return null;
+  var parts = String(timeText).split(':');
+  if (parts.length < 2) return null;
+  var hours = parseInt(parts[0], 10);
+  var minutes = parseInt(parts[1], 10);
+  if (isNaN(hours) || isNaN(minutes)) return null;
+  return hours * 60 + minutes;
 }
 
 // Override: keep the existing flow, but allow names like "奈々子" and

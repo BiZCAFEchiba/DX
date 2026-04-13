@@ -402,9 +402,6 @@
   <button class="tab-btn" id="tabStaffRoom" onclick="switchTab('room')">
     <span class="tab-icon">🚪</span>ルーム管理
   </button>
-  <button class="tab-btn" onclick="openShiftBoard()">
-    <span class="tab-icon">📅</span>シフト
-  </button>
 </nav>
 
 <div class="tab-content">
@@ -699,63 +696,65 @@
   </div>
 
   <div class="tab-pane" id="paneStaffRoom">
-    <div class="container">
-      <div class="section-title">🚪 Web会議ルーム管理</div>
+    <!-- サブタブナビ -->
+    <div style="display:flex;background:#fff;border-bottom:2px solid #e0e7ef;">
+      <button class="room-sub-btn active" id="roomSubShiru" onclick="switchRoomSub('shiru')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.8rem;font-weight:700;color:#1a3a5c;border-bottom:3px solid #1a3a5c;margin-bottom:-2px;cursor:pointer;">🎫 知るパスID</button>
+      <button class="room-sub-btn" id="roomSubSettings" onclick="switchRoomSub('settings')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.8rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">⚙️ 設定</button>
+      <button class="room-sub-btn" id="roomSubReserve" onclick="switchRoomSub('reserve')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.8rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">📋 予約管理</button>
+    </div>
 
-      <!-- 知るパスID発行 -->
-      <div class="current-card" style="padding:16px;margin-bottom:16px;">
-        <div class="section-title" style="margin-bottom:8px;">🎫 知るパスID発行</div>
-        <div style="font-size:0.82rem;color:#666;margin-bottom:10px;">知るパスを渡す際にIDを発行して、カードに書いてください。</div>
-
-        <!-- 有効日数設定 -->
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:10px 12px;background:#f5f7fa;border-radius:8px;">
-          <span style="font-size:0.82rem;color:#555;white-space:nowrap;">有効日数:</span>
-          <input type="number" id="shiruPassValidDays" class="room-date-input" min="1" max="365" style="width:80px;text-align:center;">
-          <span style="font-size:0.82rem;color:#555;white-space:nowrap;">日間</span>
-          <button class="btn-secondary" style="padding:8px 14px;font-size:0.82rem;white-space:nowrap;" onclick="saveShiruPassValidDays()">保存</button>
-          <div id="shiruPassDaysMsg" style="font-size:0.78rem;color:#666;flex:1;"></div>
-        </div>
-        <!-- 予約上限時間設定 -->
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;padding:10px 12px;background:#f5f7fa;border-radius:8px;">
-          <span style="font-size:0.82rem;color:#555;white-space:nowrap;">予約上限:</span>
-          <input type="number" id="roomMaxHours" class="room-date-input" min="0.25" max="8" step="0.25" style="width:80px;text-align:center;">
-          <span style="font-size:0.82rem;color:#555;white-space:nowrap;">時間／ID</span>
-          <button class="btn-secondary" style="padding:8px 14px;font-size:0.82rem;white-space:nowrap;" onclick="saveRoomMaxHours()">保存</button>
-          <div id="roomMaxHoursMsg" style="font-size:0.78rem;color:#666;flex:1;"></div>
-        </div>
-
-        <!-- ID発行 -->
-        <button onclick="issueShiruPass()" style="width:100%;padding:16px;font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,#1a6fc4,#0d9488);color:#fff;border:none;border-radius:12px;cursor:pointer;letter-spacing:0.08em;margin-bottom:12px;box-shadow:0 4px 12px rgba(26,111,196,0.35);">🎫 知るパスID 発行</button>
-        <div id="shiruPassResult" style="display:none;">
-          <div style="background:linear-gradient(135deg,#e8f4fd,#d4f5ef);border-radius:12px;padding:18px;text-align:center;margin-bottom:12px;border:2px solid #1a6fc4;">
-            <div style="font-size:0.78rem;color:#555;margin-bottom:6px;font-weight:600;">✅ 発行されたID（カードに記入してください）</div>
-            <div id="shiruPassIdDisplay" style="font-size:2.6rem;font-weight:900;letter-spacing:0.3em;color:#1a3a5c;font-family:monospace;background:#fff;border-radius:8px;padding:10px 16px;display:inline-block;box-shadow:0 2px 8px rgba(0,0,0,0.12);"></div>
-            <div id="shiruPassExpiryDisplay" style="font-size:0.82rem;color:#1a6fc4;font-weight:700;margin-top:8px;"></div>
-          </div>
-        </div>
-        <!-- 発行済みID一覧 -->
-        <div style="margin-top:8px;">
-          <div style="font-size:0.82rem;color:#555;font-weight:700;margin-bottom:6px;">発行済みID一覧</div>
-          <input type="text" id="shiruPassSearch" class="room-date-input" placeholder="IDで検索..." style="width:100%;margin-bottom:8px;box-sizing:border-box;" oninput="filterShiruPassList()">
-          <div id="shiruPassList"></div>
-        </div>
-      </div>
-
-      <!-- 日付選択 -->
+    <!-- 予約管理 -->
+    <div class="container room-sub-pane" id="roomPaneReserve" style="display:none;">
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
         <input type="date" id="staffRoomDate" class="room-date-input" style="flex:1;">
-        <button class="btn-primary" style="white-space:nowrap;" onclick="loadStaffRoomList()">予約一覧を表示</button>
+        <button class="btn-primary" style="white-space:nowrap;" onclick="loadStaffRoomList()">一覧を表示</button>
       </div>
-
-      <!-- 予約一覧 -->
       <div id="staffRoomList"></div>
-
-      <!-- 利用者管理 -->
       <div style="margin-top:24px;">
         <div class="section-title" style="margin-bottom:8px;">利用者管理</div>
         <button class="btn-secondary" style="width:100%;margin-bottom:12px;" onclick="loadRoomUserList()">利用者一覧を読み込む</button>
         <div id="staffRoomUserList"></div>
       </div>
+    </div>
+
+    <!-- 知るパスID -->
+    <div class="container room-sub-pane" id="roomPaneShiru">
+      <div class="current-card" style="padding:16px;margin-bottom:16px;">
+        <div class="section-title" style="margin-bottom:8px;">🎫 知るパスID発行</div>
+        <div style="font-size:0.82rem;color:#666;margin-bottom:10px;">知るパスを渡す際にIDを発行して、カードに書いてください。</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+          <button onclick="issueShiruPass()" style="flex:1;padding:16px;font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,#1a6fc4,#0d9488);color:#fff;border:none;border-radius:12px;cursor:pointer;letter-spacing:0.08em;box-shadow:0 4px 12px rgba(26,111,196,0.35);">🎫 知るパスID 発行</button>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <span style="font-size:0.72rem;color:#888;">枚数</span>
+            <input type="number" id="shiruPassCount" value="1" min="1" max="20" style="width:52px;text-align:center;border:1px solid #c9d3df;border-radius:8px;padding:6px 4px;font-size:1rem;font-weight:700;">
+          </div>
+        </div>
+        <div id="shiruPassResult" style="display:none;">
+          <div style="background:linear-gradient(135deg,#e8f4fd,#d4f5ef);border-radius:12px;padding:14px;margin-bottom:12px;border:2px solid #1a6fc4;">
+            <div style="font-size:0.78rem;color:#555;margin-bottom:8px;font-weight:600;">✅ 発行されたID（カードに記入してください）</div>
+            <div id="shiruPassIdDisplay"></div>
+            <div id="shiruPassExpiryDisplay" style="font-size:0.82rem;color:#1a6fc4;font-weight:700;margin-top:8px;text-align:center;"></div>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+            <div style="font-size:0.82rem;color:#555;font-weight:700;">発行済みID一覧</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <label style="font-size:0.78rem;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer;">
+                <input type="checkbox" id="shiruPassSelectAll" onchange="toggleAllShiruPass(this.checked)"> 全選択
+              </label>
+              <button id="shiruPassBulkRenewBtn" onclick="bulkRenewShiruPass()" style="display:none;padding:4px 12px;font-size:0.78rem;font-weight:700;background:#1a6fc4;color:#fff;border:none;border-radius:6px;cursor:pointer;">まとめて更新</button>
+            </div>
+          </div>
+          <input type="text" id="shiruPassSearch" class="room-date-input" placeholder="IDで検索..." style="width:100%;margin-bottom:8px;box-sizing:border-box;" oninput="filterShiruPassList()">
+          <div id="shiruPassList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 設定 -->
+    <div class="container room-sub-pane" id="roomPaneSettings" style="display:none;">
+      <div id="roomSettingsBody"><div style="color:#888;font-size:.85rem;text-align:center;padding:24px;">読み込み中...</div></div>
     </div>
   </div>
 
@@ -1089,6 +1088,11 @@
         selectedLevel = -1;
         document.querySelectorAll('.level-btn').forEach(function(item) { item.classList.remove('selected'); });
         showToast('混雑状況を更新しました');
+        try {
+          var bc = new BroadcastChannel('bizcafe_congestion');
+          bc.postMessage({ level: d.level !== undefined ? d.level : -1, updatedAt: d.updatedAt || '' });
+          bc.close();
+        } catch (e) {}
       })
       .catch(function() { showToast('混雑状況の更新に失敗しました'); })
       .finally(function() {
@@ -3041,10 +3045,150 @@
   function loadStaffRoom() {
     loadCheckinMode();
     loadStaffRoomList();
-    loadShiruPassValidDays();
-    loadRoomMaxHours();
     loadShiruPassList();
+    loadRoomSettings();
   }
+
+  // ===== ルーム管理 サブタブ =====
+  function switchRoomSub(name) {
+    document.querySelectorAll('.room-sub-btn').forEach(function(b) {
+      b.style.color = '#888';
+      b.style.borderBottomColor = 'transparent';
+    });
+    document.querySelectorAll('.room-sub-pane').forEach(function(p) { p.style.display = 'none'; });
+    var map = { reserve: 'Reserve', shiru: 'Shiru', settings: 'Settings' };
+    var btn  = document.getElementById('roomSub' + map[name]);
+    var pane = document.getElementById('roomPane' + map[name]);
+    if (btn)  { btn.style.color = '#1a3a5c'; btn.style.borderBottomColor = '#1a3a5c'; }
+    if (pane) pane.style.display = 'block';
+  }
+
+  // ===== ルーム設定 =====
+  var roomBlockedDates = [];
+  var roomCalYear = 0;
+  var roomCalMonth = 0;
+
+  function loadRoomSettings() {
+    fetch(GAS_API_URL + '?page=calendar&action=roomSettings')
+      .then(function(r) { return r.json(); })
+      .then(function(s) { renderRoomSettings(s); })
+      .catch(function() {
+        var el = document.getElementById('roomSettingsBody');
+        if (el) el.innerHTML = '<div style="color:#c0392b;font-size:.85rem;">設定の取得に失敗しました</div>';
+      });
+  }
+
+  function renderRoomSettings(s) {
+    var el = document.getElementById('roomSettingsBody');
+    if (!el) return;
+    roomBlockedDates = (s.blockedDates || []).slice();
+    var now = new Date();
+    roomCalYear  = now.getFullYear();
+    roomCalMonth = now.getMonth() + 1;
+
+    el.innerHTML =
+      '<div style="margin-bottom:16px;padding:14px;background:#f5f7fa;border-radius:10px;">' +
+        '<div style="font-size:0.82rem;font-weight:700;color:#555;margin-bottom:8px;">📅 予約受付開始日</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<input type="date" id="rsOpenDate" class="room-date-input" style="flex:1;" value="' + esc(s.openDate||'2026-06-01') + '">' +
+          '<button class="btn-secondary" style="white-space:nowrap;" onclick="saveRoomOpenDate()">保存</button>' +
+        '</div>' +
+        '<div id="rsOpenDateMsg" style="font-size:0.78rem;min-height:1em;margin-top:4px;"></div>' +
+      '</div>' +
+      '<div style="margin-bottom:16px;padding:14px;background:#f5f7fa;border-radius:10px;">' +
+        '<div style="font-size:0.82rem;font-weight:700;color:#555;margin-bottom:8px;">⏱ 予約上限時間（知るパスID 1枚あたり）</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<input type="number" id="roomMaxHours" class="room-date-input" min="0.25" max="8" step="0.25" style="width:80px;text-align:center;" value="' + esc(String(s.maxHours||2)) + '">' +
+          '<span style="font-size:0.82rem;color:#555;">時間 / ID</span>' +
+          '<button class="btn-secondary" style="white-space:nowrap;" onclick="saveRoomMaxHours()">保存</button>' +
+        '</div>' +
+        '<div id="roomMaxHoursMsg" style="font-size:0.78rem;min-height:1em;margin-top:4px;"></div>' +
+      '</div>' +
+      '<div style="padding:14px;background:#f5f7fa;border-radius:10px;">' +
+        '<div style="font-size:0.82rem;font-weight:700;color:#555;margin-bottom:4px;">🚫 予約不可日</div>' +
+        '<div style="font-size:0.75rem;color:#999;margin-bottom:10px;">日付をタップして不可／解除を切り替えます</div>' +
+        '<div id="rsBlockedCal"></div>' +
+        '<div style="display:flex;gap:8px;align-items:center;margin-top:10px;">' +
+          '<button class="btn-primary" onclick="saveRoomBlockedDates()">不可日を保存</button>' +
+          '<div id="rsBlockedMsg" style="font-size:0.78rem;color:#666;"></div>' +
+        '</div>' +
+      '</div>';
+
+    renderRoomBlockedCal();
+  }
+
+  function saveRoomOpenDate() {
+    var val = document.getElementById('rsOpenDate').value;
+    var msg = document.getElementById('rsOpenDateMsg');
+    if (!val) { msg.style.color='#c0392b'; msg.textContent='日付を選択してください'; return; }
+    msg.style.color='#888'; msg.textContent='保存中...';
+    fetch(GAS_API_URL + '?page=calendar&action=roomSettings&set=openDate&openDate=' + encodeURIComponent(val))
+      .then(function(r){return r.json();})
+      .then(function(d){ msg.style.color=d.ok?'#28a745':'#c0392b'; msg.textContent=d.ok?'保存しました':(d.error||'保存失敗'); })
+      .catch(function(){ msg.style.color='#c0392b'; msg.textContent='通信エラー'; });
+  }
+
+  function saveRoomTimeRange() {
+    var start     = document.getElementById('rsTimeStart').value;
+    var end       = document.getElementById('rsTimeEnd').value;
+    var startDate = document.getElementById('rsTimeStartDate').value;
+    var msg       = document.getElementById('rsTimeMsg');
+    if (!start||!end){ msg.style.color='#c0392b'; msg.textContent='開始・終了を両方入力してください'; return; }
+    msg.style.color='#888'; msg.textContent='保存中...';
+    fetch(GAS_API_URL + '?page=calendar&action=roomSettings&set=timeRange&start='+encodeURIComponent(start)+'&end='+encodeURIComponent(end)+'&startDate='+encodeURIComponent(startDate))
+      .then(function(r){return r.json();})
+      .then(function(d){
+        var errMap={invalid_time:'時刻の形式が正しくありません',start_after_end:'開始が終了より後になっています',invalid_date:'日付の形式が正しくありません'};
+        msg.style.color=d.ok?'#28a745':'#c0392b'; msg.textContent=d.ok?'保存しました':(errMap[d.error]||d.error||'保存失敗');
+      })
+      .catch(function(){ msg.style.color='#c0392b'; msg.textContent='通信エラー'; });
+  }
+
+  function saveRoomBlockedDates() {
+    var msg = document.getElementById('rsBlockedMsg');
+    msg.style.color='#888'; msg.textContent='保存中...';
+    fetch(GAS_API_URL + '?page=calendar&action=roomSettings&set=blockedDates&dates='+encodeURIComponent(JSON.stringify(roomBlockedDates)))
+      .then(function(r){return r.json();})
+      .then(function(d){ msg.style.color=d.ok?'#28a745':'#c0392b'; msg.textContent=d.ok?('保存しました（'+roomBlockedDates.length+'日）'):(d.error||'保存失敗'); })
+      .catch(function(){ msg.style.color='#c0392b'; msg.textContent='通信エラー'; });
+  }
+
+  function renderRoomBlockedCal() {
+    var wrap = document.getElementById('rsBlockedCal');
+    if (!wrap) return;
+    var DOW = ['日','月','火','水','木','金','土'];
+    var firstDay = new Date(roomCalYear, roomCalMonth - 1, 1).getDay();
+    var daysInMonth = new Date(roomCalYear, roomCalMonth, 0).getDate();
+
+    var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+      + '<button onclick="roomCalPrev()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;padding:4px 10px;">◀</button>'
+      + '<span style="font-weight:700;font-size:0.9rem;">' + roomCalYear + '年' + roomCalMonth + '月</span>'
+      + '<button onclick="roomCalNext()" style="background:none;border:none;font-size:1.1rem;cursor:pointer;padding:4px 10px;">▶</button>'
+      + '</div>'
+      + '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;">';
+    DOW.forEach(function(d,i){ html += '<div style="font-size:0.72rem;font-weight:700;color:'+(i===0?'#e53e3e':i===6?'#3182ce':'#555')+';padding:2px 0;">'+d+'</div>'; });
+    for (var i=0;i<firstDay;i++) html+='<div></div>';
+    for (var day=1;day<=daysInMonth;day++) {
+      var iso = roomCalYear+'-'+pad2r(roomCalMonth)+'-'+pad2r(day);
+      var blocked = roomBlockedDates.indexOf(iso)!==-1;
+      var dow = (firstDay+day-1)%7;
+      var color = dow===0?'#e53e3e':dow===6?'#3182ce':'#333';
+      var style = blocked ? 'background:#e53e3e;color:#fff;border-radius:50%;font-weight:700;' : 'color:'+color+';';
+      html += '<div onclick="toggleRoomBlocked(\''+iso+'\')" style="cursor:pointer;padding:6px 2px;font-size:0.82rem;'+style+'">'+day+'</div>';
+    }
+    html += '</div>';
+    wrap.innerHTML = html;
+  }
+
+  function toggleRoomBlocked(iso) {
+    var idx = roomBlockedDates.indexOf(iso);
+    if (idx===-1) roomBlockedDates.push(iso); else roomBlockedDates.splice(idx,1);
+    renderRoomBlockedCal();
+  }
+  function roomCalPrev(){ roomCalMonth--; if(roomCalMonth<1){roomCalMonth=12;roomCalYear--;} renderRoomBlockedCal(); }
+  function roomCalNext(){ roomCalMonth++; if(roomCalMonth>12){roomCalMonth=1;roomCalYear++;} renderRoomBlockedCal(); }
+  function pad2r(n){ return String(n).padStart(2,'0'); }
+  function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   function loadCheckinMode() {
     fetch(GAS_API_URL + '?page=calendar&action=roomCheckinMode')
@@ -3281,11 +3425,22 @@
   }
 
   function issueShiruPass() {
-    fetch(GAS_API_URL + '?page=calendar&action=shiruPassIssue')
+    var count = parseInt((document.getElementById('shiruPassCount') || {}).value) || 1;
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassIssue&count=' + encodeURIComponent(count))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (!data.ok) { showToast('発行に失敗しました。', true); return; }
-        document.getElementById('shiruPassIdDisplay').textContent = data.id;
+        var ids = data.ids || [];
+        var displayEl = document.getElementById('shiruPassIdDisplay');
+        if (ids.length === 1) {
+          displayEl.innerHTML = '<div style="font-size:2.6rem;font-weight:900;letter-spacing:0.3em;color:#1a3a5c;font-family:monospace;background:#fff;border-radius:8px;padding:10px 16px;display:inline-block;box-shadow:0 2px 8px rgba(0,0,0,0.12);">' + escStaff(ids[0]) + '</div>';
+        } else {
+          displayEl.innerHTML = ids.map(function(id, i) {
+            return '<div style="display:inline-block;font-family:monospace;font-weight:900;font-size:1.4rem;letter-spacing:0.15em;color:#1a3a5c;background:#fff;border-radius:8px;padding:6px 12px;margin:4px;box-shadow:0 1px 4px rgba(0,0,0,0.10);">'
+              + (ids.length > 1 ? '<span style="font-size:0.7rem;color:#888;font-weight:600;margin-right:4px;">No.' + (i+1) + '</span>' : '')
+              + escStaff(id) + '</div>';
+          }).join('');
+        }
         document.getElementById('shiruPassExpiryDisplay').textContent = '有効期限: ' + data.expiry + ' まで';
         document.getElementById('shiruPassResult').style.display = 'block';
         loadShiruPassList();
@@ -3311,15 +3466,21 @@
     var listEl = document.getElementById('shiruPassList');
     var q = ((document.getElementById('shiruPassSearch') || {}).value || '').trim().toUpperCase();
     var filtered = q ? shiruPassAllData.filter(function(p) { return p.id.indexOf(q) !== -1; }) : shiruPassAllData;
+    var selectAllEl = document.getElementById('shiruPassSelectAll');
+    if (selectAllEl) selectAllEl.checked = false;
+    updateBulkRenewBtn();
     if (!filtered.length) {
       listEl.innerHTML = '<div style="color:#888;font-size:.82rem;">' + (q ? '該当するIDがありません。' : '発行済みIDはありません。') + '</div>'; return;
     }
     listEl.innerHTML = filtered.map(function(p) {
       return '<div style="padding:8px 10px;background:' + (p.expired ? '#f5f7fa' : '#fff') + ';border-radius:8px;margin-bottom:6px;border:1px solid #e0e7ef;">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
-        +   '<div>'
-        +     '<span style="font-family:monospace;font-weight:700;font-size:1rem;color:' + (p.expired ? '#aaa' : '#1a3a5c') + ';">' + escStaff(p.id) + '</span>'
-        +     '<span style="margin-left:10px;font-size:0.75rem;color:#888;">' + escStaff(p.issuedAt) + ' 発行</span>'
+        +   '<div style="display:flex;align-items:center;gap:8px;">'
+        +     '<input type="checkbox" class="shiru-pass-check" value="' + escStaff(p.id) + '" onchange="updateBulkRenewBtn()">'
+        +     '<div>'
+        +       '<span style="font-family:monospace;font-weight:700;font-size:1rem;color:' + (p.expired ? '#aaa' : '#1a3a5c') + ';">' + escStaff(p.id) + '</span>'
+        +       '<span style="margin-left:10px;font-size:0.75rem;color:#888;">' + escStaff(p.issuedAt) + ' 発行</span>'
+        +     '</div>'
         +   '</div>'
         +   '<div style="display:flex;align-items:center;gap:6px;">'
         +     '<span style="font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:' + (p.expired ? '#f8d7da' : '#d4edda') + ';color:' + (p.expired ? '#721c24' : '#155724') + ';">'
@@ -3330,6 +3491,45 @@
         + '</div>'
         + '</div>';
     }).join('');
+  }
+
+  function toggleAllShiruPass(checked) {
+    var boxes = document.querySelectorAll('.shiru-pass-check');
+    boxes.forEach(function(cb) { cb.checked = checked; });
+    updateBulkRenewBtn();
+  }
+
+  function updateBulkRenewBtn() {
+    var checked = document.querySelectorAll('.shiru-pass-check:checked');
+    var btn = document.getElementById('shiruPassBulkRenewBtn');
+    if (btn) {
+      btn.style.display = checked.length > 0 ? 'inline-block' : 'none';
+      btn.textContent = checked.length > 1 ? checked.length + '件まとめて更新' : 'まとめて更新';
+    }
+  }
+
+  function bulkRenewShiruPass() {
+    var checked = document.querySelectorAll('.shiru-pass-check:checked');
+    var ids = Array.prototype.slice.call(checked).map(function(cb) { return cb.value; });
+    if (!ids.length) return;
+    if (!confirm(ids.length + '件のIDを翌月末日まで延長しますか？')) return;
+    var btn = document.getElementById('shiruPassBulkRenewBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '更新中...'; }
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassBulkRenew&ids=' + encodeURIComponent(JSON.stringify(ids)))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showToast(data.updated.length + '件を ' + data.expiry + ' まで更新しました');
+          loadShiruPassList();
+        } else {
+          showToast('エラー: ' + data.error, true);
+          if (btn) { btn.disabled = false; btn.textContent = 'まとめて更新'; }
+        }
+      })
+      .catch(function() {
+        showToast('通信エラー', true);
+        if (btn) { btn.disabled = false; btn.textContent = 'まとめて更新'; }
+      });
   }
 </script>
 <script>

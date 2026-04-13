@@ -271,11 +271,15 @@ function kanbuGetMeetings_() {
     if (!data[i][0]) continue;
     const d = data[i][0] instanceof Date ? data[i][0] : new Date(data[i][0]);
     if (isNaN(d.getTime())) continue;
+    const fmtTime = function(v) {
+      if (v instanceof Date) return Utilities.formatDate(v, TIMEZONE, 'HH:mm');
+      return String(v || '').trim();
+    };
     rows.push({
       rowIndex:  i + 1,
       date:      Utilities.formatDate(d, TIMEZONE, 'yyyy-MM-dd'),
-      startTime: String(data[i][1]).trim(),
-      endTime:   String(data[i][2]).trim(),
+      startTime: fmtTime(data[i][1]),
+      endTime:   fmtTime(data[i][2]),
       note:      String(data[i][3] || '').trim()
     });
   }

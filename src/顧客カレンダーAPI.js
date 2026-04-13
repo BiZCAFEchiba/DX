@@ -133,8 +133,8 @@ function buildKashikiriMap_(year, month) {
         if (isNaN(d.getTime())) continue;
         if (d.getFullYear() !== year || d.getMonth() + 1 !== month) continue;
 
-        const startStr = String(row[1]).trim(); // HH:mm
-        const endStr   = String(row[2]).trim(); // HH:mm
+        const startStr = extractTimeHHmm_(row[1]);
+        const endStr   = extractTimeHHmm_(row[2]);
         if (!startStr || !endStr) continue;
 
         // 前後1時間バッファ
@@ -259,6 +259,14 @@ function getMeetupsForCustomer_(dateISO) {
     Logger.log('getMeetupsForCustomer_ エラー: ' + e.message);
     return [];
   }
+}
+
+/** Date オブジェクトまたは "HH:mm" 文字列から "HH:mm" を返す */
+function extractTimeHHmm_(val) {
+  if (val instanceof Date) {
+    return String(val.getHours()).padStart(2, '0') + ':' + String(val.getMinutes()).padStart(2, '0');
+  }
+  return String(val).trim();
 }
 
 function timeToMin_(timeStr) {

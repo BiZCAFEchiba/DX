@@ -3157,3 +3157,54 @@ function menuSyncMeetupForm() {
     SpreadsheetApp.getUi().alert('更新できませんでした。ログを確認してください。');
   }
 }
+
+/**
+ * 指定期間内の対面Meetup一覧を返す（シフトカレンダー用）
+ * 満席でも表示する。オンライン種別のみ除外。
+ * @param {string} from - YYYY-MM-DD
+ * @param {string} to   - YYYY-MM-DD
+ * @returns {{ ok: boolean, meetups: Object }} meetups = { 'YYYY-MM-DD': [{company, time, kind}] }
+ */
+function getInPersonMeetups_(from, to) {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEET_MEETUP);
+    if (!sheet || sheet.getLastRow() <= 1) {
+      Logger.log('getInPersonMeetups_: シートなし or データなし');
+      return { ok: true, meetups: {} };
+    }
+
+    const lastRow = sheet.getLastRow();
+    const numCols = Math.max(sheet.getLastColumn(), 4);
+    const data = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
+    const meetups = {};
+
+    for (var i = 0; i < data.length; i++) {
+      const dateVal = data[i][0];
+      if (!dateVal) continue;
+      const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
+      if (isNaN(d.getTime())) continue;
+
+      const dateStr = Utilities.formatDate(d, TIMEZONE, 'yyyy-MM-dd');
+      if (from && dateStr < from) continue;
+      if (to && dateStr > to) continue;
+
+      const kind    = String(data[i][3] || '').trim();
+      const company = String(data[i][1] || '').trim();
+      if (!company) continue;
+
+      // オンライン専用は除外（「オンライン」を含みかつ「対面」を含まない）
+      const kindLower = kind.toLowerCase();
+      if (kind.includes('オンライン') && !kind.includes('対面')) continue;
+
+      if (!meetups[dateStr]) meetups[dateStr] = [];
+      meetups[dateStr].push({ company: company, time: String(data[i][2] || '').trim(), kind: kind });
+    }
+
+    Logger.log('getInPersonMeetups_: ' + from + '〜' + to + ' 件数=' + Object.keys(meetups).length + '日');
+    return { ok: true, meetups: meetups };
+  } catch (e) {
+    Logger.log('getInPersonMeetups_ error: ' + e.message);
+    return { ok: true, meetups: {} };
+  }
+}

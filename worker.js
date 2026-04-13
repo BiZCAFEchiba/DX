@@ -1,5 +1,5 @@
 const GAS_WEB_APP_URL =
-  'https://script.google.com/macros/s/AKfycbz1-u0KjsXGA8RXjD8eLHA8amJg3oesL_ahcyvbXU7TX53y_qec3MR6pClR6uj5wIPS/exec';
+  'https://script.google.com/macros/s/AKfycbxc5QSSH2bHqX6cuHqClVMWfkBrfqW8Zi4AY2E_wYPjO2NWUD4oJXMihgR1XtVgR0vP/exec';
 
 export default {
   async fetch(request, env) {

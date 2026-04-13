@@ -149,7 +149,7 @@ function onYuchiFormSubmit(e) {
       Logger.log('[設問' + i + '] title="' + title + '" type=' + (Array.isArray(ans) ? 'array(' + ans.length + ')' : typeof ans) + ' value=' + JSON.stringify(ans));
       if (title === 'スタッフ名（フルネーム）') {
         staffName = String(ans).trim();
-      } else if (title === '【誘致に成功した企業】') {
+      } else if (title === '企業を選択してください（複数選択可）') {
         if (Array.isArray(ans)) {
           var nonEmpty = ans.filter(function(v) { return String(v).trim() !== ''; });
           selectedCompanies = selectedCompanies.concat(nonEmpty);
@@ -280,12 +280,12 @@ function buildYuchiGroupMessage_(formData) {
     lines.push('誘致日: ' + (d.getMonth() + 1) + '/' + d.getDate() + '(' + dayNames[d.getDay()] + ')');
   }
 
-  formData.entries.forEach(function(entry) {
-    lines.push('');
+  formData.entries.forEach(function(entry, idx) {
+    if (idx > 0) lines.push('');
     lines.push('企業: ' + entry.companyName);
 
     if (entry.dates && entry.dates.length > 0) {
-      lines.push('開催日: ' + entry.dates.join(' / '));
+      lines.push('開催日: ' + entry.dates.map(function(d) { return d.replace(/\s+\S+~\S+$/, ''); }).join(' / '));
     }
     if (entry.yearCounts && entry.yearCounts.length > 0) {
       entry.yearCounts.forEach(function(yc) {
