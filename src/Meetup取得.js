@@ -2766,6 +2766,20 @@ function updateParticipationOnly() {
 }
 
 /**
+ * 残席の定期更新トリガー用ラッパー
+ * 2時間ごとに呼ばれるが、10〜18時の範囲外はスキップする
+ */
+function triggerParticipationUpdate() {
+  const hour = Number(Utilities.formatDate(new Date(), TIMEZONE, 'H'));
+  if (hour < 10 || hour > 18) {
+    Logger.log('triggerParticipationUpdate: 対象時間外のためスキップ（' + hour + '時）');
+    return;
+  }
+  Logger.log('triggerParticipationUpdate: 残席更新開始（' + hour + '時）');
+  updateParticipationOnly();
+}
+
+/**
  * 日次更新ステップ1（毎朝設定時刻）
  * ① 30日分の新規イベントを差分追加
  * ② F列（予約ID）を補完

@@ -866,7 +866,8 @@ function updateTriggersFromSettings_() {
   ['triggerShiftReminder', 'triggerShortageAlert', 'triggerFollowUpReminder',
    'triggerDeleteLastMonthShifts', 'triggerWeeklyMeetupShare', 'weeklyMeetupCarousel',
    'dailyMeetupUpdate', 'cleanupPastMeetups', 'autoProcessPdfFromDrive',
-   'fetchMeetupSchedule', 'fetchAllUpcomingMeetups', 'main'].forEach(deleteExistingTriggers_);
+   'fetchMeetupSchedule', 'fetchAllUpcomingMeetups', 'main',
+   'updateParticipationOnly', 'triggerParticipationUpdate'].forEach(deleteExistingTriggers_);
 
   // 設定シートから時間を取得
   const reminderHour   = getSettingValue_('翌日リマインド実行時間（時）', 12);
@@ -885,6 +886,8 @@ function updateTriggersFromSettings_() {
   ScriptApp.newTrigger('triggerDeleteLastMonthShifts').timeBased().onMonthDay(1).atHour(2).create();
   // Meetup日次更新（取込→ID補完→参加数更新）
   ScriptApp.newTrigger('dailyMeetupUpdate').timeBased().atHour(meetupHour).everyDays(1).create();
+  // 残席更新（2時間ごと、10〜18時のみ実行・それ以外はラッパー内でスキップ）
+  ScriptApp.newTrigger('triggerParticipationUpdate').timeBased().everyHours(2).create();
   // 過去Meetup行削除（毎日0時）
   ScriptApp.newTrigger('cleanupPastMeetups').timeBased().atHour(0).everyDays(1).create();
   // 過去ルーム予約行削除（毎日3時）
@@ -899,7 +902,8 @@ function updateTriggersFromSettings_() {
 
   return 'リマインド(' + reminderHour + '時) / 不足警告(' + shortageHour + '時) / 追っかけ(' + followUpHour + '時)\n' +
          'Meetup日次更新(' + meetupHour + '時) / Meetupカルーセル共有(毎週日曜' + meetupShareHour + '時) / 過去削除(毎日0時)\n' +
-         'PDF自動取込(5時/10時/19時/22時)';
+         'PDF自動取込(5時/10時/19時/22時)\n' +
+         '残席更新(10/12/14/16/18時)';
 }
 
 /**
