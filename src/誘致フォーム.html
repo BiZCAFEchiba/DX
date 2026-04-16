@@ -260,10 +260,10 @@
 
       var idx = ci;
 
-      // 開催日
+      // 開催日（セッションがある企業のみ選択必須）
       var dateBoxes = document.querySelectorAll('input[name="date_' + idx + '"]:checked');
       var dates = Array.prototype.map.call(dateBoxes, function(cb) { return cb.value; });
-      if (dates.length === 0) {
+      if (c.sessions && c.sessions.length > 0 && dates.length === 0) {
         validationError = c.name + ' の開催日を選択してください';
         break;
       }

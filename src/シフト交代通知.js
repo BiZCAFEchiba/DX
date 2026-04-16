@@ -210,8 +210,30 @@ function requestShiftRecruitment_(params) {
   text += '📝 理由: ' + (params.reason || '記載なし') + '\n\n';
   text += 'シフトにご協力いただける方は、アプリのカレンダーから引き受けをお願いします🙏';
 
-  const groupUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + TROUBLE_REPORT_CHANNEL_ID + '/messages';
-  const groupSent = sendLineWorksText_(token, groupUrl, text, SHIFT_CHANGE_BOT_ID);
+  // 幹部グループへ @all メンション付きで通知（KANBU_CHANNEL_ID = edbdefad-...）
+  const kanbuUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + KANBU_CHANNEL_ID + '/messages';
+  let groupSent = false;
+  try {
+    const res = UrlFetchApp.fetch(kanbuUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'Authorization': 'Bearer ' + token },
+      payload: JSON.stringify({
+        content: {
+          type: 'text',
+          text: text,
+          mentionedList: [{ type: 'all' }]
+        }
+      }),
+      muteHttpExceptions: true
+    });
+    const code = res.getResponseCode();
+    Logger.log('シフト募集通知 (kanbu/@all): HTTP ' + code);
+    if (code !== 200 && code !== 201) Logger.log('レスポンス: ' + res.getContentText());
+    groupSent = (code === 200 || code === 201);
+  } catch (e) {
+    Logger.log('シフト募集通知エラー: ' + e.message);
+  }
 
   return { ok: true, updated: updated, groupSent: groupSent };
 }
