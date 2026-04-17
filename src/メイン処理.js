@@ -437,6 +437,11 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid level' }))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 残席タイムライン取得
+    if (param.action === 'getVisitTimeline') {
+      return ContentService.createTextOutput(JSON.stringify(handleGetVisitTimeline_()))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // 残席情報取得
     if (param.action === 'getSeats') {
       return ContentService.createTextOutput(JSON.stringify(handleGetSeats_()))

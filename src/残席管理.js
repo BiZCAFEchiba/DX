@@ -393,6 +393,63 @@ function setSettingValue_(sheet, key, value) {
   sheet.appendRow([key, value]);
 }
 
+/**
+ * 今日の15分別在席推移タイムラインを返す
+ * 各ポイントで「直近90分の来店増分 = 推定在席数」を計算
+ */
+function handleGetVisitTimeline_() {
+  var sheet = getOrCreateVisitLogSheet_();
+  if (sheet.getLastRow() < 2) return { ok: true, data: [] };
+
+  var allData = sheet.getDataRange().getValues();
+  var now       = new Date();
+  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // 今日分のログを抽出
+  var rows = [];
+  for (var i = 1; i < allData.length; i++) {
+    var t = allData[i][0];
+    var c = allData[i][1];
+    if (!(t instanceof Date) || t < todayStart) continue;
+    rows.push({ time: t, count: typeof c === 'number' ? c : parseInt(c) });
+  }
+  if (rows.length === 0) return { ok: true, data: [] };
+
+  var timeline = [];
+  for (var j = 0; j < rows.length; j++) {
+    var pointTime = rows[j].time;
+    var cutoff    = new Date(pointTime.getTime() - COOLDOWN_MIN * 60 * 1000);
+
+    // cutoff直前の基準値（ベースライン）を求める
+    var baseline = 0;
+    for (var k = j - 1; k >= 0; k--) {
+      if (rows[k].time < cutoff) { baseline = rows[k].count; break; }
+    }
+
+    // baseline〜pointTime の増分を合計
+    var occupied = 0;
+    var prev = baseline;
+    for (var k = 0; k < rows.length; k++) {
+      if (rows[k].time < cutoff)      { prev = rows[k].count; continue; }
+      if (rows[k].time > pointTime)   break;
+      var delta = rows[k].count - prev;
+      if (delta > 0) occupied += delta;
+      prev = rows[k].count;
+    }
+
+    var remaining = Math.max(0, TOTAL_SEATS - occupied);
+    timeline.push({
+      time:      Utilities.formatDate(pointTime, TIMEZONE, 'HH:mm'),
+      occupied:  Math.min(TOTAL_SEATS, occupied),
+      remaining: remaining,
+      level:     seatsToLevel_(remaining),
+      pct:       Math.round(occupied / TOTAL_SEATS * 100)
+    });
+  }
+
+  return { ok: true, data: timeline };
+}
+
 // ─── トリガー設定 ────────────────────────────────────────────
 
 /**
