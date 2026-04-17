@@ -1601,6 +1601,12 @@
       window.open('https://recruit.shirucafe.com/', '_blank');
     };
 
+    var sweetsTab = document.getElementById('tabBtnSweets');
+    if (sweetsTab) sweetsTab.onclick = function() {
+      trackPageView('sweets');
+      window.open('https://mcstudy.mynavi.jp/conts/shirucafe/sweets/index.html?utm_source=ig&utm_medium=social&utm_content=link_in_bio', '_blank');
+    };
+
     var heroKicker = document.querySelector('.corner-kicker');
     var heroTitle = document.querySelector('.corner-title');
     if (heroKicker) heroKicker.textContent = '参加できる、ゆるやかな相談スペース';
