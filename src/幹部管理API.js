@@ -241,6 +241,10 @@ function kanbuSavePeriodSetting_(rowIndex, startDate, kind) {
       sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).sort(1);
     }
   }
+
+  // 変更を Script Properties に自動反映（アプリ再起動不要）
+  try { syncHoursToProperties_(); } catch (e) { Logger.log('syncHoursToProperties_ error: ' + e.message); }
+
   return { ok: true };
 }
 
@@ -252,6 +256,10 @@ function kanbuDeletePeriodSetting_(rowIndex) {
   const sheet = ss.getSheetByName(SHEET_PERIOD_SETTINGS);
   if (!sheet) return { ok: false, error: 'シートが見つかりません' };
   sheet.deleteRow(rowIndex);
+
+  // 変更を Script Properties に自動反映
+  try { syncHoursToProperties_(); } catch (e) { Logger.log('syncHoursToProperties_ error: ' + e.message); }
+
   return { ok: true };
 }
 

@@ -2,10 +2,12 @@
 // 残席管理.js - shirucafe来店数ポーリングによる残席数自動算出
 // ============================================================
 
-var TOTAL_SEATS          = 62;
-var COOLDOWN_MIN         = 90;
-var POLL_INTERVAL_MIN    = 15;
-var VISIT_LOG_SHEET_NAME = '来店数ログ';
+var TOTAL_SEATS             = 62;
+var COOLDOWN_MIN            = 90;
+var POLL_INTERVAL_MIN       = 15;
+var QUEUE_WAIT_MIN_DEFAULT  = 5;  // 空いているときの最小待ち時間（分）
+var QUEUE_WAIT_MAX_DEFAULT  = 30; // 混んでいるときの最大待ち時間（分）
+var VISIT_LOG_SHEET_NAME    = '来店数ログ';
 
 // ─── エントリポイント（メイン処理.jsから呼ぶ） ───────────────
 
@@ -44,6 +46,8 @@ function handleGetSeats_() {
     level:               level,
     isManualOverride:    seatsResult.isManual,
     isAutoUpdateEnabled: isAutoUpdateEnabled_(),
+    meetupCount:         seatsResult.meetupCount || 0,
+    queueExtra:          seatsResult.queueExtra  || 0,
     todayTotal:          todayTotal,
     updatedAt:           updatedAt
   };
@@ -69,7 +73,8 @@ function handleSeatsOverride_(param) {
   var now   = Utilities.formatDate(new Date(), TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX");
   PropertiesService.getScriptProperties().setProperties({
     'CONGESTION_LEVEL':      String(level),
-    'CONGESTION_UPDATED_AT': now
+    'CONGESTION_UPDATED_AT': now,
+    'SEATS_OVERRIDE':        String(seats)
   });
 
   return { ok: true, remainingSeats: seats, level: level, isManualOverride: true };
@@ -84,6 +89,7 @@ function handleClearSeatsOverride_() {
   if (!sheet) return { ok: false, error: 'no_settings_sheet' };
 
   setSettingValue_(sheet, '残席手動上書き', '');
+  PropertiesService.getScriptProperties().deleteProperty('SEATS_OVERRIDE');
 
   var seatsResult = calcRemainingSeats_();
   return { ok: true, remainingSeats: seatsResult.seats, isManualOverride: false };
@@ -96,9 +102,20 @@ function handleClearSeatsOverride_() {
  * GASの時間ベーストリガー（15分毎）で実行する
  */
 function pollVisitCount() {
-  // 営業時間外（8時前・22時以降）はスキップ
-  var hour = new Date().getHours();
-  if (hour < 8 || hour >= 22) return;
+  // 営業時間外はスキップ（定休日・開店前・閉店後・貸切時間帯）
+  var now   = new Date();
+  var hours = getEffectiveHoursForDate_(now); // 貸切込みの実効営業時間
+  if (!hours) {
+    Logger.log('pollVisitCount: 営業なし（定休日または終日貸切）のためスキップ');
+    return;
+  }
+  var nowMin   = now.getHours() * 60 + now.getMinutes();
+  var openMin  = timeToMin_(hours.start);
+  var closeMin = timeToMin_(hours.end);
+  if (nowMin < openMin || nowMin >= closeMin) {
+    Logger.log('pollVisitCount: 営業時間外のためスキップ（実効 ' + hours.start + '〜' + hours.end + '）');
+    return;
+  }
 
   var count = fetchTodayVisitCount_();
   if (count === null) {
@@ -174,11 +191,105 @@ function calcRemainingSeats_() {
     }
   }
 
+  // ── キュー補正（着席〜スキャンの時間差を補う） ──
+  // 基本在席率（補正前）を元に動的待ち時間を算出（混んでいるほど長く）
+  var baseOccupancyRate = Math.min(1, occupied / TOTAL_SEATS);
+  var queueWait  = getDynamicQueueWait_(baseOccupancyRate);
+  var queueExtra = calcQueueCorrection_(sheet, now, queueWait);
+
+  // ── Meetup席数補正 ──
+  var meetupCount = getConcurrentMeetupCount_(now);
+  var meetupSeats = meetupCount * MEETUP_SEATS_PER_EVENT;
+  if (meetupCount > 0) {
+    Logger.log('Meetup補正: ' + meetupCount + '件 × ' + MEETUP_SEATS_PER_EVENT + '席 = ' + meetupSeats + '席');
+  }
+
+  var totalOccupied = occupied + queueExtra + meetupSeats;
+  Logger.log('在席推計: ローリング=' + occupied + ' キュー補正=+' + queueExtra + ' Meetup=+' + meetupSeats + ' 合計=' + totalOccupied);
+
   return {
-    seats:    Math.max(0, TOTAL_SEATS - occupied),
-    occupied: Math.min(TOTAL_SEATS, occupied),
-    isManual: false
+    seats:       Math.max(0, TOTAL_SEATS - totalOccupied),
+    occupied:    Math.min(TOTAL_SEATS, totalOccupied),
+    queueExtra:  queueExtra,
+    meetupCount: meetupCount,
+    isManual:    false
   };
+}
+
+/**
+ * キュー補正値を計算する
+ * 直近POLL_INTERVAL_MIN分の増加レート × 推定待ち時間 = 未スキャンの着席者数推定
+ */
+function calcQueueCorrection_(sheet, now, queueWaitMin) {
+  try {
+    if (sheet.getLastRow() < 3) return 0;
+    var data = sheet.getDataRange().getValues();
+
+    // 直近15分の増加量を取得
+    var windowStart = new Date(now.getTime() - POLL_INTERVAL_MIN * 60 * 1000);
+    var latestCount = null;
+    var windowStartCount = null;
+
+    for (var i = 1; i < data.length; i++) {
+      var t = data[i][0];
+      var c = data[i][1];
+      if (!(t instanceof Date) || typeof c !== 'number') continue;
+      if (t <= now) {
+        latestCount = c;
+        if (t >= windowStart) {
+          if (windowStartCount === null) windowStartCount = c;
+        }
+      }
+    }
+
+    if (latestCount === null || windowStartCount === null) return 0;
+
+    // 直近15分の増加数
+    var delta = Math.max(0, latestCount - windowStartCount);
+
+    // 増加レート（人/分）× 推定待ち時間（分）= キュー補正
+    var rate       = delta / POLL_INTERVAL_MIN;
+    var correction = Math.round(rate * queueWaitMin);
+    Logger.log('キュー補正: 直近' + POLL_INTERVAL_MIN + '分デルタ=' + delta + ' レート=' + rate.toFixed(2) + '人/分 × 待ち' + queueWaitMin + '分 = +' + correction + '人');
+    return correction;
+  } catch (e) {
+    Logger.log('calcQueueCorrection_ error: ' + e.message);
+    return 0;
+  }
+}
+
+/**
+ * 在席率に応じた動的キュー待ち時間（分）を返す（指数関数的増加）
+ *
+ * wait = minWait + (maxWait - minWait) × rate^exponent
+ *
+ * exponent=2（デフォルト）の例:
+ *   在席率 30% → 補正係数 0.09  → ほぼ最小待ち
+ *   在席率 60% → 補正係数 0.36
+ *   在席率 80% → 補正係数 0.64
+ *   在席率 95% → 補正係数 0.90  → 最大待ちに近い
+ *
+ * @param {number} occupancyRate 0.0〜1.0 の在席率（補正前の90minローリング値ベース）
+ * @returns {number} 推定キュー待ち時間（分）
+ */
+function getDynamicQueueWait_(occupancyRate) {
+  try {
+    // Script Propertiesから読む（シートより高速）
+    var props    = PropertiesService.getScriptProperties().getProperties();
+    var minWait  = parseFloat(props['QUEUE_MIN_WAIT'])  || QUEUE_WAIT_MIN_DEFAULT;
+    var maxWait  = parseFloat(props['QUEUE_MAX_WAIT'])  || QUEUE_WAIT_MAX_DEFAULT;
+    var exponent = parseFloat(props['QUEUE_EXPONENT'])  || 2;
+
+    var rate   = Math.max(0, Math.min(1, occupancyRate));
+    var factor = Math.pow(rate, exponent); // 指数関数的係数（0〜1）
+    var wait   = Math.round(minWait + (maxWait - minWait) * factor);
+    Logger.log('動的キュー待ち: 在席率=' + Math.round(rate * 100) + '% 指数=' + exponent +
+               ' 係数=' + factor.toFixed(3) + ' → 待ち' + wait + '分（最小' + minWait + '〜最大' + maxWait + '分）');
+    return wait;
+  } catch (e) {
+    Logger.log('getDynamicQueueWait_ error: ' + e.message);
+    return QUEUE_WAIT_MIN_DEFAULT;
+  }
 }
 
 /**
@@ -281,6 +392,101 @@ function parseVisitCountFromHtml_(html) {
   }
 }
 
+// ─── Meetup席数補正 ─────────────────────────────────────────
+
+var MEETUP_SEATS_PER_EVENT = 4; // 1対面Meetupあたりの占有席数
+
+/**
+ * 指定日時に開催中の対面Meetup数を返す
+ * @param {Date} targetTime
+ * @returns {number}
+ */
+function getConcurrentMeetupCount_(targetTime) {
+  try {
+    var dateStr = Utilities.formatDate(targetTime, TIMEZONE, 'yyyy-MM-dd');
+    var result  = getInPersonMeetups_(dateStr, dateStr);
+    if (!result.ok) return 0;
+
+    var dayMeetups = result.meetups[dateStr] || [];
+    var targetMin  = targetTime.getHours() * 60 + targetTime.getMinutes();
+    var count = 0;
+
+    dayMeetups.forEach(function(m) {
+      var range = parseMeetupTimeRange_(m.time);
+      if (range && targetMin >= range.start && targetMin < range.end) {
+        count++;
+      }
+    });
+    return count;
+  } catch (e) {
+    Logger.log('getConcurrentMeetupCount_ error: ' + e.message);
+    return 0;
+  }
+}
+
+/**
+ * 時間文字列をパースして { start, end }（分）を返す
+ * 対応形式: "13:00〜14:30", "13:00-14:30", "13:00~14:30", "13:00"
+ * 終了時刻が不明な場合は開始+90分とみなす
+ */
+function parseMeetupTimeRange_(timeStr) {
+  if (!timeStr) return null;
+  var m = timeStr.match(/(\d{1,2}):(\d{2})\s*[〜~\-]\s*(\d{1,2}):(\d{2})/);
+  if (m) {
+    return {
+      start: parseInt(m[1]) * 60 + parseInt(m[2]),
+      end:   parseInt(m[3]) * 60 + parseInt(m[4])
+    };
+  }
+  var s = timeStr.match(/(\d{1,2}):(\d{2})/);
+  if (s) {
+    var start = parseInt(s[1]) * 60 + parseInt(s[2]);
+    return { start: start, end: start + 90 };
+  }
+  return null;
+}
+
+// ─── 営業時間ユーティリティ ──────────────────────────────────
+
+/**
+ * 指定日の実効営業時間を返す（貸切による短縮を反映）
+ * 定休日・終日貸切の場合は null を返す
+ * pollVisitCount の営業時間チェックで使用する
+ *
+ * @param {Date} targetDate
+ * @returns {{ start: string, end: string } | null}
+ */
+function getEffectiveHoursForDate_(targetDate) {
+  // ① 通常営業時間（Script Properties から高速取得）
+  var normalHours = getBusinessHours(targetDate);
+  if (!normalHours) return null; // 定休日
+
+  // ② 貸切イベントを確認してあれば時間を調整
+  try {
+    var year     = targetDate.getFullYear();
+    var month    = targetDate.getMonth() + 1;
+    var dateISO  = Utilities.formatDate(targetDate, TIMEZONE, 'yyyy-MM-dd');
+    var kMap     = buildKashikiriMap_(year, month);
+    var kList    = kMap[dateISO] || [];
+
+    if (kList.length > 0) {
+      var k        = kList[0]; // 複数貸切は1件目を優先（顧客カレンダーAPIと同じロジック）
+      var adjusted = adjustHoursForKashikiri_(normalHours.start, normalHours.end, k.start, k.end);
+      if (!adjusted.isOpen) {
+        Logger.log('getEffectiveHoursForDate_: ' + dateISO + ' 終日貸切');
+        return null;
+      }
+      Logger.log('getEffectiveHoursForDate_: 貸切補正 ' + normalHours.start + '〜' + normalHours.end
+                 + ' → ' + adjusted.open + '〜' + adjusted.close + ' (' + k.start + '〜' + k.end + ' 貸切)');
+      return { start: adjusted.open, end: adjusted.close };
+    }
+  } catch (e) {
+    Logger.log('getEffectiveHoursForDate_ kashikiri error: ' + e.message);
+  }
+
+  return normalHours; // 貸切なし → 通常時間
+}
+
 // ─── 共通ユーティリティ ──────────────────────────────────────
 
 /**
@@ -295,46 +501,31 @@ function seatsToLevel_(remaining) {
 }
 
 /**
- * 設定シートから残席手動上書き値を取得
+ * 残席手動上書き値を取得（Script Propertiesから読む）
  */
 function getSeatsOverride_() {
   try {
-    var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-    var sheet = ss.getSheetByName(SHEET_SETTINGS);
-    if (!sheet) return null;
-    var data = sheet.getDataRange().getValues();
-    for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === '残席手動上書き') {
-        var val = data[i][1];
-        if (val === '' || val === null || val === undefined) return null;
-        var num = parseInt(val);
-        return (!isNaN(num) && num >= 0 && num <= TOTAL_SEATS) ? num : null;
-      }
-    }
+    var val = PropertiesService.getScriptProperties().getProperty('SEATS_OVERRIDE');
+    if (!val || val === '') return null;
+    var num = parseInt(val);
+    return (!isNaN(num) && num >= 0 && num <= TOTAL_SEATS) ? num : null;
   } catch (e) {
     Logger.log('getSeatsOverride_ error: ' + e.message);
+    return null;
   }
-  return null;
 }
 
 /**
- * 設定シートの「残席自動更新」フラグを確認
+ * 「残席自動更新」フラグを確認（Script Propertiesから読む）
  */
 function isAutoUpdateEnabled_() {
   try {
-    var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
-    var sheet = ss.getSheetByName(SHEET_SETTINGS);
-    if (!sheet) return false;
-    var data = sheet.getDataRange().getValues();
-    for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]) === '残席自動更新') {
-        return data[i][1] === true || String(data[i][1]).toUpperCase() === 'TRUE';
-      }
-    }
+    var val = PropertiesService.getScriptProperties().getProperty('SEATS_AUTO_UPDATE');
+    return val === 'TRUE';
   } catch (e) {
     Logger.log('isAutoUpdateEnabled_ error: ' + e.message);
+    return false;
   }
-  return false;
 }
 
 /**
@@ -365,8 +556,11 @@ function ensureSeatsSettings_() {
     var data     = sheet.getDataRange().getValues();
     var keys     = data.map(function(row) { return String(row[0]); });
     var defaults = [
-      ['残席手動上書き', ''],
-      ['残席自動更新',   'FALSE']
+      ['残席手動上書き',    ''],
+      ['残席自動更新',      'FALSE'],
+      ['キュー最小待ち(分)', QUEUE_WAIT_MIN_DEFAULT],
+      ['キュー最大待ち(分)', QUEUE_WAIT_MAX_DEFAULT],
+      ['キュー補正指数',     2]
     ];
     defaults.forEach(function(pair) {
       if (keys.indexOf(pair[0]) === -1) {
@@ -394,26 +588,55 @@ function setSettingValue_(sheet, key, value) {
 }
 
 /**
- * 今日の15分別在席推移タイムラインを返す
- * 各ポイントで「直近90分の来店増分 = 推定在席数」を計算
+ * 利用可能な日付一覧を返す（来店数ログより）
  */
-function handleGetVisitTimeline_() {
+function handleGetVisitDates_() {
   var sheet = getOrCreateVisitLogSheet_();
-  if (sheet.getLastRow() < 2) return { ok: true, data: [] };
+  if (sheet.getLastRow() < 2) return { ok: true, dates: [] };
 
   var allData = sheet.getDataRange().getValues();
-  var now       = new Date();
-  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var dateSet = {};
+  for (var i = 1; i < allData.length; i++) {
+    var t = allData[i][0];
+    if (!(t instanceof Date)) continue;
+    var dateStr = Utilities.formatDate(t, TIMEZONE, 'yyyy-MM-dd');
+    dateSet[dateStr] = true;
+  }
+  var dates = Object.keys(dateSet).sort().reverse(); // 新しい順
+  return { ok: true, dates: dates };
+}
 
-  // 今日分のログを抽出
+/**
+ * 指定日の15分別在席推移タイムラインを返す
+ * param.date: 'yyyy-MM-dd' 形式。省略時は今日
+ * 各ポイントで「直近90分の来店増分 = 推定在席数」を計算
+ */
+function handleGetVisitTimeline_(param) {
+  var targetDateStr = (param && param.date) ? param.date
+    : Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+
+  var sheet = getOrCreateVisitLogSheet_();
+  if (sheet.getLastRow() < 2) return { ok: true, data: [], date: targetDateStr };
+
+  var allData = sheet.getDataRange().getValues();
+  var targetDate = new Date(targetDateStr + 'T00:00:00');
+  var nextDate   = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
+
+  // 指定日のログを抽出
   var rows = [];
   for (var i = 1; i < allData.length; i++) {
     var t = allData[i][0];
     var c = allData[i][1];
-    if (!(t instanceof Date) || t < todayStart) continue;
+    if (!(t instanceof Date) || t < targetDate || t >= nextDate) continue;
     rows.push({ time: t, count: typeof c === 'number' ? c : parseInt(c) });
   }
-  if (rows.length === 0) return { ok: true, data: [] };
+  if (rows.length === 0) return { ok: true, data: [], date: targetDateStr };
+
+  // キュー設定を1回だけ読む（Script Properties → ループ内で毎回叩かない）
+  var queueProps   = PropertiesService.getScriptProperties().getProperties();
+  var queueMinWait = parseFloat(queueProps['QUEUE_MIN_WAIT'])  || QUEUE_WAIT_MIN_DEFAULT;
+  var queueMaxWait = parseFloat(queueProps['QUEUE_MAX_WAIT'])  || QUEUE_WAIT_MAX_DEFAULT;
+  var queueExp     = parseFloat(queueProps['QUEUE_EXPONENT'])  || 2;
 
   var timeline = [];
   for (var j = 0; j < rows.length; j++) {
@@ -426,28 +649,145 @@ function handleGetVisitTimeline_() {
       if (rows[k].time < cutoff) { baseline = rows[k].count; break; }
     }
 
-    // baseline〜pointTime の増分を合計
-    var occupied = 0;
+    // baseline〜pointTime の増分を合計（ローリング在席）
+    var rolling = 0;
     var prev = baseline;
     for (var k = 0; k < rows.length; k++) {
-      if (rows[k].time < cutoff)      { prev = rows[k].count; continue; }
-      if (rows[k].time > pointTime)   break;
+      if (rows[k].time < cutoff)     { prev = rows[k].count; continue; }
+      if (rows[k].time > pointTime)  break;
       var delta = rows[k].count - prev;
-      if (delta > 0) occupied += delta;
+      if (delta > 0) rolling += delta;
       prev = rows[k].count;
     }
+    rolling = Math.min(TOTAL_SEATS, rolling);
 
-    var remaining = Math.max(0, TOTAL_SEATS - occupied);
+    // キュー補正（在席率に応じた動的待ち時間を使用）
+    var baseRate   = Math.min(1, rolling / TOTAL_SEATS);
+    var queueWait  = Math.round(queueMinWait + (queueMaxWait - queueMinWait) * Math.pow(baseRate, queueExp));
+    var queueExtra = calcQueueCorrectionFromRows_(rows, j, queueWait);
+
+    // 対面Meetup席数補正
+    var meetupCount = getConcurrentMeetupCount_(pointTime);
+    var meetupSeats = meetupCount * MEETUP_SEATS_PER_EVENT;
+
+    var totalOccupied = Math.min(TOTAL_SEATS, rolling + queueExtra + meetupSeats);
+    var remaining     = Math.max(0, TOTAL_SEATS - totalOccupied);
+
     timeline.push({
-      time:      Utilities.formatDate(pointTime, TIMEZONE, 'HH:mm'),
-      occupied:  Math.min(TOTAL_SEATS, occupied),
-      remaining: remaining,
-      level:     seatsToLevel_(remaining),
-      pct:       Math.round(occupied / TOTAL_SEATS * 100)
+      time:        Utilities.formatDate(pointTime, TIMEZONE, 'HH:mm'),
+      // 積み上げ内訳（グラフ用）
+      rolling:     rolling,
+      queueExtra:  queueExtra,
+      meetupSeats: meetupSeats,
+      queueWait:   queueWait,
+      // 合計
+      occupied:    totalOccupied,
+      remaining:   remaining,
+      meetupCount: meetupCount,
+      level:       seatsToLevel_(remaining),
+      pct:         Math.ceil(totalOccupied / TOTAL_SEATS * 100),
+      rollingPct:  Math.ceil(rolling     / TOTAL_SEATS * 100),
+      queuePct:    Math.ceil(queueExtra  / TOTAL_SEATS * 100),
+      meetupPct:   Math.ceil(meetupSeats / TOTAL_SEATS * 100)
     });
   }
 
-  return { ok: true, data: timeline };
+  return { ok: true, data: timeline, date: targetDateStr };
+}
+
+/**
+ * 既存の rows 配列からキュー補正値を計算（シート再読み込みなし）
+ * calcQueueCorrection_ のローカル配列版
+ */
+function calcQueueCorrectionFromRows_(rows, currentIndex, queueWaitMin) {
+  try {
+    if (currentIndex < 1) return 0;
+    var pointTime   = rows[currentIndex].time;
+    var windowStart = new Date(pointTime.getTime() - POLL_INTERVAL_MIN * 60 * 1000);
+
+    var latestCount      = rows[currentIndex].count;
+    var windowStartCount = null;
+
+    for (var i = 0; i <= currentIndex; i++) {
+      if (rows[i].time >= windowStart && windowStartCount === null) {
+        windowStartCount = rows[i].count;
+      }
+    }
+    if (windowStartCount === null) return 0;
+
+    var delta = Math.max(0, latestCount - windowStartCount);
+    var rate  = delta / POLL_INTERVAL_MIN;
+    return Math.round(rate * queueWaitMin);
+  } catch (e) {
+    return 0;
+  }
+}
+
+// ─── 設定シート → Script Properties 同期 ────────────────────
+
+/**
+ * 設定シートの残席関連設定をScript Propertiesに反映する
+ * メニュー「残席管理 → 設定をGASに反映」から実行する
+ * （実行時の読み込みはScript Propertiesから行うため、シート編集後は必ず実行）
+ */
+function syncSeatsSettingsToProperties() {
+  var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_SETTINGS);
+  if (!sheet) throw new Error('設定シートが見つかりません');
+
+  var keyMap = {
+    'キュー最小待ち(分)': 'QUEUE_MIN_WAIT',
+    'キュー最大待ち(分)': 'QUEUE_MAX_WAIT',
+    'キュー補正指数':     'QUEUE_EXPONENT',
+    '残席自動更新':       'SEATS_AUTO_UPDATE',
+    '残席手動上書き':     'SEATS_OVERRIDE'
+  };
+
+  var data  = sheet.getDataRange().getValues();
+  var props = PropertiesService.getScriptProperties();
+  var synced = {};
+
+  for (var i = 1; i < data.length; i++) {
+    var sheetKey = String(data[i][0]);
+    var propKey  = keyMap[sheetKey];
+    if (!propKey) continue;
+
+    var val = data[i][1];
+
+    if (sheetKey === '残席手動上書き') {
+      // 空欄 = 上書きなし → プロパティを削除
+      if (val === '' || val === null || val === undefined) {
+        props.deleteProperty('SEATS_OVERRIDE');
+        synced[propKey] = '(削除)';
+      } else {
+        props.setProperty('SEATS_OVERRIDE', String(parseInt(val)));
+        synced[propKey] = String(parseInt(val));
+      }
+    } else if (sheetKey === '残席自動更新') {
+      var boolVal = (val === true || String(val).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
+      props.setProperty('SEATS_AUTO_UPDATE', boolVal);
+      synced[propKey] = boolVal;
+    } else {
+      props.setProperty(propKey, String(val));
+      synced[propKey] = String(val);
+    }
+  }
+
+  Logger.log('残席設定をScript Propertiesに反映: ' + JSON.stringify(synced));
+  return synced;
+}
+
+/**
+ * メニューから呼び出す同期ラッパー（アラート付き）
+ */
+function menuSyncSeatsSettings() {
+  try {
+    var synced = syncSeatsSettingsToProperties();
+    var lines = Object.keys(synced).map(function(k) { return k + ' = ' + synced[k]; });
+    SpreadsheetApp.getUi().alert('残席設定をGASに反映しました。\n\n' + lines.join('\n'));
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('エラー: ' + e.message);
+  }
 }
 
 // ─── トリガー設定 ────────────────────────────────────────────

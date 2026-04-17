@@ -1869,23 +1869,61 @@
   }
 
   var calReqId = 0;
+
+  /**
+   * 貸切込みの完全カレンダーを裏で取得してキャッシュ＆再描画する
+   * loadCalendar() の後半タスクとして呼ぶ（非同期・失敗しても無視）
+   */
+  function refreshKashikiriBackground_(year, month, reqId) {
+    fetch(GAS_API_URL + '?page=calendar&action=kashikiri&year=' + year + '&month=' + month)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (reqId !== calReqId) return;
+        if (!data || !Array.isArray(data)) return;
+        saveToCache(data);
+        renderCalendar(data); // 貸切で短縮された日を再描画
+      })
+      .catch(function() {}); // 失敗してもベース表示は残る
+  }
+
   function loadCalendar(onReady) {
     var reqId = ++calReqId;
     var year = currentYear, month = currentMonth;
     document.getElementById('monthLabel').textContent = year + '年 ' + month + '月';
+
+    // ① ローカルキャッシュヒット → 即表示し、貸切データを裏で更新
     var cached = loadFromCache();
-    if (cached) { renderCalendar(cached); if (onReady) onReady(); return; }
+    if (cached) {
+      renderCalendar(cached);
+      if (onReady) onReady();
+      refreshKashikiriBackground_(year, month, reqId); // 裏で最新貸切を反映
+      return;
+    }
+
+    // ② キャッシュなし → 基本カレンダー（Script Properties 使用・高速）を先行表示
     document.getElementById('calendarGrid').innerHTML = '<div class="loading">読み込み中...</div>';
-    fetch(GAS_API_URL + '?page=calendar&action=data&year=' + year + '&month=' + month)
+    fetch(GAS_API_URL + '?page=calendar&action=dataBase&year=' + year + '&month=' + month)
       .then(function(r) { return r.json(); })
-      .then(function(data) {
-        if (reqId !== calReqId) return; // 古いリクエストは無視
-        saveToCache(data); renderCalendar(data); if (onReady) onReady();
+      .then(function(baseData) {
+        if (reqId !== calReqId) return;
+        renderCalendar(baseData);             // 貸切なしで即表示
+        if (onReady) onReady();
+        refreshKashikiriBackground_(year, month, reqId); // 裏で貸切を取得して上書き
       })
       .catch(function() {
+        // dataBase 失敗時は従来通り action=data にフォールバック
         if (reqId !== calReqId) return;
-        document.getElementById('calendarGrid').innerHTML = '<div class="loading">データの取得に失敗しました。</div>';
-        if (onReady) onReady();
+        fetch(GAS_API_URL + '?page=calendar&action=data&year=' + year + '&month=' + month)
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            if (reqId !== calReqId) return;
+            saveToCache(data); renderCalendar(data); if (onReady) onReady();
+          })
+          .catch(function() {
+            if (reqId !== calReqId) return;
+            document.getElementById('calendarGrid').innerHTML = '<div class="loading">データの取得に失敗しました。</div>';
+            if (onReady) onReady();
+          });
       });
   }
 

@@ -213,6 +213,20 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
       return output;
     }
+    // 貸切なし基本カレンダー（Script Properties のみ使用・高速 → アプリ起動時に先行表示）
+    if (param.action === 'dataBase') {
+      var year  = parseInt(param.year)  || new Date().getFullYear();
+      var month = parseInt(param.month) || (new Date().getMonth() + 1);
+      return ContentService.createTextOutput(JSON.stringify(getCustomerCalendarDataBase_(year, month)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 貸切込みフルカレンダー（CacheService キャッシュ使用・裏読み用）
+    if (param.action === 'kashikiri') {
+      var year  = parseInt(param.year)  || new Date().getFullYear();
+      var month = parseInt(param.month) || (new Date().getMonth() + 1);
+      return ContentService.createTextOutput(JSON.stringify(getCustomerCalendarData_(year, month, false)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // JSONデータAPIモード（指定日のMeetup一覧）
     if (param.action === 'meetups') {
       var meetupDate = param.date || '';
@@ -439,7 +453,12 @@ function doGet(e) {
     }
     // 残席タイムライン取得
     if (param.action === 'getVisitTimeline') {
-      return ContentService.createTextOutput(JSON.stringify(handleGetVisitTimeline_()))
+      return ContentService.createTextOutput(JSON.stringify(handleGetVisitTimeline_(param)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 来店数ログの日付一覧取得
+    if (param.action === 'getVisitDates') {
+      return ContentService.createTextOutput(JSON.stringify(handleGetVisitDates_()))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // 残席情報取得

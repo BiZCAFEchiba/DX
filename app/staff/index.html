@@ -477,10 +477,16 @@
       <div style="font-size:0.82rem; color:#666; margin-bottom:4px;" id="autoSeatsNote">直近90分の来店増分より算出（全62席）</div>
       <div style="font-size:0.75rem; color:#aaa; margin-bottom:16px;" id="autoSeatsUpdatedAt"></div>
 
-      <button class="update-btn" onclick="loadAutoSeats(); loadVisitTimeline();" style="margin-bottom:18px;">最新データに更新</button>
+      <button class="update-btn" onclick="loadAutoSeats(); loadVisitDates();" style="margin-bottom:18px;">最新データに更新</button>
 
       <!-- 時間別混雑グラフ -->
-      <div class="section-title" style="margin-top:8px;">時間別混雑グラフ（今日）</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; margin-bottom:8px;">
+        <div class="section-title" style="margin:0;">時間別混雑グラフ</div>
+        <select id="visitDateSelect" onchange="loadVisitTimeline()"
+          style="font-size:0.82rem; border:1px solid #ccc; border-radius:6px; padding:4px 8px; color:#333; background:white;">
+          <option value="">読み込み中...</option>
+        </select>
+      </div>
       <div style="background:white; border:1px solid #e0e7ef; border-radius:10px; padding:12px; margin-bottom:18px; position:relative; min-height:200px;">
         <canvas id="visitTimelineChart" style="width:100%; max-height:240px;"></canvas>
         <div id="visitTimelineEmpty" style="display:none; text-align:center; color:#aaa; padding:40px 0; font-size:0.85rem;">
@@ -1005,7 +1011,7 @@
     if (name === 'corner' && !cornerContentLoaded) { cornerContentLoaded = true; loadCornerContentAdmin(); }
     if (name === 'maintenance' && !maintenanceLoaded) { maintenanceLoaded = true; loadMaintenance(); }
     if (name === 'room' && !staffRoomLoaded) { staffRoomLoaded = true; loadStaffRoom(); }
-    if (name === 'seats') { loadAutoSeats(); loadVisitTimeline(); }
+    if (name === 'seats') { loadAutoSeats(); loadVisitDates(); }
   }
 
   // ===== メンテナンス管理 =====
@@ -1150,9 +1156,10 @@
         document.getElementById('autoSeatsOccupied').textContent  = d.occupiedSeats  + '名';
         document.getElementById('autoSeatsTodayTotal').textContent = typeof d.todayTotal === 'number' ? d.todayTotal + '人' : '-';
 
-        document.getElementById('autoSeatsNote').textContent = d.isManualOverride
-          ? '手動上書き中'
-          : '直近90分の来店増分より算出（全' + d.totalSeats + '席）';
+        var noteBase   = d.isManualOverride ? '手動上書き中' : '直近90分ローリング＋キュー補正（全' + d.totalSeats + '席）';
+        var queueNote  = (!d.isManualOverride && d.queueExtra > 0) ? '　キュー補正: +' + d.queueExtra + '名' : '';
+        var meetupNote = d.meetupCount > 0 ? '　Meetup ' + d.meetupCount + '件: +' + (d.meetupCount * 4) + '席' : '';
+        document.getElementById('autoSeatsNote').textContent = noteBase + queueNote + meetupNote;
 
         if (d.updatedAt) {
           var dt = new Date(d.updatedAt);
@@ -1178,8 +1185,36 @@
 
   var visitChartInstance = null;
 
+  function loadVisitDates() {
+    fetch(GAS_API_URL + '?page=calendar&action=getVisitDates')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.ok) return;
+        var sel = document.getElementById('visitDateSelect');
+        var today = new Date().toISOString().slice(0, 10);
+        sel.innerHTML = '';
+        (d.dates || []).forEach(function(date) {
+          var opt = document.createElement('option');
+          opt.value = date;
+          var label = date === today ? date + '（今日）' : date;
+          opt.textContent = label;
+          sel.appendChild(opt);
+        });
+        if (d.dates && d.dates.length > 0) {
+          sel.value = d.dates[0]; // 最新日を選択
+          loadVisitTimeline();
+        } else {
+          sel.innerHTML = '<option value="">データなし</option>';
+        }
+      })
+      .catch(function() {});
+  }
+
   function loadVisitTimeline() {
-    fetch(GAS_API_URL + '?page=calendar&action=getVisitTimeline')
+    var sel = document.getElementById('visitDateSelect');
+    var date = sel ? sel.value : '';
+    var url = GAS_API_URL + '?page=calendar&action=getVisitTimeline' + (date ? '&date=' + date : '');
+    fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(d) {
         if (!d.ok) return;
@@ -1204,20 +1239,21 @@
     var levelColors = ['', '#4caf50', '#8bc34a', '#ffc107', '#ff7043', '#f44336'];
     var levelNames  = ['', '空いています', 'やや空いています', '普通', 'やや混んでいます', '混んでいます'];
 
-    var labels   = data.map(function(d) { return d.time; });
-    var pctData  = data.map(function(d) { return d.pct; });
-    var barColors = data.map(function(d) { return levelColors[d.level] || '#e0e0e0'; });
+    var labels      = data.map(function(d) { return d.time; });
+    var rollingData = data.map(function(d) { return d.rollingPct  != null ? d.rollingPct  : d.pct; });
+    var queueData   = data.map(function(d) { return d.queuePct   != null ? d.queuePct   : 0; });
+    var meetupData  = data.map(function(d) { return d.meetupPct  != null ? d.meetupPct  : 0; });
+    var barColors   = data.map(function(d) { return levelColors[d.level] || '#e0e0e0'; });
 
-    // 混雑レベルしきい値（在席率 %）
-    // 残席 50/62 → 在席率 ~19% = level1→2 境界
-    // 残席 35/62 → 在席率 ~44% = level2→3 境界
-    // 残席 20/62 → 在席率 ~68% = level3→4 境界
-    // 残席 7/62  → 在席率 ~89% = level4→5 境界
+    // legend.filter で visitChartInstance を参照できないため先に判定しておく
+    var hasQueueData  = queueData.some(function(v)  { return v > 0; });
+    var hasMeetupData = meetupData.some(function(v) { return v > 0; });
+
     var thresholds = [
-      { y: 19,  label: 'やや空いています', color: 'rgba(139,195,74,0.15)' },
-      { y: 44,  label: '普通',             color: 'rgba(255,193,7,0.15)'  },
-      { y: 68,  label: 'やや混んでいます', color: 'rgba(255,112,67,0.15)' },
-      { y: 89,  label: '混んでいます',     color: 'rgba(244,67,54,0.15)'  }
+      { y: 19,  label: 'やや空いています' },
+      { y: 44,  label: '普通'             },
+      { y: 68,  label: 'やや混んでいます' },
+      { y: 89,  label: '混んでいます'     }
     ];
 
     if (visitChartInstance) { visitChartInstance.destroy(); visitChartInstance = null; }
@@ -1226,14 +1262,35 @@
       type: 'bar',
       data: {
         labels: labels,
-        datasets: [{
-          label: '在席率 (%)',
-          data: pctData,
-          backgroundColor: barColors,
-          borderColor: barColors,
-          borderWidth: 1,
-          borderRadius: 4
-        }]
+        datasets: [
+          {
+            label: '在席（ローリング）',
+            data: rollingData,
+            backgroundColor: barColors,
+            borderColor: barColors,
+            borderWidth: 1,
+            borderRadius: 0,
+            stack: 'occ'
+          },
+          {
+            label: 'キュー補正',
+            data: queueData,
+            backgroundColor: barColors,
+            borderColor: barColors,
+            borderWidth: 0,
+            borderRadius: 0,
+            stack: 'occ'
+          },
+          {
+            label: 'Meetup席数',
+            data: meetupData,
+            backgroundColor: barColors,
+            borderColor: barColors,
+            borderWidth: 0,
+            borderRadius: 4,
+            stack: 'occ'
+          }
+        ]
       },
       options: {
         responsive: true,
@@ -1241,23 +1298,37 @@
         plugins: {
           legend: { display: false },
           tooltip: {
+            mode: 'index',        // タップ1回で全セグメントまとめて表示
+            intersect: false,
             callbacks: {
-              label: function(ctx) {
-                var d = data[ctx.dataIndex];
-                return [
-                  '在席率: ' + d.pct + '%',
-                  '推定在席: ' + d.occupied + '名 / 残席: ' + d.remaining + '席',
-                  levelNames[d.level] || ''
+              title: function(items) {
+                var d = data[items[0].dataIndex];
+                return d.time + '　' + levelNames[d.level];
+              },
+              label: function() { return null; }, // デフォルトのラベル行を非表示
+              afterTitle: function(items) {
+                var d = data[items[0].dataIndex];
+                var lines = [
+                  '在席率 ' + d.pct + '%　残席 ' + d.remaining + '席',
+                  '─────────────',
+                  '在席（ローリング）: ' + (d.rolling != null ? d.rolling : d.occupied) + '名'
                 ];
+                if (d.queueExtra > 0) {
+                  lines.push('キュー補正: +' + d.queueExtra + '名（待ち ' + d.queueWait + '分）');
+                }
+                if (d.meetupSeats > 0) {
+                  lines.push('Meetup: ' + d.meetupCount + '件 × 4席 = +' + d.meetupSeats + '席');
+                }
+                return lines;
               }
             }
           },
           annotation: {
-            annotations: thresholds.map(function(t, i) {
+            annotations: thresholds.map(function(t) {
               return {
                 type: 'line',
                 yMin: t.y, yMax: t.y,
-                borderColor: 'rgba(0,0,0,0.2)',
+                borderColor: 'rgba(0,0,0,0.18)',
                 borderWidth: 1,
                 borderDash: [4, 4],
                 label: {
@@ -1274,10 +1345,12 @@
         },
         scales: {
           x: {
+            stacked: true,
             ticks: { font: { size: 10 }, maxRotation: 45 },
             grid:  { display: false }
           },
           y: {
+            stacked: true,
             min: 0, max: 100,
             ticks: {
               stepSize: 25,

@@ -81,6 +81,34 @@ function getCustomerCalendarData_(year, month, nocache) {
 }
 
 /**
+ * 貸切を除いた基本カレンダーを返す（Script Properties のみ使用 → 高速）
+ * アプリ起動時に先行して表示し、貸切は裏で action=kashikiri で補完する
+ *
+ * @param {number} year
+ * @param {number} month - 1-indexed
+ */
+function getCustomerCalendarDataBase_(year, month) {
+  const results      = [];
+  const daysInMonth  = new Date(year, month, 0).getDate();
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date    = new Date(year, month - 1, day);
+    const dateISO = formatDateToISO_(date);
+    const hours   = getBusinessHours(date); // Script Properties から高速取得
+
+    if (!hours) {
+      results.push({ date: dateISO, isOpen: false, open: null, close: null,
+                     isKashikiri: false, kashikiriTime: null, note: '定休日' });
+    } else {
+      results.push({ date: dateISO, isOpen: true, open: hours.start, close: hours.end,
+                     isKashikiri: false, kashikiriTime: null, note: null,
+                     period: hours.period || null });
+    }
+  }
+  return results;
+}
+
+/**
  * Meetup予定シートから指定年月の貸切イベントをマップで返す
  * 店舗ミーティングシートの予定も前後1時間バッファ付きで追加する
  * @returns {{ [dateISO: string]: Array<{start: string, end: string, company: string}> }}

@@ -267,6 +267,30 @@ function onOpen() {
     .addItem('Meetup企業フォーム 送信トリガー設定', 'setupMeetupFormTrigger')
     .addItem('トリガー設定（設定シートから）', 'setupTriggers')
     .addToUi();
+
+  ui.createMenu('残席管理')
+    .addItem('設定をGASに反映', 'menuSyncSeatsSettings')
+    .addSeparator()
+    .addItem('ポーリングトリガー設定', 'setupVisitCountTrigger')
+    .addItem('設定シート初期化', 'initSeatsSettings')
+    .addToUi();
+
+  ui.createMenu('営業時間')
+    .addItem('営業時間・期間設定をGASに反映', 'menuSyncBusinessHours')
+    .addToUi();
+}
+
+/**
+ * 営業時間・期間設定シートを Script Properties に同期するメニューラッパー
+ * 「営業時間」シートを直接編集したあとに実行する
+ */
+function menuSyncBusinessHours() {
+  try {
+    syncHoursToProperties_();
+    SpreadsheetApp.getUi().alert('営業時間・期間設定をGASに反映しました。\nアプリの営業時間表示が高速化されます。');
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('エラー: ' + e.message);
+  }
 }
 
 /**

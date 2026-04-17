@@ -50,6 +50,25 @@ function loadStaffMappingFromSheets_() {
  * @returns {string} '授業期間' | 'ターム休み'（未設定時は'授業期間'）
  */
 function getTermPeriod_(targetDate) {
+  // ① Script Properties から高速読み込み（シートより約20倍速い）
+  try {
+    var cachedJson = PropertiesService.getScriptProperties().getProperty('PERIOD_SETTINGS_DATA');
+    if (cachedJson) {
+      var psRows = JSON.parse(cachedJson); // [{start: "yyyy-MM-dd", kind: "..."}, ...] 昇順ソート済み
+      var targetMidnight = new Date(targetDate);
+      targetMidnight.setHours(0, 0, 0, 0);
+      var targetStr = Utilities.formatDate(targetMidnight, TIMEZONE, 'yyyy-MM-dd');
+      var matched = null;
+      for (var pi = 0; pi < psRows.length; pi++) {
+        if (psRows[pi].start <= targetStr) { matched = psRows[pi]; } else { break; }
+      }
+      return matched ? matched.kind : '授業期間';
+    }
+  } catch (e) {
+    Logger.log('getTermPeriod_ Script Properties フォールバック: ' + e.message);
+  }
+
+  // ② フォールバック: シートから読む（メニュー「反映」未実行時）
   try {
     const ss = SpreadsheetApp.openById(BUSINESS_HOURS_SPREADSHEET_ID);
     const sheet = ss.getSheetByName(SHEET_PERIOD_SETTINGS);
@@ -68,18 +87,12 @@ function getTermPeriod_(targetDate) {
     }
     rows.sort(function(a, b) { return a.start - b.start; });
 
-    // targetDateより後の最初の開始日を探し、その前日が終了日
-    // → targetDateが含まれる期間 = targetDate以前の最後の開始日の行
     const targetMidnight = new Date(targetDate);
     targetMidnight.setHours(0, 0, 0, 0);
 
     let matched = null;
     for (let i = 0; i < rows.length; i++) {
-      if (rows[i].start <= targetMidnight) {
-        matched = rows[i];
-      } else {
-        break;
-      }
+      if (rows[i].start <= targetMidnight) { matched = rows[i]; } else { break; }
     }
 
     return matched ? matched.kind : '授業期間';
@@ -103,6 +116,19 @@ function getTermPeriod_(targetDate) {
 function getHoursFromSheet_(targetDate, sheetName) {
   if (!targetDate) return null;
 
+  // ① 営業時間シートのみ Script Properties で高速化（スタッフ勤務時間は従来通り）
+  if (sheetName === BUSINESS_HOURS_SHEET_NAME) {
+    try {
+      var bhJson = PropertiesService.getScriptProperties().getProperty('BUSINESS_HOURS_DATA');
+      if (bhJson) {
+        return getHoursFromCachedRows_(targetDate, JSON.parse(bhJson));
+      }
+    } catch (e) {
+      Logger.log('getHoursFromSheet_ Script Properties フォールバック: ' + e.message);
+    }
+  }
+
+  // ② フォールバック: シートから読む
   const sheet = SpreadsheetApp.openById(BUSINESS_HOURS_SPREADSHEET_ID).getSheetByName(sheetName);
   if (!sheet) {
     Logger.log('「' + sheetName + '」シートが見つかりません。');
@@ -193,6 +219,117 @@ function findNextBusinessDay_(startDate) {
   tomorrow.setDate(tomorrow.getDate() + 1);
   return tomorrow;
 }
+
+// ─── Script Properties キャッシュ制御 ────────────────────────
+
+/**
+ * 営業時間・期間設定シートを読み取り Script Properties に保存する
+ * 実行後は getHoursFromSheet_ / getTermPeriod_ がシートを叩かなくなる
+ * ・幹部アプリから期間設定を変更したとき自動実行
+ * ・営業時間シートを直接変更したときはメニュー「営業時間設定をGASに反映」から手動実行
+ */
+function syncHoursToProperties_() {
+  var ss    = SpreadsheetApp.openById(BUSINESS_HOURS_SPREADSHEET_ID);
+  var props = PropertiesService.getScriptProperties();
+
+  // ① 営業時間シート → BUSINESS_HOURS_DATA
+  var bhSheet = ss.getSheetByName(BUSINESS_HOURS_SHEET_NAME);
+  if (bhSheet && bhSheet.getLastRow() > 1) {
+    var bhData = bhSheet.getDataRange().getValues();
+    var bhRows = [];
+    var toT    = function(v) { return v ? formatTime_(v) : null; };
+    var toB    = function(v) { return v === true || String(v).toUpperCase() === 'TRUE'; };
+    for (var i = 1; i < bhData.length; i++) {
+      var row   = bhData[i];
+      var dayJa = String(row[0]).trim();
+      if (!dayJa) continue;
+      bhRows.push({
+        dayJa:   dayJa,
+        jOpen:   toT(row[1]),
+        jClose:  toT(row[2]),
+        jLo:     toT(row[3]),
+        jIsOpen: toB(row[4]),
+        // ターム休み列（未設定なら null → fallback to 授業期間）
+        tOpen:   toT(row[5]) || null,
+        tClose:  toT(row[6]) || null,
+        tLo:     toT(row[7]) || null,
+        tIsOpen: (row[8] !== undefined && row[8] !== '') ? toB(row[8]) : null
+      });
+    }
+    props.setProperty('BUSINESS_HOURS_DATA', JSON.stringify(bhRows));
+    Logger.log('syncHoursToProperties_: 営業時間 ' + bhRows.length + '曜日を保存');
+  }
+
+  // ② 期間設定シート → PERIOD_SETTINGS_DATA
+  var psSheet = ss.getSheetByName(SHEET_PERIOD_SETTINGS);
+  if (psSheet && psSheet.getLastRow() > 1) {
+    var psData = psSheet.getDataRange().getValues();
+    var psRows = [];
+    for (var j = 1; j < psData.length; j++) {
+      if (!psData[j][0] || !psData[j][1]) continue;
+      var start = psData[j][0] instanceof Date ? psData[j][0] : new Date(psData[j][0]);
+      if (isNaN(start.getTime())) continue;
+      psRows.push({
+        start: Utilities.formatDate(start, TIMEZONE, 'yyyy-MM-dd'),
+        kind:  String(psData[j][1]).trim()
+      });
+    }
+    psRows.sort(function(a, b) { return a.start.localeCompare(b.start); });
+    props.setProperty('PERIOD_SETTINGS_DATA', JSON.stringify(psRows));
+    Logger.log('syncHoursToProperties_: 期間設定 ' + psRows.length + '件を保存');
+  }
+
+  // ③ CacheService の顧客カレンダーキャッシュをクリア（前後2ヶ月）
+  var cache = CacheService.getScriptCache();
+  var now   = new Date();
+  for (var m = -1; m <= 2; m++) {
+    var d = new Date(now.getFullYear(), now.getMonth() + m, 1);
+    cache.remove('customerCal_' + d.getFullYear() + '_' + (d.getMonth() + 1));
+  }
+  Logger.log('syncHoursToProperties_: 顧客カレンダーキャッシュをクリア');
+}
+
+/**
+ * Script Properties キャッシュから営業時間を解決するヘルパー
+ * syncHoursToProperties_ で保存した BUSINESS_HOURS_DATA を使う
+ *
+ * @param {Date}   targetDate
+ * @param {Array}  rows  - BUSINESS_HOURS_DATA の JSON.parse 結果
+ * @returns {{ start, end, lo, period } | null}
+ */
+function getHoursFromCachedRows_(targetDate, rows) {
+  var dayOfWeekJaMap = { 0: '日', 1: '月', 2: '火', 3: '水', 4: '木', 5: '金', 6: '土' };
+  var targetDayJa    = dayOfWeekJaMap[targetDate.getDay()];
+  var period         = getTermPeriod_(targetDate);
+  var isTermBreak    = (period === 'ターム休み');
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (r.dayJa !== targetDayJa) continue;
+
+    // ターム休み列が null の場合は授業期間列にフォールバック
+    var isOpen, openTime, closeTime, loTime;
+    if (isTermBreak) {
+      isOpen    = (r.tIsOpen !== null && r.tIsOpen !== undefined) ? r.tIsOpen : r.jIsOpen;
+      openTime  = r.tOpen   || r.jOpen;
+      closeTime = r.tClose  || r.jClose;
+      loTime    = r.tLo     || r.jLo    || null;
+    } else {
+      isOpen    = r.jIsOpen;
+      openTime  = r.jOpen;
+      closeTime = r.jClose;
+      loTime    = r.jLo     || null;
+    }
+
+    if (!isOpen || isJapaneseHoliday_(targetDate)) return null;
+    return { start: openTime, end: closeTime, lo: loTime, period: period };
+  }
+
+  // 該当曜日なし → デフォルト
+  return { start: '10:00', end: '20:00', lo: null, period: period };
+}
+
+// ─────────────────────────────────────────────────────────────
 
 // 祝日キャッシュ（GAS実行1回につき月単位で保持）
 var _holidayCache_ = {};
