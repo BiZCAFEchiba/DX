@@ -1,0 +1,200 @@
+﻿// ============================================================
+// main.gs - 繧ｨ繝ｳ繝医Μ繝ｼ繝昴う繝ｳ繝茨ｼ・heets邨ｱ蜷育沿・・
+// ============================================================
+
+/**
+ * 繝｡繧､繝ｳ蜃ｦ逅・- 繧ｿ繧､繝繝医Μ繧ｬ繝ｼ縺九ｉ豈取律12:00縺ｫ蜻ｼ縺ｳ蜃ｺ縺輔ｌ繧・
+ *
+ * 邨ｱ蜷亥ｾ後・蜍穂ｽ・
+ *   2. 縲後せ繧ｿ繝・ヵ縲阪す繝ｼ繝医°繧峨・繝・ヴ繝ｳ繧ｰ繧貞叙蠕・
+ *   3. LINE WORKS縺ｸ繝｡繝ｳ繧ｷ繝ｧ繝ｳ莉倥″繝ｪ繝槭う繝ｳ繝蛾∽ｿ｡
+ *   4. 縲碁∽ｿ｡繝ｭ繧ｰ縲阪す繝ｼ繝医↓邨先棡繧定ｨ倬鹸
+ *   5. 縲後す繝輔ヨ荳崎ｶｳ縲阪メ繧ｧ繝・け・・譌･蠕鯉ｼ峨ｒ陦後＞縲∽ｸ崎ｶｳ譎ゅ・繧｢繝ｩ繝ｼ繝磯∽ｿ｡
+ *
+ * 繝輔か繝ｼ繝ｫ繝舌ャ繧ｯ:
+ *   Sheets縺ｫ繝・・繧ｿ縺後↑縺・ｴ蜷医・蠕捺擂騾壹ｊDrive縺ｮPDF縺九ｉ隗｣譫舌ｒ隧ｦ縺ｿ繧・
+ */
+/**
+ * LINE WORKS縺九ｉ縺ｮCallback繝ｪ繧ｯ繧ｨ繧ｹ繝医ｒ蜃ｦ逅・☆繧・
+ * @param {Object} e - POST繝ｪ繧ｯ繧ｨ繧ｹ繝医う繝吶Φ繝・
+ */
+function doPost(e) {
+  try {
+    var body = {};
+    if (e && e.postData && e.postData.contents) {
+      try {
+        body = JSON.parse(e.postData.contents);
+      } catch (jsonErr) {}
+    }
+
+    if (body.page === 'kanbu') {
+      var kanbuResult = handleKanbuApi_(body);
+      return ContentService.createTextOutput(JSON.stringify(kanbuResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (body.page === 'calendar') {
+      if (body.action === 'boardSave') {
+        var saveResult = saveBoardItem_(body);
+        return ContentService.createTextOutput(JSON.stringify(saveResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      if (body.action === 'boardUploadImage') {
+        return ContentService.createTextOutput(JSON.stringify({
+          ok: false,
+          error: 'board_image_upload_disabled'
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+      if (body.action === 'attendanceSave') {
+        var attResult = kanbuSaveAttendance_(body.meetingDate, body.staffName, body.status, body.reason);
+        return ContentService.createTextOutput(JSON.stringify(attResult))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_action' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Webhook縺ｮ蛻ｰ驕斐ｒ迚ｩ逅・噪縺ｫ遒ｺ隱阪☆繧九◆繧√・蛻晄悄繝ｭ繧ｰ
+    writeLogToSheets_('POST蜿嶺ｿ｡', 0, 'raw', 'info', 'doPost triggered');
+    handleWebhook(e);
+  } catch (err) {
+    writeLogToSheets_('doPost閾ｴ蜻ｽ逧・お繝ｩ繝ｼ', 0, 'raw', 'error', err.message);
+    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * HTTP GET繝ｪ繧ｯ繧ｨ繧ｹ繝医ｒ蜃ｦ逅・☆繧・
+ * ?page=yuchi 縺ｧ隱倩・繝輔か繝ｼ繝繧定｡ｨ遉ｺ
+ */
+function doGet(e) {
+  var param = (e && e.parameter) ? e.parameter : {};
+  writeLogToSheets_(
+    'doGet',
+    0,
+    'raw',
+    'info',
+    JSON.stringify({ page: param.page || '', action: param.action || '', id: param.id || '' })
+  );
+
+  // --- 蟷ｹ驛ｨ邂｡逅・ebApp ---
+  if (param.page === 'kanbu') {
+    var kanbuTemplate = HtmlService.createTemplateFromFile('蟷ｹ驛ｨ邂｡逅・);
+    kanbuTemplate.appUrl = ScriptApp.getService().getUrl();
+    return kanbuTemplate.evaluate()
+      .setTitle('蟷ｹ驛ｨ邂｡逅・| BizCAFE')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // --- 髢ｲ隕ｧ謨ｰ繝繝・す繝･繝懊・繝会ｼ医せ繧ｿ繝・ヵ逕ｨ・・---
+  if (param.page === 'analytics') {
+    var analyticsTemplate = HtmlService.createTemplateFromFile('髢ｲ隕ｧ謨ｰ繝繝・す繝･繝懊・繝・);
+    analyticsTemplate.appUrl = ScriptApp.getService().getUrl();
+    return analyticsTemplate.evaluate()
+      .setTitle('髢ｲ隕ｧ謨ｰ繝繝・す繝･繝懊・繝・| BizCAFE')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // --- 隱倩・繝輔か繝ｼ繝 ---
+  if (param.page === 'yuchi') {
+    var template = HtmlService.createTemplateFromFile('隱倩・繝輔か繝ｼ繝');
+    template.staffName = param.name || '';
+    template.preselected = param.companies || '';
+    return template.evaluate()
+      .setTitle('隱倩・諠・ｱ蜈･蜉・)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // --- 縺雁ｮ｢讒伜髄縺大霧讌ｭ繧ｫ繝ｬ繝ｳ繝繝ｼ ---
+  if (param.page === 'calendar') {
+    // JSON繝・・繧ｿAPI繝｢繝ｼ繝会ｼ医き繝ｬ繝ｳ繝繝ｼ・・
+    if (param.action === 'data') {
+      var year    = parseInt(param.year)  || new Date().getFullYear();
+      var month   = parseInt(param.month) || (new Date().getMonth() + 1);
+      var nocache = param.nocache === '1';
+      var data    = getCustomerCalendarData_(year, month, nocache);
+      var output  = ContentService.createTextOutput(JSON.stringify(data))
+        .setMimeType(ContentService.MimeType.JSON);
+      return output;
+    }
+    // JSON繝・・繧ｿAPI繝｢繝ｼ繝会ｼ域欠螳壽律縺ｮMeetup荳隕ｧ・・
+    if (param.action === 'meetups') {
+      var meetupDate = param.date || '';
+      var meetups = getMeetupsForCustomer_(meetupDate);
+      return ContentService.createTextOutput(JSON.stringify(meetups))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 迴ｾ蝨ｨ縺ｮ蝟ｶ讌ｭ迥ｶ豕・ｼ亥霧讌ｭ荳ｭ繝ｻLO蠕後・蝟ｶ讌ｭ譎る俣螟厄ｼ峨ｒ霑斐☆
+    if (param.action === 'businessStatus') {
+      var now = new Date();
+      var hours = getBusinessHours(now);
+      var nowMin = now.getHours() * 60 + now.getMinutes();
+      var status = 'closed'; // 繝・ヵ繧ｩ繝ｫ繝・ 螳壻ｼ第律 or 譎る俣螟・
+      var openTime = null, loTime = null, closeTime = null;
+      if (hours) {
+        openTime  = hours.start;
+        loTime    = hours.lo || null;
+        closeTime = hours.end;
+        var openMin  = timeToMin_(hours.start);
+        var closeMin = timeToMin_(hours.end);
+        var loMin    = loTime ? timeToMin_(loTime) : closeMin;
+        if (nowMin >= openMin && nowMin < loMin) {
+          status = 'open';
+        } else if (loTime && nowMin >= loMin && nowMin < closeMin) {
+          status = 'lo'; // LO蠕後・髢牙ｺ怜燕
+        } else {
+          status = 'outside'; // 髢句ｺ怜燕 or 髢牙ｺ怜ｾ・
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status:    status,
+        openTime:  openTime,
+        loTime:    loTime,
+        closeTime: closeTime,
+        nowTime:   Utilities.formatDate(now, TIMEZONE, 'HH:mm')
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    // 豺ｷ髮醍憾豕∝叙蠕・
+    if (param.action === 'congestion') {
+      var props = PropertiesService.getScriptProperties();
+      var level = parseInt(props.getProperty('CONGESTION_LEVEL') || '0');
+      var updatedAt = props.getProperty('CONGESTION_UPDATED_AT') || '';
+      // 譌･莉倥′螟峨ｏ縺｣縺ｦ縺・◆繧画悴遒ｺ隱搾ｼ・・峨↓繝ｪ繧ｻ繝・ヨ
+      var todayStr = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+      if (updatedAt && updatedAt.slice(0, 10) !== todayStr) {
+        level = 0;
+        props.setProperty('CONGESTION_LEVEL', '0');
+      }
+      return ContentService.createTextOutput(JSON.stringify({ level: level, updatedAt: updatedAt }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // Q&A繝ｪ繧ｹ繝亥叙蠕・
+    if (param.action === 'qaList') {
+      var includeHidden = param.staff === '1';
+      return ContentService.createTextOutput(JSON.stringify(getFAQList_(includeHidden)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // Q&A雉ｪ蝠乗兜遞ｿ・磯｡ｧ螳｢逕ｨ・・
+    if (param.action === 'qaSubmit') {
+      var result = submitQuestion_(param.question || '');
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // Q&A菫晏ｭ假ｼ医せ繧ｿ繝・ヵ逕ｨ・・
+    if (param.action === 'qaSave') {
+      var result = saveFAQItem_(
+        param.id || '',
+        param.question || '',
+        param.answer || '',
+        param.visible !== 'false'
+      );
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // Q&A蜑企勁・医せ繧ｿ繝・ヵ逕ｨ・・
+    if (param.action === 'qaDelete') {
+      var result = deleteFAQItem_(param.id || '');
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }

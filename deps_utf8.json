@@ -1,0 +1,37 @@
+﻿[
+  {
+    "deploymentId": "AKfycbyPGPPqaVp9jT1jGSUniTijZzZ4FfzUeC7cMHIN4dA"
+  },
+  {
+    "deploymentId": "AKfycbx9FHoG-xKKhW41ppJV1783BBv5OtmyqCikfktYenJW5_UJ9x6snx8GpRxCl06ed9kq",
+    "versionNumber": 350,
+    "description": "Update API for shift change enhancement"
+  },
+  {
+    "deploymentId": "AKfycbxc5QSSH2bHqX6cuHqClVMWfkBrfqW8Zi4AY2E_wYPjO2NWUD4oJXMihgR1XtVgR0vP",
+    "versionNumber": 345
+  },
+  {
+    "deploymentId": "AKfycbwB09MN5nWVUcrJFBrnbp0ZY-4atulCEXMKvk5lRB9skiMA_PKLdNFhVwy36kFoac9r",
+    "versionNumber": 2,
+    "description": "繧ｷ繝輔ヨ繝ｪ繝槭う繝ｳ繝・
+  },
+  {
+    "deploymentId": "AKfycbz7-u0KjsXGA8RXjD8eLHA8amJg3oesL_ahcyvbXU7TX53y_qec3MR6pClR6uj5wIPS",
+    "versionNumber": 347
+  },
+  {
+    "deploymentId": "AKfycbzAVJOogzk21LR9oZpnl3NtKl05HNZ3Scp81BKgoL9w_ejFB8N_9MWhXoWY-ccuclXS",
+    "versionNumber": 351,
+    "description": "Implement unified shift change/edit with sheet sync"
+  },
+  {
+    "deploymentId": "AKfycbzPV9QeuJH976q01BTECsiFJpcTMCKRXEiH0aO6-C8xscr5u5HrK_vZ4tt0dDBb-40p",
+    "versionNumber": 349
+  },
+  {
+    "deploymentId": "AKfycbxmDEsZAqvn4h1swyQgFjmVMzQ6wcyJMp0fUUT0FMZ0cRtjT1ivJQiW-7LCkmZkstg2",
+    "versionNumber": 1,
+    "description": "繧ｷ繝輔ヨ繝ｪ繝槭う繝ｳ繝・
+  }
+]
