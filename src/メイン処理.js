@@ -86,6 +86,9 @@ function doPost(e) {
           date:          body.date          || '',
           originalStaff: body.originalStaff || '',
           originalTime:  body.originalTime  || '',
+          originalStart: body.originalStart || '',
+          recruitStart:  body.recruitStart  || '',
+          recruitEnd:    body.recruitEnd    || '',
           reason:        body.reason        || ''
         });
         return ContentService.createTextOutput(JSON.stringify(recruitResult))
@@ -97,6 +100,10 @@ function doPost(e) {
           date:          body.date          || '',
           originalStaff: body.originalStaff || '',
           originalTime:  body.originalTime  || '',
+          originalStart: body.originalStart || '',
+          originalEnd:   body.originalEnd   || '',
+          newStart:      body.newStart      || '',
+          newEnd:        body.newEnd        || '',
           agentStaff:    body.agentStaff    || ''
         });
         return ContentService.createTextOutput(JSON.stringify(approveResult))
@@ -428,6 +435,21 @@ function doGet(e) {
           .setMimeType(ContentService.MimeType.JSON);
       }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid level' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 残席情報取得
+    if (param.action === 'getSeats') {
+      return ContentService.createTextOutput(JSON.stringify(handleGetSeats_()))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 残席手動上書き
+    if (param.action === 'seatsOverride') {
+      return ContentService.createTextOutput(JSON.stringify(handleSeatsOverride_(param)))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 残席上書き解除
+    if (param.action === 'clearSeatsOverride') {
+      return ContentService.createTextOutput(JSON.stringify(handleClearSeatsOverride_()))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // メンテナンス状態取得

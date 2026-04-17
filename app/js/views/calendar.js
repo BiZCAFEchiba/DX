@@ -551,13 +551,15 @@ var CalendarView = (function () {
       var newEnd   = document.getElementById('approve-end').value;
       if (!agent) { showToast('名前を選択してください', true); return; }
       var btn = document.getElementById('approve-save'); btn.disabled = true; btn.textContent = '送信中...';
-      API.approveShiftRecruitment({ date: dayData.date, originalStaff: shift.name, originalTime: newStart + '-' + newEnd, agentStaff: agent })
+      API.approveShiftRecruitment({ date: dayData.date, originalStaff: shift.name, originalStart: shift.start, originalEnd: shift.end, newStart: newStart, newEnd: newEnd, agentStaff: agent })
         .then(function(res) {
           overlay.hidden = true;
           if (res.ok) {
-            updateLocal(dayData.date, shift.name, agent, newStart, newEnd);
-            shiftDates[dayData.date].staff.forEach(function(s) { if(s.name===agent) { s.status = ''; } });
-            showToast('引受け完了しました！'); loadDayDetail(); renderGrid();
+            showToast('引受け完了しました！');
+            // ローカルキャッシュを破棄してサーバーから再取得（部分引受けで行が分割されるため）
+            var cacheKey = 'cache_shifts_' + currentYear + '_' + pad(currentMonth + 1);
+            localStorage.removeItem(cacheKey);
+            loadMonth();
           } else { throw new Error(res.error || 'エラー'); }
         }).catch(function(err) { overlay.hidden = true; showToast('エラー: ' + err.message, true); });
     });

@@ -199,16 +199,39 @@ function requestShiftRecruitment_(params) {
   const token = getLineWorksAccessToken();
   if (!token) return { error: 'token_error' };
 
-  // スプレッドシートのステータス更新
-  const updated = updateShiftStatus(params.date, params.originalStaff, '募集中');
+  // スプレッドシート更新: 部分募集に対応した行分割
+  // originalStart = 元行の開始時刻（行特定用）
+  // recruitStart/recruitEnd = 実際に募集する時間帯
+  let originalStart = params.originalStart || null;
+  let recruitStart  = params.recruitStart  || null;
+  let recruitEnd    = params.recruitEnd    || null;
 
-  let text = '🔄 【シフト交代の募集】\n\n';
-  text += '以下のシフトについて、交代を募集しています。\nカレンダーより承認お願いします。\n\n';
+  // フォールバック: originalTime（例 "13:00〜15:00"）から recruitStart/recruitEnd を取得
+  if ((!recruitStart || !recruitEnd) && params.originalTime) {
+    const parts = params.originalTime.split(/[〜\-]/);
+    if (parts.length >= 1 && parts[0].trim()) recruitStart = recruitStart || parts[0].trim();
+    if (parts.length >= 2 && parts[1].trim()) recruitEnd   = recruitEnd   || parts[1].trim();
+  }
+  // originalStart が未指定なら recruitStart を使用（全体募集ケース）
+  if (!originalStart) originalStart = recruitStart;
+
+  let updated = false;
+  try {
+    updated = recruitShiftSegment(params.date, params.originalStaff, originalStart, recruitStart, recruitEnd);
+  } catch (e) {
+    Logger.log('recruitShiftSegment エラー（通知は継続）: ' + e.message);
+  }
+
+  const timeLabel = (recruitStart && recruitEnd) ? recruitStart + '〜' + recruitEnd : (params.originalTime || '');
+  // @All をテキスト先頭に配置。offset/length で位置を指定してメンションとして認識させる
+  const mentionMarker = '@All ';
+  let text = mentionMarker + '🔄 【シフト交代の募集】\n\n';
+  text += '以下のシフトについて、交代を募集しています。\nカレンダーより引き受けをお願いします。\n\n';
   text += '📅 ' + params.date + '\n';
-  text += '⏰ ' + params.originalTime + '\n';
-  text += '👤 ' + params.originalStaff + ' -> (募集中)\n';
+  text += '⏰ ' + timeLabel + '\n';
+  text += '👤 ' + params.originalStaff + ' → (募集中)\n';
   text += '📝 理由: ' + (params.reason || '記載なし') + '\n\n';
-  text += 'シフトにご協力いただける方は、アプリのカレンダーから引き受けをお願いします🙏';
+  text += 'アプリのカレンダーから引き受けをお願いします🙏';
 
   // 幹部グループへ @all メンション付きで通知（KANBU_CHANNEL_ID = edbdefad-...）
   const kanbuUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + KANBU_CHANNEL_ID + '/messages';
@@ -219,17 +242,14 @@ function requestShiftRecruitment_(params) {
       contentType: 'application/json',
       headers: { 'Authorization': 'Bearer ' + token },
       payload: JSON.stringify({
-        content: {
-          type: 'text',
-          text: text,
-          mentionedList: [{ type: 'all' }]
-        }
+        content: { type: 'text', text: text },
+        mentionedList: [{ type: 'all', offset: 0, length: mentionMarker.trim().length }]
       }),
       muteHttpExceptions: true
     });
     const code = res.getResponseCode();
-    Logger.log('シフト募集通知 (kanbu/@all): HTTP ' + code);
-    if (code !== 200 && code !== 201) Logger.log('レスポンス: ' + res.getContentText());
+    const body = res.getContentText();
+    Logger.log('シフト募集通知 (kanbu/@all): HTTP ' + code + ' ' + body.substring(0, 200));
     groupSent = (code === 200 || code === 201);
   } catch (e) {
     Logger.log('シフト募集通知エラー: ' + e.message);
@@ -246,13 +266,25 @@ function approveShiftRecruitment_(params) {
   const token = getLineWorksAccessToken();
   if (!token) return { error: 'token_error' };
 
-  // シフトDBのスタッフ名書き換え＆ステータスクリア
-  const updated = updateShiftStaff(params.date, params.originalStaff, params.agentStaff);
+  // originalStart/originalEnd を取得（新フィールド優先、フォールバックで originalTime からパース）
+  let origStart = params.originalStart || null;
+  let origEnd   = params.originalEnd   || null;
+  if (!origStart && params.originalTime) {
+    const parts = params.originalTime.split(/[〜\-]/);
+    if (parts.length >= 1 && parts[0].trim()) origStart = parts[0].trim();
+    if (parts.length >= 2 && parts[1].trim()) origEnd   = parts[1].trim();
+  }
+  const newStart = params.newStart || origStart;
+  const newEnd   = params.newEnd   || origEnd;
 
+  // シフトDBのスタッフ名書き換え＆ステータスクリア（originalStart で行を特定）
+  const updated = updateShiftStaff(params.date, params.originalStaff, params.agentStaff, newStart, newEnd, origStart);
+
+  const timeLabel = newStart && newEnd ? newStart + '〜' + newEnd : (params.originalTime || '');
   let text = '✅ 【シフト交代 承認完了】\n\n';
   text += 'シフトの交代が成立しました。\n\n';
   text += '📅 ' + params.date + '\n';
-  text += '⏰ ' + params.originalTime + '\n';
+  text += '⏰ ' + timeLabel + '\n';
   text += '👤 ' + params.originalStaff + ' → ' + params.agentStaff + '\n\n';
   text += 'ご協力ありがとうございます🙏 ジョブカンへの反映をお願いします。';
 
@@ -362,5 +394,88 @@ function notifyShiftFill_(params) {
     Logger.log('notifyShiftFill_ エラー: ' + e.message);
     return { ok: false, error: e.message };
   }
+}
+
+/**
+ * 【診断用】シフト募集通知の送信テスト
+ * GASエディタから直接実行して Logger でエラー原因を確認する
+ */
+function debugRecruitmentNotification() {
+  initChannelId_();
+
+  Logger.log('=== シフト募集通知 診断開始 ===');
+  Logger.log('SHIFT_CHANGE_BOT_ID: ' + SHIFT_CHANGE_BOT_ID);
+  Logger.log('KANBU_CHANNEL_ID: ' + KANBU_CHANNEL_ID);
+
+  // Step 1: トークン取得
+  const token = getLineWorksAccessToken();
+  if (!token) {
+    Logger.log('❌ アクセストークン取得失敗 → CLIENT_ID / SECRET / SERVICE_ACCOUNT / 秘密鍵 を確認してください');
+    return;
+  }
+  Logger.log('✅ アクセストークン取得成功');
+
+  // Step 2: Bot情報確認（botが存在しトークンが有効か）
+  try {
+    const botInfoUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID;
+    const botRes = UrlFetchApp.fetch(botInfoUrl, {
+      method: 'get',
+      headers: { 'Authorization': 'Bearer ' + token },
+      muteHttpExceptions: true
+    });
+    Logger.log('Bot情報 HTTP: ' + botRes.getResponseCode() + ' → ' + botRes.getContentText().substring(0, 200));
+  } catch (e) {
+    Logger.log('Bot情報取得エラー: ' + e.message);
+  }
+
+  // Step 3: チャンネルへのテストメッセージ（mentionedList あり）
+  const kanbuUrl = LINEWORKS_API_BASE + '/bots/' + SHIFT_CHANGE_BOT_ID + '/channels/' + KANBU_CHANNEL_ID + '/messages';
+  Logger.log('送信先URL: ' + kanbuUrl);
+
+  try {
+    const res1 = UrlFetchApp.fetch(kanbuUrl, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'Authorization': 'Bearer ' + token },
+      payload: JSON.stringify({
+        content: { type: 'text', text: '@All シフト募集通知テスト送信' },
+        mentionedList: [{ type: 'all', offset: 0, length: 4 }]
+      }),
+      muteHttpExceptions: true
+    });
+    const code1 = res1.getResponseCode();
+    const body1 = res1.getContentText();
+    Logger.log('mentionedList あり → HTTP ' + code1 + ': ' + body1.substring(0, 300));
+
+    if (code1 !== 200 && code1 !== 201) {
+      // Step 4: mentionedList なしで再試行
+      const res2 = UrlFetchApp.fetch(kanbuUrl, {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { 'Authorization': 'Bearer ' + token },
+        payload: JSON.stringify({
+          content: { type: 'text', text: '【診断テスト】シフト募集通知テスト送信（@allなし）' }
+        }),
+        muteHttpExceptions: true
+      });
+      const code2 = res2.getResponseCode();
+      Logger.log('mentionedList なし → HTTP ' + code2 + ': ' + res2.getContentText().substring(0, 300));
+
+      if (code2 === 403) {
+        Logger.log('❌ 403 Forbidden → Bot (ID:' + SHIFT_CHANGE_BOT_ID + ') がチャンネル (ID:' + KANBU_CHANNEL_ID + ') に参加していない可能性が高い');
+        Logger.log('→ LINE WORKS 管理画面でチャンネルにBotを追加してください');
+      } else if (code2 === 401) {
+        Logger.log('❌ 401 Unauthorized → トークンまたはBot IDが正しくない');
+      } else if (code2 === 404) {
+        Logger.log('❌ 404 Not Found → チャンネルIDまたはBot IDが存在しない');
+      }
+    } else {
+      Logger.log('✅ 送信成功（mentionedList あり）');
+    }
+  } catch (e) {
+    Logger.log('送信エラー: ' + e.message);
+  }
+
+  Logger.log('=== 診断終了 ===');
 }
 

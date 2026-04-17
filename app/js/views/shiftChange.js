@@ -172,6 +172,7 @@ var ShiftChangeView = (function () {
       html += renderField('日付', '<input type="date" id="sc-date" class="form-control" value="' + data.date + '" readonly style="background:var(--gray-100);">');
       var defStart = data.originalTime ? data.originalTime.split('-')[0] : '10:00';
       var defEnd   = data.originalTime ? data.originalTime.split('-')[1] : '14:00';
+      html += '<input type="hidden" id="sc-orig-shift-start" value="' + defStart + '"><input type="hidden" id="sc-orig-shift-end" value="' + defEnd + '">';
       html += '<div style="display:flex; gap:8px;">';
       html += '<div style="flex:1;">' + renderField('開始時間', renderTimeSelect('sc-new-start', defStart)) + '</div>';
       html += '<div style="flex:1;">' + renderField('終了時間', renderTimeSelect('sc-new-end', defEnd)) + '</div>';
@@ -295,7 +296,7 @@ var ShiftChangeView = (function () {
     var dow = ['日','月','火','水','木','金','土'][d.getDay()];
     var dateLabel = (d.getMonth()+1) + '月' + d.getDate() + '日（' + dow + '）';
 
-    var html = renderField('日付', '<div style="padding:10px; background:var(--gray-100); border-radius:6px; font-size:0.9rem; color:var(--gray-700);">' + dateLabel + '</div><input type="hidden" id="sc-date" value="' + date + '">');
+    var html = renderField('日付', '<div style="padding:10px; background:var(--gray-100); border-radius:6px; font-size:0.9rem; color:var(--gray-700);">' + dateLabel + '</div><input type="hidden" id="sc-date" value="' + date + '"><input type="hidden" id="sc-orig-shift-start" value="' + start + '"><input type="hidden" id="sc-orig-shift-end" value="' + end + '">');
     html += '<div style="display:flex; gap:8px;">';
     html += '<div style="flex:1;">' + renderField('開始時間', renderTimeSelect('sc-new-start', start)) + '</div>';
     html += '<div style="flex:1;">' + renderField('終了時間', renderTimeSelect('sc-new-end', end)) + '</div>';
@@ -388,7 +389,7 @@ var ShiftChangeView = (function () {
         if (!p.date) { showToast('シフトを選択してください', true); return; }
         if (!p.reason.trim()) { showToast('理由を入力してください', true); return; }
         submitRecruit.disabled = true; submitRecruit.textContent = '送信中...';
-        API.requestShiftRecruitment({ date: p.date, originalStaff: p.origStaff, originalTime: p.newStart + '〜' + p.newEnd, reason: p.reason })
+        API.requestShiftRecruitment({ date: p.date, originalStaff: p.origStaff, originalTime: p.newStart + '〜' + p.newEnd, originalStart: p.origShiftStart || p.newStart, recruitStart: p.newStart, recruitEnd: p.newEnd, reason: p.reason })
           .then(function(res) { if (res.ok) { showToast('募集を開始しました'); } else { throw new Error(); }})
           .catch(function() { showToast('募集エラー', true); })
           .finally(function() { submitRecruit.disabled = false; submitRecruit.textContent = '募集を開始する'; });
@@ -419,14 +420,18 @@ var ShiftChangeView = (function () {
     var endEl   = container.querySelector('#sc-new-end');
     var agentEl = container.querySelector('#sc-agent-staff');
     var reasonEl = container.querySelector('#sc-reason');
+    var origShiftStartEl = container.querySelector('#sc-orig-shift-start');
+    var origShiftEndEl   = container.querySelector('#sc-orig-shift-end');
     return {
-      date:      dateEl   ? dateEl.value   : '',
-      origStaff: container.querySelector('#sc-orig-staff') ? container.querySelector('#sc-orig-staff').value : '',
-      newStart:  startEl  ? startEl.value  : '',
-      newEnd:    endEl    ? endEl.value    : '',
-      origTime:  startEl && endEl ? startEl.value + '-' + endEl.value : '',
-      agentStaff: agentEl ? agentEl.value  : '',
-      reason:    reasonEl ? reasonEl.value : ''
+      date:          dateEl   ? dateEl.value   : '',
+      origStaff:     container.querySelector('#sc-orig-staff') ? container.querySelector('#sc-orig-staff').value : '',
+      newStart:      startEl  ? startEl.value  : '',
+      newEnd:        endEl    ? endEl.value    : '',
+      origTime:      startEl && endEl ? startEl.value + '-' + endEl.value : '',
+      origShiftStart: origShiftStartEl ? origShiftStartEl.value : '',
+      origShiftEnd:   origShiftEndEl   ? origShiftEndEl.value   : '',
+      agentStaff:    agentEl ? agentEl.value   : '',
+      reason:        reasonEl ? reasonEl.value : ''
     };
   }
 

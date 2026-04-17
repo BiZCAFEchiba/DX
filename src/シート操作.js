@@ -382,9 +382,18 @@ function calculateRemainingOpeCount_(targetDateStr, removeStaffName, startStr, e
 }
 
 /**
- * シフトのJ列（ステータス）を更新する
+ * シフトの一部または全部を「募集中」にする。
+ * 募集範囲が元のシフト時間より短い場合は元の行を募集範囲に縮小し、
+ * 残り時間帯を元スタッフ名の通常シフト行として追加する。
+ *
+ * @param {string} targetDateStr  - 対象日 YYYY-MM-DD
+ * @param {string} staffName      - スタッフ名
+ * @param {string} originalStart  - 元の行の開始時刻 HH:mm（行特定に使用）
+ * @param {string} recruitStart   - 募集開始時刻 HH:mm
+ * @param {string} recruitEnd     - 募集終了時刻 HH:mm
+ * @returns {boolean}
  */
-function updateShiftStatus(targetDateStr, staffName, statusStr) {
+function recruitShiftSegment(targetDateStr, staffName, originalStart, recruitStart, recruitEnd) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
   if (!sheet) return false;
 
@@ -393,18 +402,81 @@ function updateShiftStatus(targetDateStr, staffName, statusStr) {
 
   for (let i = 1; i < data.length; i++) {
     const rowDate = data[i][0] instanceof Date ? Utilities.formatDate(data[i][0], TIMEZONE, 'yyyy/MM/dd') : String(data[i][0]);
-    if (rowDate === targetDateFmt && String(data[i][2]).trim() === staffName) {
-      sheet.getRange(i + 1, 10).setValue(statusStr); // J列
-      return true;
+    if (rowDate !== targetDateFmt) continue;
+    if (String(data[i][2]).trim() !== staffName) continue;
+    if (originalStart) {
+      const rowStart = formatTime_(data[i][3]);
+      if (rowStart !== originalStart) continue;
     }
+
+    const rowOrigStart = formatTime_(data[i][3]);
+    const rowOrigEnd   = formatTime_(data[i][4]);
+    const rStart = recruitStart || rowOrigStart;
+    const rEnd   = recruitEnd   || rowOrigEnd;
+
+    // 元の行を募集範囲に書き換えて「募集中」に設定
+    sheet.getRange(i + 1, 4).setValue(rStart);
+    sheet.getRange(i + 1, 5).setValue(rEnd);
+    sheet.getRange(i + 1, 10).setValue('募集中');
+
+    // 残り時間帯を通常シフト行として追記（ステータスなし）
+    const dow = ['日','月','火','水','木','金','土'][new Date(targetDateStr + 'T00:00:00').getDay()];
+    const dateVal = new Date(targetDateStr + 'T00:00:00+09:00');
+    if (rStart > rowOrigStart) {
+      // 前半が残り: rowOrigStart〜rStart
+      sheet.appendRow([dateVal, dow, staffName, rowOrigStart, rStart, '', new Date(), '']);
+    }
+    if (rEnd < rowOrigEnd) {
+      // 後半が残り: rEnd〜rowOrigEnd
+      sheet.appendRow([dateVal, dow, staffName, rEnd, rowOrigEnd, '', new Date(), '']);
+    }
+
+    return true;
+  }
+  return false;
+}
+
+/**
+ * シフトのJ列（ステータス）を更新する
+ * @param {string} targetDateStr - YYYY-MM-DD
+ * @param {string} staffName
+ * @param {string} statusStr
+ * @param {string} [startTime] - HH:mm（複数行ある場合に対象セグメントを特定する）
+ */
+function updateShiftStatus(targetDateStr, staffName, statusStr, startTime) {
+  const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
+  if (!sheet) return false;
+
+  const targetDateFmt = Utilities.formatDate(new Date(targetDateStr), TIMEZONE, 'yyyy/MM/dd');
+  const data = sheet.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const rowDate = data[i][0] instanceof Date ? Utilities.formatDate(data[i][0], TIMEZONE, 'yyyy/MM/dd') : String(data[i][0]);
+    if (rowDate !== targetDateFmt) continue;
+    if (String(data[i][2]).trim() !== staffName) continue;
+    // 開始時刻が指定されている場合は一致するセグメントのみ更新
+    if (startTime) {
+      const rowStart = formatTime_(data[i][3]);
+      if (rowStart !== startTime) continue;
+    }
+    sheet.getRange(i + 1, 10).setValue(statusStr); // J列
+    return true;
   }
   return false;
 }
 
 /**
  * シフトの担当スタッフ名、時間、ステータスを更新する（交代・編集用）
+ * 部分引受け（newStart/newEnd が元の時間帯と異なる）の場合、
+ * 残り時間帯を元スタッフ名で「募集中」行として追加する。
+ * @param {string} targetDateStr
+ * @param {string} oldStaffName
+ * @param {string} newStaffName
+ * @param {string} [newStart] - 引受け開始時刻 HH:mm
+ * @param {string} [newEnd]   - 引受け終了時刻 HH:mm
+ * @param {string} [originalStart] - 元セグメントの開始時刻（複数行対応に使用）
  */
-function updateShiftStaff(targetDateStr, oldStaffName, newStaffName, newStart, newEnd) {
+function updateShiftStaff(targetDateStr, oldStaffName, newStaffName, newStart, newEnd, originalStart) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
   if (!sheet) return false;
 
@@ -413,13 +485,41 @@ function updateShiftStaff(targetDateStr, oldStaffName, newStaffName, newStart, n
 
   for (let i = 1; i < data.length; i++) {
     const rowDate = data[i][0] instanceof Date ? Utilities.formatDate(data[i][0], TIMEZONE, 'yyyy/MM/dd') : String(data[i][0]);
-    if (rowDate === targetDateFmt && String(data[i][2]).trim() === oldStaffName) {
-      if (newStaffName) sheet.getRange(i + 1, 3).setValue(newStaffName); // C列: スタッフ名
-      if (newStart)     sheet.getRange(i + 1, 4).setValue(newStart);     // D列: 開始時間
-      if (newEnd)       sheet.getRange(i + 1, 5).setValue(newEnd);       // E列: 終了時間
-      sheet.getRange(i + 1, 10).clearContent(); // J列: ステータスクリア
-      return true;
+    if (rowDate !== targetDateFmt) continue;
+    if (String(data[i][2]).trim() !== oldStaffName) continue;
+    // originalStart が指定されている場合は開始時刻でセグメントを絞り込む
+    if (originalStart) {
+      const rowStart = formatTime_(data[i][3]);
+      if (rowStart !== originalStart) continue;
     }
+
+    // 元の時間帯を保存（部分引受け判定用）
+    const rowOrigStart = formatTime_(data[i][3]);
+    const rowOrigEnd   = formatTime_(data[i][4]);
+
+    // 行を更新（スタッフ名・引受け時間・ステータスクリア）
+    if (newStaffName) sheet.getRange(i + 1, 3).setValue(newStaffName);
+    if (newStart)     sheet.getRange(i + 1, 4).setValue(newStart);
+    if (newEnd)       sheet.getRange(i + 1, 5).setValue(newEnd);
+    sheet.getRange(i + 1, 10).clearContent(); // J列: ステータスクリア
+
+    // 部分引受けの場合: 残り時間帯を元スタッフ名で「募集中」として追加
+    if (newStart && newEnd && rowOrigStart && rowOrigEnd) {
+      const dow = ['日','月','火','水','木','金','土'][new Date(targetDateStr + 'T00:00:00').getDay()];
+      const dateVal = new Date(targetDateStr + 'T00:00:00+09:00');
+      if (newStart > rowOrigStart) {
+        // 前半が残り: rowOrigStart〜newStart
+        sheet.appendRow([dateVal, dow, oldStaffName, rowOrigStart, newStart, '', new Date(), 'recruit_partial']);
+        sheet.getRange(sheet.getLastRow(), 10).setValue('募集中');
+      }
+      if (newEnd < rowOrigEnd) {
+        // 後半が残り: newEnd〜rowOrigEnd
+        sheet.appendRow([dateVal, dow, oldStaffName, newEnd, rowOrigEnd, '', new Date(), 'recruit_partial']);
+        sheet.getRange(sheet.getLastRow(), 10).setValue('募集中');
+      }
+    }
+
+    return true;
   }
   return false;
 }

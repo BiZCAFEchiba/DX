@@ -387,6 +387,9 @@
   <button class="tab-btn active" id="tabCongestion" onclick="switchTab('congestion')">
     <span class="tab-icon">👥</span>混雑更新
   </button>
+  <button class="tab-btn" id="tabSeats" onclick="switchTab('seats')">
+    <span class="tab-icon">💺</span>残席確認
+  </button>
   <button class="tab-btn" id="tabQA" onclick="switchTab('qa')">
     <span class="tab-icon">💬</span>Q&amp;A管理
   </button>
@@ -442,6 +445,60 @@
         <div class="form-btns">
           <button class="btn-secondary" type="button" onclick="addCongestionParticipationTheme()">テーマを追加</button>
           <button class="btn-primary" type="button" onclick="saveCongestionParticipation()">保存する</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="paneSeats">
+    <div class="container">
+      <div class="section-title">残席自動計算</div>
+
+      <div class="current-card" style="margin-bottom:16px;">
+        <div class="person-icons" id="autoSeatsIcons"></div>
+        <div class="current-label" id="autoSeatsLevelLabel" style="font-size:1.1rem;">-</div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; text-align:center; margin-bottom:18px;">
+        <div style="background:white; border:1px solid #e0e7ef; border-radius:10px; padding:12px 4px;">
+          <div style="font-size:1.6rem; font-weight:800; color:#1a3a5c;" id="autoSeatsRemaining">-</div>
+          <div style="font-size:0.72rem; color:#888; margin-top:2px;">残席</div>
+        </div>
+        <div style="background:white; border:1px solid #e0e7ef; border-radius:10px; padding:12px 4px;">
+          <div style="font-size:1.6rem; font-weight:800; color:#e67e22;" id="autoSeatsOccupied">-</div>
+          <div style="font-size:0.72rem; color:#888; margin-top:2px;">推定在席</div>
+        </div>
+        <div style="background:white; border:1px solid #e0e7ef; border-radius:10px; padding:12px 4px;">
+          <div style="font-size:1.6rem; font-weight:800; color:#555;" id="autoSeatsTodayTotal">-</div>
+          <div style="font-size:0.72rem; color:#888; margin-top:2px;">今日の来店計</div>
+        </div>
+      </div>
+
+      <div style="font-size:0.82rem; color:#666; margin-bottom:4px;" id="autoSeatsNote">直近90分の来店増分より算出（全62席）</div>
+      <div style="font-size:0.75rem; color:#aaa; margin-bottom:16px;" id="autoSeatsUpdatedAt"></div>
+
+      <button class="update-btn" onclick="loadAutoSeats()" style="margin-bottom:18px;">最新データに更新</button>
+
+      <div class="corner-admin-form corner-content-card">
+        <div class="form-title">混雑更新タブに反映する</div>
+        <div class="corner-inline-help">自動計算のレベルをセットし、「更新する」ボタンで混雑状況を更新できます。</div>
+        <div class="form-btns" style="margin-top:12px;">
+          <button class="btn-primary" onclick="applyAutoSeatsLevel()" id="autoSeatsApplyBtn">レベルに適用して混雑更新へ</button>
+        </div>
+      </div>
+
+      <div class="corner-admin-form corner-content-card" style="margin-top:16px;">
+        <div class="form-title">残席を手動上書き</div>
+        <div class="corner-inline-help">自動計算より実態が大きく異なる場合に使用。空にすると自動に戻ります。</div>
+        <div class="form-grid two-col" style="margin-top:8px;">
+          <div class="form-field">
+            <label>残席数（0〜62）</label>
+            <input type="number" id="qrOverrideSeats" min="0" max="62" placeholder="例: 30" style="width:100%;">
+          </div>
+        </div>
+        <div class="form-btns">
+          <button class="btn-primary" onclick="submitSeatsOverride()">上書き</button>
+          <button class="btn-secondary" onclick="clearSeatsOverride()">自動に戻す</button>
         </div>
       </div>
     </div>
@@ -926,7 +983,7 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(pane) { pane.classList.remove('active'); });
-    var suffix = { congestion: 'Congestion', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance', room: 'StaffRoom' }[name];
+    var suffix = { congestion: 'Congestion', seats: 'Seats', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance', room: 'StaffRoom' }[name];
     document.getElementById('tab' + suffix).classList.add('active');
     document.getElementById('pane' + suffix).classList.add('active');
     if (name === 'qa' && !qaLoaded) { qaLoaded = true; loadQA(); }
@@ -939,6 +996,7 @@
     if (name === 'corner' && !cornerContentLoaded) { cornerContentLoaded = true; loadCornerContentAdmin(); }
     if (name === 'maintenance' && !maintenanceLoaded) { maintenanceLoaded = true; loadMaintenance(); }
     if (name === 'room' && !staffRoomLoaded) { staffRoomLoaded = true; loadStaffRoom(); }
+    if (name === 'seats') { loadAutoSeats(); }
   }
 
   // ===== メンテナンス管理 =====
@@ -1055,6 +1113,90 @@
       .then(function(r) { return r.json(); })
       .then(function(d) { renderCurrent(d.level || 0, d.updatedAt || ''); })
       .catch(function() {});
+  }
+
+  var autoSeatsLevel = -1;
+
+  function loadAutoSeats() {
+    document.getElementById('autoSeatsLevelLabel').textContent = '読み込み中...';
+    fetch(GAS_API_URL + '?page=calendar&action=getSeats')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.ok) return;
+
+        // アイコン表示
+        var lv = d.level || 0;
+        var iconsEl = document.getElementById('autoSeatsIcons');
+        iconsEl.innerHTML = '';
+        for (var i = 1; i <= 5; i++) {
+          var span = document.createElement('span');
+          span.innerHTML = PERSON_SVG;
+          span.querySelector('svg').style.fill = i <= lv ? COLORS[lv] : '#e0e0e0';
+          iconsEl.appendChild(span);
+        }
+        document.getElementById('autoSeatsLevelLabel').textContent = LABELS[lv] || '未計算';
+        document.getElementById('autoSeatsLevelLabel').style.color = COLORS[lv] || '#bbb';
+
+        document.getElementById('autoSeatsRemaining').textContent = d.remainingSeats + '席';
+        document.getElementById('autoSeatsOccupied').textContent  = d.occupiedSeats  + '名';
+        document.getElementById('autoSeatsTodayTotal').textContent = typeof d.todayTotal === 'number' ? d.todayTotal + '人' : '-';
+
+        document.getElementById('autoSeatsNote').textContent = d.isManualOverride
+          ? '手動上書き中'
+          : '直近90分の来店増分より算出（全' + d.totalSeats + '席）';
+
+        if (d.updatedAt) {
+          var dt = new Date(d.updatedAt);
+          document.getElementById('autoSeatsUpdatedAt').textContent
+            = '最終ポーリング: ' + pad2(dt.getHours()) + ':' + pad2(dt.getMinutes());
+        }
+
+        autoSeatsLevel = lv;
+        document.getElementById('autoSeatsApplyBtn').textContent
+          = 'レベル' + (autoSeatsLevel > 0 ? autoSeatsLevel : '?') + ' に適用して混雑更新へ';
+      })
+      .catch(function() {
+        document.getElementById('autoSeatsLevelLabel').textContent = '取得失敗';
+      });
+  }
+
+  function applyAutoSeatsLevel() {
+    if (autoSeatsLevel < 1 || autoSeatsLevel > 5) { showToast('レベルを取得できていません'); return; }
+    selectLevel(autoSeatsLevel);
+    switchTab('congestion');
+    showToast('レベル' + autoSeatsLevel + ' をセットしました。「更新する」で反映できます');
+  }
+
+  function submitSeatsOverride() {
+    var seats = document.getElementById('qrOverrideSeats').value;
+    if (seats === '') { showToast('残席数を入力してください'); return; }
+    fetch(GAS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page: 'calendar', action: 'seatsOverride', seats: parseInt(seats) })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.ok) { showToast('上書きに失敗しました'); return; }
+        showToast('残席を ' + d.remainingSeats + '席 に上書きしました');
+        loadAutoSeats();
+      })
+      .catch(function() { showToast('送信に失敗しました'); });
+  }
+
+  function clearSeatsOverride() {
+    fetch(GAS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page: 'calendar', action: 'clearSeatsOverride' })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (!d.ok) { showToast('解除に失敗しました'); return; }
+        showToast('自動計算に戻しました（残席 ' + d.remainingSeats + '席）');
+        loadAutoSeats();
+      })
+      .catch(function() { showToast('送信に失敗しました'); });
   }
 
   function renderCurrent(level, updatedAt) {
@@ -3639,7 +3781,7 @@
       +   '<input type="date" id="counterGraphStart" onchange="updateCounterGraphRange()" style="' + selStyle + ';font-size:.8rem;">'
       +   '<input type="date" id="counterGraphEnd" onchange="updateCounterGraphRange()" style="' + selStyle + ';font-size:.8rem;">'
       + '</div>'
-      + '<div id="counterGraph" class="readonly-box" style="height:250px;display:flex;align-items:center;justify-content:center;color:#666;">読み込み中...</div>'
+      + '<div id="counterGraph" class="readonly-box" style="min-height:200px;display:flex;align-items:center;justify-content:center;color:#666;">読み込み中...</div>'
       + '</div>';
     graphContainer.appendChild(graphWrap);
 
@@ -3699,7 +3841,7 @@
             gaugesEl.innerHTML = ''
                 + renderProgressBar('DU (Daily Users)', data.DU)
                 + renderProgressBar('Meetup (イベント)', data.Meetup)
-                + renderProgressBar('MCS (集客指標)', data.MCS);
+                + renderProgressBar('MCS', data.MCS);
             
             // Trigger analysis update after KPI data is loaded
             window.__kpiStoreProgress = data;
@@ -3787,54 +3929,241 @@
     updateAnalyticsAnalysis();
   }
 
+  // 日付キー生成（YYYY-MM-DD）
+  function analysisDateKey(d) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  }
+
+  // dailyCounts から直近 numWeeks 週分の週次合計を返す
+  function buildWeeklyTotals(dailyCounts, key, numWeeks) {
+    var series = dailyCounts[key] || {};
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var weeks = [];
+    for (var w = numWeeks - 1; w >= 0; w--) {
+      var weekEnd = new Date(today);
+      weekEnd.setDate(today.getDate() - w * 7);
+      var weekStart = new Date(weekEnd);
+      weekStart.setDate(weekEnd.getDate() - 6);
+      var total = 0;
+      var cur = new Date(weekStart);
+      while (cur <= weekEnd) {
+        total += Number(series[analysisDateKey(cur)] || 0);
+        cur.setDate(cur.getDate() + 1);
+      }
+      var label = pad2(weekStart.getMonth()+1)+'/'+pad2(weekStart.getDate())
+                + '〜'+pad2(weekEnd.getMonth()+1)+'/'+pad2(weekEnd.getDate());
+      weeks.push({ label: label, total: total });
+    }
+    return weeks;
+  }
+
+  // 週次棒グラフ SVG（幅可変・高さ固定）
+  function renderWeeklyBarSvg(weeks, color) {
+    var W = 320, H = 80, padL = 6, padR = 6, padT = 8, padB = 22;
+    var innerW = W - padL - padR;
+    var innerH = H - padT - padB;
+    var n = weeks.length;
+    var maxV = Math.max.apply(null, weeks.map(function(w){ return w.total; }).concat([1]));
+    var barW = Math.floor(innerW / n * 0.6);
+    var gap  = innerW / n;
+    var bars = weeks.map(function(w, i) {
+      var bh = Math.max(2, Math.round(innerH * w.total / maxV));
+      var x  = padL + gap * i + (gap - barW) / 2;
+      var y  = padT + innerH - bh;
+      var isLast = i === n - 1;
+      var fillColor = isLast ? color : '#c8d8e8';
+      var valLabel = w.total > 0 ? String(w.total) : '';
+      return '<rect x="'+x+'" y="'+y+'" width="'+barW+'" height="'+bh+'" rx="3" fill="'+fillColor+'"/>'
+        + (valLabel ? '<text x="'+(x+barW/2)+'" y="'+(y-3)+'" text-anchor="middle" font-size="9" fill="'+color+'">'+valLabel+'</text>' : '');
+    }).join('');
+    var labels = weeks.map(function(w, i) {
+      var x = padL + gap * i + gap / 2;
+      var short = w.label.slice(0, 5); // MM/DD
+      return '<text x="'+x+'" y="'+(H-5)+'" text-anchor="middle" font-size="9" fill="#8fa0b0">'+short+'</text>';
+    }).join('');
+    return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;margin-top:8px;">'+bars+labels+'</svg>';
+  }
+
+  // 週次成長コメント
+  function growthComment(weeks) {
+    var n = weeks.length;
+    if (n < 2) return '';
+    var prev = weeks[n - 2].total;
+    var curr = weeks[n - 1].total;
+    // 直近4週の合計 vs それ以前4週の合計（データが十分あれば）
+    var recentSum = 0, olderSum = 0, half = Math.floor(n / 2);
+    for (var i = 0; i < n; i++) {
+      if (i >= n - half) recentSum += weeks[i].total;
+      else olderSum += weeks[i].total;
+    }
+    var wowSign = curr > prev ? '▲' : curr < prev ? '▼' : '－';
+    var wowPct  = prev > 0 ? ((curr - prev) / prev * 100).toFixed(0) : null;
+    var wowText = wowPct !== null
+      ? '先週比 ' + wowSign + Math.abs(wowPct) + '%'
+      : (curr > 0 ? '先週はゼロからスタート' : 'まだデータなし');
+    var trendText = '';
+    if (olderSum === 0 && recentSum > 0) {
+      trendText = '展開初期フェーズ。利用者が増え始めています。';
+    } else if (olderSum > 0) {
+      var growth = (recentSum - olderSum) / olderSum * 100;
+      if (growth >= 30) trendText = '直近で大きく伸びています。このペースを維持しましょう。';
+      else if (growth >= 5) trendText = '緩やかに成長中です。伸びしろがあります。';
+      else if (growth >= -5) trendText = '横ばい傾向です。新たな告知施策が効果的かもしれません。';
+      else trendText = '直近で減少傾向です。コンテンツや告知の見直しを検討しましょう。';
+    }
+    // 直近週ゼロの場合
+    if (curr === 0 && prev === 0) return 'まだ閲覧データが少ない段階です。展開の伸びしろがあります。';
+    return wowText + (trendText ? '　' + trendText : '');
+  }
+
   function updateAnalyticsAnalysis() {
     var wrap = document.getElementById('analysisSummary');
     if (!wrap) return;
-    
+
     var pvData = window.__pageViewStatsData || {};
     var kpiData = window.__kpiStoreProgress || {};
-    
-    // Calculate total PV (sum of selected categories or all)
-    var totalPv = 0;
-    if (pvData.totalStats) {
-        totalPv = Object.values(pvData.totalStats).reduce(function(a, b) { return a + b; }, 0);
+    var counts = (pvData && pvData.counts) ? pvData.counts : pvData;
+    var dailyCounts = pvData.dailyCounts || {};
+
+    var congestionPV = Number(counts.congestion || 0);
+    var calendarPV   = Number(counts.calendar   || 0);
+    var candyPV      = Number(counts.candy      || 0);
+
+    var duActual     = kpiData.DU     && kpiData.DU.actual     ? Number(kpiData.DU.actual)     : 0;
+    var meetupActual = kpiData.Meetup && kpiData.Meetup.actual ? Number(kpiData.Meetup.actual) : 0;
+    var mcsActual    = kpiData.MCS    && kpiData.MCS.actual    ? Number(kpiData.MCS.actual)    : 0;
+
+    var noKpi = !duActual && !meetupActual && !mcsActual;
+    var noPv  = !congestionPV && !calendarPV && !candyPV;
+
+    if (noKpi || noPv) {
+      wrap.innerHTML = '<div style="color:#667085;font-size:.88rem;padding:16px 0;">KPI評価タブで年月を選択すると分析が表示されます。</div>';
+      return;
     }
-    
-    // Get MCS (Main Attraction KPI)
-    var mcsActual = (kpiData.MCS && kpiData.MCS.actual) ? kpiData.MCS.actual : 0;
-    
-    // Efficiency: KPI per 1000 PV
-    var efficiency = totalPv > 0 ? (mcsActual / totalPv * 1000) : 0;
-    var score = Math.min(Math.round(efficiency * 2), 100); // Simple weighting
-    
-    var rank = score >= 80 ? 'S' : score >= 60 ? 'A' : score >= 40 ? 'B' : 'C';
-    var rankColor = score >= 60 ? '#4caf50' : score >= 40 ? '#ff9800' : '#f44336';
-    
+
+    function ratio(numerator, denominator) {
+      if (!denominator) return null;
+      return numerator / denominator;
+    }
+    function fmt(r) { return r === null ? '―' : r.toFixed(1); }
+
+    var cong_du  = ratio(congestionPV, duActual);
+    var du_cong  = ratio(duActual, congestionPV);
+    var cal_du   = ratio(calendarPV, duActual);
+    var cal_meetup = ratio(calendarPV, meetupActual);
+    var candy_mcs  = ratio(candyPV, mcsActual);
+    var mcs_candy  = ratio(mcsActual, candyPV);
+
+    // 週次トレンド（直近6週）
+    var NUM_WEEKS = 6;
+    var wCong   = buildWeeklyTotals(dailyCounts, 'congestion', NUM_WEEKS);
+    var wCal    = buildWeeklyTotals(dailyCounts, 'calendar',   NUM_WEEKS);
+    var wCandy  = buildWeeklyTotals(dailyCounts, 'candy',      NUM_WEEKS);
+
+    function comment_cong(r) {
+      if (r === null) return 'データ不足です。';
+      if (r >= 5) return '1人の利用者が頻繁に混雑状況を確認しています。来店ルーティン化の兆候です。';
+      if (r >= 2) return '平均的な閲覧頻度です。コンテンツの鮮度を保ちましょう。';
+      return 'DUに対して混雑閲覧数が少なめです。表示内容の改善で利用促進が見込めます。';
+    }
+    function comment_cal_du(r) {
+      if (r === null) return 'データ不足です。';
+      if (r >= 5) return 'DU1人あたりのカレンダー閲覧が多く、イベント情報への関心が高いです。';
+      if (r >= 2) return '標準的な閲覧頻度です。告知コンテンツの充実でさらに伸ばせます。';
+      return 'DUに対してカレンダー閲覧が少ない状態です。イベント訴求を強化しましょう。';
+    }
+    function comment_cal_meetup(r) {
+      if (r === null) return 'Meetup実績がありません。';
+      if (r < 10) return 'Meetupに対してカレンダー閲覧が少ない状態です。イベントの告知をアプリで強化できます。';
+      if (r < 30) return 'Meetup 1件に対し適度な閲覧があります。このまま告知を継続しましょう。';
+      return 'Meetup 1件あたりの閲覧数が多く、カレンダーが参加検討のきっかけになっています。';
+    }
+    function comment_candy(r) {
+      if (r === null) return 'MCS実績がありません。';
+      if (r < 5) return 'MCS 1件あたりの閲覧数が少なく、効率よく利用されています。';
+      if (r < 15) return '標準的な転換率です。お菓子ページのコンテンツを充実させましょう。';
+      return '閲覧数に対してMCSが少ない状態です。ページ導線や内容を見直すと効果的です。';
+    }
+
+    function relCard(title, color, rows, comment, weeks) {
+      var rowsHtml = rows.map(function(r) {
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid #eef2f6;">'
+          + '<span style="font-size:.82rem;color:#445261;">' + r.label + '</span>'
+          + '<strong style="font-size:.95rem;color:#1a3a5c;">' + r.val + '</strong>'
+          + '</div>';
+      }).join('');
+      var trendSection = '';
+      if (weeks) {
+        var gc = growthComment(weeks);
+        trendSection = '<div style="margin-top:12px;">'
+          + '<div style="font-size:.78rem;font-weight:700;color:#445261;margin-bottom:2px;">週次閲覧トレンド（直近6週）</div>'
+          + renderWeeklyBarSvg(weeks, color)
+          + (gc ? '<div style="font-size:.78rem;color:#445261;margin-top:6px;padding:7px 10px;background:#f4f7fb;border-radius:7px;line-height:1.6;">' + gc + '</div>' : '')
+          + '</div>';
+      }
+      return '<div style="background:#fff;border:1.5px solid #d0d9e4;border-radius:12px;padding:14px 16px;margin-bottom:14px;">'
+        + '<div style="font-size:.85rem;font-weight:700;color:' + color + ';margin-bottom:10px;border-left:3px solid ' + color + ';padding-left:8px;">' + title + '</div>'
+        + rowsHtml
+        + '<div style="margin-top:10px;font-size:.8rem;color:#445261;background:#f4f7fb;border-radius:8px;padding:9px 12px;line-height:1.6;">' + comment + '</div>'
+        + trendSection
+        + '</div>';
+    }
+
     wrap.innerHTML = ''
-      + '<div class="analysis-score-card">'
-      +   '<div style="font-size:0.9rem;opacity:0.9;">集客効率スコア</div>'
-      +   '<div class="analysis-score-val">' + score + '点</div>'
-      +   '<div style="font-weight:800;font-size:1.2rem;color:' + rankColor + ';background:white;display:inline-block;padding:2px 14px;border-radius:20px;">ランク ' + rank + '</div>'
-      + '</div>'
-      + '<div class="progress-card">'
-      +   '<div class="progress-name" style="margin-bottom:10px;">📊 統計データ（今月）</div>'
-      +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:0.85rem;">'
-      +     '<div>客用総PV:<br><strong>' + totalPv.toLocaleString() + ' 回</strong></div>'
-      +     '<div>集客KPI(MCS):<br><strong>' + mcsActual.toLocaleString() + ' 件</strong></div>'
-      +     '<div style="grid-column:span 2;padding-top:8px;border-top:1px solid #eee;">1,000PVあたりの獲得数:<br><strong>' + efficiency.toFixed(1) + ' 件</strong></div>'
-      +   '</div>'
-      + '</div>'
-      + '<div class="analysis-comment-box">'
-      +   '<strong>💡 アドバイス:</strong><br>'
-      +   getAnalysisAdvice(rank, efficiency)
-      + '</div>';
+      + relCard(
+          '混雑状況 × DU（デイリーユニーク）', '#1a3a5c',
+          [
+            { label: '混雑状況 閲覧数（累計）',      val: congestionPV.toLocaleString() + ' 回' },
+            { label: 'DU（デイリーユニーク）',       val: duActual.toLocaleString() + ' 人' },
+            { label: 'DU 1人あたりの混雑閲覧数',     val: fmt(cong_du) + ' 回' },
+            { label: '閲覧100回あたりのDU',          val: du_cong !== null ? (du_cong * 100).toFixed(1) + ' 人' : '―' }
+          ],
+          comment_cong(cong_du), wCong
+        )
+      + relCard(
+          'カレンダー × DU・Meetup', '#2f7d32',
+          [
+            { label: 'カレンダー 閲覧数（累計）',            val: calendarPV.toLocaleString() + ' 回' },
+            { label: 'DU（デイリーユニーク）',               val: duActual.toLocaleString() + ' 人' },
+            { label: 'DU 1人あたりのカレンダー閲覧数',       val: fmt(cal_du) + ' 回' },
+            { label: 'Meetup 実績',                          val: meetupActual.toLocaleString() + ' 件' },
+            { label: 'Meetup 1件あたりのカレンダー閲覧数',   val: fmt(cal_meetup) + ' 回' }
+          ],
+          comment_cal_du(cal_du) + '　' + comment_cal_meetup(cal_meetup), wCal
+        )
+      + relCard(
+          'お菓子をもらう × MCS', '#e67e22',
+          [
+            { label: 'お菓子をもらう 閲覧数（累計）', val: candyPV.toLocaleString() + ' 回' },
+            { label: 'MCS 実績',                      val: mcsActual.toLocaleString() + ' 件' },
+            { label: 'MCS 1件あたりの閲覧数',         val: fmt(candy_mcs) + ' 回' },
+            { label: '閲覧100回あたりのMCS',          val: mcs_candy !== null ? (mcs_candy * 100).toFixed(1) + ' 件' : '―' }
+          ],
+          comment_candy(candy_mcs), wCandy
+        );
   }
 
-  function getAnalysisAdvice(rank, eff) {
-    if (rank === 'S') return '集客効率が非常に高いです！現在のコンテンツ維持と、更なる露出拡大（PV増）で圧倒的な成果が期待できます。';
-    if (rank === 'A') return '良好な効率です。PVを増やすことで安定してKPIを伸ばせます。季節イベントの告知などを強化しましょう。';
-    if (rank === 'B') return '標準的な効率です。各タブの回遊率（PV）はありますが、成約（KPI）への繋ぎ込みに改善の余地があるかもしれません。';
-    return '改善が必要です。PVに対してKPIが伸び悩んでいます。告知文言の見直しや、ターゲット層に刺さるコンテンツへの更新を検討してください。';
+  function showCounterGraphPointDetail(event, dateKey, label, value) {
+    var tooltip = document.getElementById('counterGraphTooltip');
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = 'counterGraphTooltip';
+      tooltip.style.cssText = 'position:fixed;z-index:9999;background:#1a3a5c;color:#fff;border-radius:10px;padding:10px 16px;font-size:.88rem;box-shadow:0 4px 16px rgba(0,0,0,.18);pointer-events:none;min-width:120px;text-align:center;';
+      document.body.appendChild(tooltip);
+    }
+    var displayDate = dateKey.slice(5).replace('-', '/');
+    tooltip.innerHTML = '<div style="font-size:.78rem;opacity:.8;margin-bottom:4px;">' + esc(displayDate) + '</div>'
+      + '<div style="font-size:.82rem;opacity:.8;margin-bottom:4px;">' + esc(label) + '</div>'
+      + '<div style="font-size:1.3rem;font-weight:700;">' + value + '<span style="font-size:.78rem;font-weight:400;margin-left:4px;">回</span></div>';
+    tooltip.style.display = 'block';
+    var rect = tooltip.getBoundingClientRect();
+    var x = event.clientX - rect.width / 2;
+    var y = event.clientY - rect.height - 12;
+    if (x < 8) x = 8;
+    if (x + rect.width > window.innerWidth - 8) x = window.innerWidth - rect.width - 8;
+    if (y < 8) y = event.clientY + 16;
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
   }
 
   function hideCounterGraphPointDetail() {
@@ -3968,6 +4297,11 @@
   function renderCounterGraph(data) {
     var wrap = document.getElementById('counterGraph');
     if (!wrap) return;
+    // ローディング時の固定スタイルをリセット
+    wrap.style.minHeight = '';
+    wrap.style.display = 'block';
+    wrap.style.alignItems = '';
+    wrap.style.justifyContent = '';
     ensureCounterGraphRangeDefaults();
     syncCounterGraphRangeInputs();
     var dailyCounts = data && data.dailyCounts ? data.dailyCounts : {};
@@ -3993,12 +4327,12 @@
     var allValues = [];
     seriesData.forEach(function(series) { allValues = allValues.concat(series.values); });
     var maxValue = Math.max.apply(null, allValues.concat([1]));
-    var width = 640;
-    var height = 220;
-    var paddingLeft = 42;
-    var paddingRight = 14;
-    var paddingTop = 18;
-    var paddingBottom = 34;
+    var width = 480;
+    var height = 280;
+    var paddingLeft = 48;
+    var paddingRight = 16;
+    var paddingTop = 20;
+    var paddingBottom = 42;
     var innerWidth = width - paddingLeft - paddingRight;
     var innerHeight = height - paddingTop - paddingBottom;
     function pointX(index) {
@@ -4008,7 +4342,7 @@
       return paddingTop + innerHeight - (innerHeight * value / maxValue);
     }
 
-    var gridLines = [0, 0.5, 1].map(function(ratio) {
+    var gridLines = [0, 0.25, 0.5, 0.75, 1].map(function(ratio) {
       var y = paddingTop + (innerHeight * ratio);
       return '<line x1="' + paddingLeft + '" y1="' + y + '" x2="' + (width - paddingRight) + '" y2="' + y + '" stroke="#d8e0e8" stroke-width="1" />';
     }).join('');
@@ -4018,12 +4352,13 @@
       if (index % tickStep !== 0 && index !== dates.length - 1) return '';
       var x = dates.length === 1 ? paddingLeft + innerWidth / 2 : paddingLeft + (innerWidth * index / (dates.length - 1));
       var label = dateKey.slice(5).replace('-', '/');
-      return '<text x="' + x + '" y="' + (height - 10) + '" text-anchor="middle" font-size="11" fill="#667085">' + label + '</text>';
+      return '<text x="' + x + '" y="' + (height - 12) + '" text-anchor="middle" font-size="13" fill="#667085">' + label + '</text>';
     }).join('');
 
-    var yLabels = [maxValue, Math.floor(maxValue / 2), 0].map(function(value, index) {
-      var y = index === 0 ? paddingTop + 4 : (index === 1 ? paddingTop + innerHeight / 2 + 4 : paddingTop + innerHeight + 4);
-      return '<text x="' + (paddingLeft - 8) + '" y="' + y + '" text-anchor="end" font-size="11" fill="#667085">' + value + '</text>';
+    var yLabels = [maxValue, Math.floor(maxValue * 0.75), Math.floor(maxValue / 2), Math.floor(maxValue * 0.25), 0].map(function(value, index) {
+      var ratio = index / 4;
+      var y = paddingTop + (innerHeight * ratio) + 4;
+      return '<text x="' + (paddingLeft - 8) + '" y="' + y + '" text-anchor="end" font-size="13" fill="#667085">' + value + '</text>';
     }).join('');
 
     var polylines = seriesData.map(function(series) {
@@ -4036,9 +4371,10 @@
     var circles = seriesData.map(function(series) {
       return series.values.map(function(value, index) {
         var label = String(series.label || '').replace(/'/g, '&#39;');
-        return '<circle cx="' + pointX(index) + '" cy="' + pointY(value) + '" r="4" fill="#fff" stroke="' + series.color + '" stroke-width="2"'
+        return '<circle cx="' + pointX(index) + '" cy="' + pointY(value) + '" r="5" fill="#fff" stroke="' + series.color + '" stroke-width="2.5"'
           + ' onmouseenter="showCounterGraphPointDetail(event,\'' + dates[index] + '\',\'' + label + '\',' + value + ')"'
-          + ' onclick="showCounterGraphPointDetail(event,\'' + dates[index] + '\',\'' + label + '\',' + value + ');event.stopPropagation();"></circle>';
+          + ' onmouseleave="hideCounterGraphPointDetail()"'
+          + ' onclick="showCounterGraphPointDetail(event,\'' + dates[index] + '\',\'' + label + '\',' + value + ');event.stopPropagation();setTimeout(hideCounterGraphPointDetail,2500);"></circle>';
       }).join('');
     }).join('');
 
