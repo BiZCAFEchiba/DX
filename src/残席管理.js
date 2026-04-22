@@ -3,8 +3,8 @@
 // ============================================================
 
 var TOTAL_SEATS             = 62;
-var COOLDOWN_MIN            = 90;
-var POLL_INTERVAL_MIN       = 15;
+var COOLDOWN_MIN            = 100; // 平均滞在時間（分）= ローリングウィンドウ幅
+var POLL_INTERVAL_MIN       = 10;  // 来店数ポーリング間隔（分）
 var QUEUE_WAIT_MIN_DEFAULT  = 5;  // 空いているときの最小待ち時間（分）
 var QUEUE_WAIT_MAX_DEFAULT  = 30; // 混んでいるときの最大待ち時間（分）
 var VISIT_LOG_SHEET_NAME    = '来店数ログ';
@@ -102,6 +102,9 @@ function handleClearSeatsOverride_() {
  * GASの時間ベーストリガー（15分毎）で実行する
  */
 function pollVisitCount() {
+  // 初回デプロイ後のブートストラップ（設定シート初期化・閾値反映・トリガー再設定）
+  runBootstrapIfNeeded_();
+
   // 営業時間外はスキップ（定休日・開店前・閉店後・貸切時間帯）
   var now   = new Date();
   var hours = getEffectiveHoursForDate_(now); // 貸切込みの実効営業時間
@@ -166,20 +169,24 @@ function calcRemainingSeats_() {
   var data     = sheet.getDataRange().getValues();
   var occupied = 0;
 
-  // 90分前以降のログのみ対象
   // 各区間の差分（増加数）を合計する
+  // ※ 来店数は日次累計カウンターのため、日付をまたぐ際は0にリセット
   var prevCount = null;
+  var prevDate  = null;
   for (var i = 1; i < data.length; i++) {
     var logTime  = data[i][0];
     var logCount = data[i][1];
     if (!(logTime instanceof Date)) continue;
 
+    var logDateStr = Utilities.formatDate(logTime, TIMEZONE, 'yyyy-MM-dd');
+    if (prevDate !== null && logDateStr !== prevDate) {
+      prevCount = 0; // 日付変わりでカウンターリセット
+    }
+
     if (logTime >= cutoff) {
       if (prevCount !== null && logCount > prevCount) {
         occupied += (logCount - prevCount);
       } else if (prevCount === null) {
-        // 90分前直前のレコードを基準として使う
-        // （切り替わり直後の1区間分の差分を取れるよう直前値を探す）
         var prevVal = getPrevCountBefore_(data, i);
         if (prevVal !== null && logCount > prevVal) {
           occupied += (logCount - prevVal);
@@ -189,6 +196,7 @@ function calcRemainingSeats_() {
     } else {
       prevCount = logCount; // cutoff前の最新値を保持
     }
+    prevDate = logDateStr;
   }
 
   // ── キュー補正（着席〜スキャンの時間差を補う） ──
@@ -491,13 +499,33 @@ function getEffectiveHoursForDate_(targetDate) {
 
 /**
  * 残席数 → 混雑レベル（1〜5）変換
+ * 閾値はScript Properties（LEVEL1_PCT〜LEVEL4_PCT）から読み込む。
+ * 未設定時のデフォルト: 70/46/22/1（各10%下げ済み）
  */
 function seatsToLevel_(remaining) {
-  if (remaining >= 50) return 1; // 空いています      (80%+)
-  if (remaining >= 35) return 2; // やや空いています  (56-79%)
-  if (remaining >= 20) return 3; // 普通              (32-55%)
-  if (remaining >= 7)  return 4; // やや混んでいます  (11-31%)
-  return 5;                       // 混んでいます      (10%以下)
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var lv1 = parseInt(props.getProperty('LEVEL1_PCT') || '70');
+    var lv2 = parseInt(props.getProperty('LEVEL2_PCT') || '46');
+    var lv3 = parseInt(props.getProperty('LEVEL3_PCT') || '22');
+    var lv4 = parseInt(props.getProperty('LEVEL4_PCT') || '1');
+    var t1 = Math.ceil(TOTAL_SEATS * lv1 / 100);
+    var t2 = Math.ceil(TOTAL_SEATS * lv2 / 100);
+    var t3 = Math.ceil(TOTAL_SEATS * lv3 / 100);
+    var t4 = Math.ceil(TOTAL_SEATS * lv4 / 100);
+    if (remaining >= t1) return 1;
+    if (remaining >= t2) return 2;
+    if (remaining >= t3) return 3;
+    if (remaining >= t4) return 4;
+    return 5;
+  } catch (e) {
+    // フォールバック（デフォルト閾値）
+    if (remaining >= 44) return 1;
+    if (remaining >= 29) return 2;
+    if (remaining >= 14) return 3;
+    if (remaining >= 1)  return 4;
+    return 5;
+  }
 }
 
 /**
@@ -544,8 +572,24 @@ function getOrCreateVisitLogSheet_() {
   return sheet;
 }
 
+// 混雑レベル閾値の設定シートキー名（表示ラベルそのまま）
+var CONGESTION_KEY_MAP = {
+  '「空いています」残席率(%)':       'LEVEL1_PCT',
+  '「やや空いています」残席率(%)':   'LEVEL2_PCT',
+  '「普通」残席率(%)':               'LEVEL3_PCT',
+  '「やや混んでいます」残席率(%)':   'LEVEL4_PCT'
+};
+// 旧キー名 → 新キー名（移行用）
+var CONGESTION_OLD_KEYS = {
+  '混雑LV1閾値(%)': '「空いています」残席率(%)',
+  '混雑LV2閾値(%)': '「やや空いています」残席率(%)',
+  '混雑LV3閾値(%)': '「普通」残席率(%)',
+  '混雑LV4閾値(%)': '「やや混んでいます」残席率(%)'
+};
+
 /**
  * 設定シートに残席関連の行が存在しなければ追加する
+ * 旧キー名（混雑LV*閾値）が残っている場合は新キー名に移行する
  */
 function ensureSeatsSettings_() {
   try {
@@ -553,19 +597,43 @@ function ensureSeatsSettings_() {
     var sheet = ss.getSheetByName(SHEET_SETTINGS);
     if (!sheet) return;
 
-    var data     = sheet.getDataRange().getValues();
-    var keys     = data.map(function(row) { return String(row[0]); });
+    var data = sheet.getDataRange().getValues();
+    var keys = data.map(function(row) { return String(row[0]); });
+
+    // ① 旧キー名を新キー名に移行（値を引き継ぐ）
+    Object.keys(CONGESTION_OLD_KEYS).forEach(function(oldKey) {
+      var newKey = CONGESTION_OLD_KEYS[oldKey];
+      var oldIdx = keys.indexOf(oldKey);
+      if (oldIdx === -1) return;
+      var oldVal = data[oldIdx][1];
+      // 新キーがなければ追加してから旧行を削除
+      if (keys.indexOf(newKey) === -1) {
+        var desc = '残席がこの%以上のとき「' + newKey.replace(/[「」残席率\(\)%]/g, '') + '」と表示します';
+        sheet.appendRow([newKey, oldVal, desc]);
+        Logger.log('移行: ' + oldKey + ' → ' + newKey + ' = ' + oldVal);
+      }
+      sheet.deleteRow(oldIdx + 1); // +1 はヘッダー行ずれ補正
+      // deleteRow後に再読み込み
+      data = sheet.getDataRange().getValues();
+      keys = data.map(function(row) { return String(row[0]); });
+    });
+
+    // ② 不足している行を追加
     var defaults = [
-      ['残席手動上書き',    ''],
-      ['残席自動更新',      'FALSE'],
-      ['キュー最小待ち(分)', QUEUE_WAIT_MIN_DEFAULT],
-      ['キュー最大待ち(分)', QUEUE_WAIT_MAX_DEFAULT],
-      ['キュー補正指数',     2]
+      ['残席手動上書き',    '',                    ''],
+      ['残席自動更新',      'FALSE',               ''],
+      ['キュー最小待ち(分)', QUEUE_WAIT_MIN_DEFAULT, ''],
+      ['キュー最大待ち(分)', QUEUE_WAIT_MAX_DEFAULT, ''],
+      ['キュー補正指数',     2,                    ''],
+      ['「空いています」残席率(%)',     70, '残席がこの%以上のとき「空いています」と表示します'],
+      ['「やや空いています」残席率(%)', 55, '残席がこの%以上のとき「やや空いています」と表示します'],
+      ['「普通」残席率(%)',             30, '残席がこの%以上のとき「普通」と表示します'],
+      ['「やや混んでいます」残席率(%)', 11, '残席がこの%以上のとき「やや混んでいます」と表示します']
     ];
-    defaults.forEach(function(pair) {
-      if (keys.indexOf(pair[0]) === -1) {
-        sheet.appendRow(pair);
-        Logger.log('設定シートに追加: ' + pair[0]);
+    defaults.forEach(function(row) {
+      if (keys.indexOf(row[0]) === -1) {
+        sheet.appendRow(row);
+        Logger.log('設定シートに追加: ' + row[0]);
       }
     });
   } catch (e) {
@@ -632,11 +700,15 @@ function handleGetVisitTimeline_(param) {
   }
   if (rows.length === 0) return { ok: true, data: [], date: targetDateStr };
 
-  // キュー設定を1回だけ読む（Script Properties → ループ内で毎回叩かない）
+  // キュー設定・Meetupデータをループ前に1回だけ読む
   var queueProps   = PropertiesService.getScriptProperties().getProperties();
   var queueMinWait = parseFloat(queueProps['QUEUE_MIN_WAIT'])  || QUEUE_WAIT_MIN_DEFAULT;
   var queueMaxWait = parseFloat(queueProps['QUEUE_MAX_WAIT'])  || QUEUE_WAIT_MAX_DEFAULT;
   var queueExp     = parseFloat(queueProps['QUEUE_EXPONENT'])  || 2;
+
+  // 対面Meetupを事前取得（ループ内で毎回シートを読まない）
+  var meetupResult  = getInPersonMeetups_(targetDateStr, targetDateStr);
+  var dayMeetups    = (meetupResult.ok && meetupResult.meetups[targetDateStr]) ? meetupResult.meetups[targetDateStr] : [];
 
   var timeline = [];
   for (var j = 0; j < rows.length; j++) {
@@ -666,8 +738,13 @@ function handleGetVisitTimeline_(param) {
     var queueWait  = Math.round(queueMinWait + (queueMaxWait - queueMinWait) * Math.pow(baseRate, queueExp));
     var queueExtra = calcQueueCorrectionFromRows_(rows, j, queueWait);
 
-    // 対面Meetup席数補正
-    var meetupCount = getConcurrentMeetupCount_(pointTime);
+    // 対面Meetup席数補正（事前取得済みデータで時刻判定のみ行う）
+    var targetMin   = pointTime.getHours() * 60 + pointTime.getMinutes();
+    var meetupCount = 0;
+    dayMeetups.forEach(function(m) {
+      var range = parseMeetupTimeRange_(m.time);
+      if (range && targetMin >= range.start && targetMin < range.end) meetupCount++;
+    });
     var meetupSeats = meetupCount * MEETUP_SEATS_PER_EVENT;
 
     var totalOccupied = Math.min(TOTAL_SEATS, rolling + queueExtra + meetupSeats);
@@ -692,7 +769,24 @@ function handleGetVisitTimeline_(param) {
     });
   }
 
-  return { ok: true, data: timeline, date: targetDateStr };
+  // 混雑レベル閾値（在席率%）をレスポンスに含める
+  var lv1Pct = parseInt(queueProps['LEVEL1_PCT'] || '70');
+  var lv2Pct = parseInt(queueProps['LEVEL2_PCT'] || '46');
+  var lv3Pct = parseInt(queueProps['LEVEL3_PCT'] || '22');
+  var lv4Pct = parseInt(queueProps['LEVEL4_PCT'] || '1');
+  // 残席率 → 在席率変換: 境界在席率 = (TOTAL_SEATS - ceil(TOTAL_SEATS * remainPct / 100)) / TOTAL_SEATS * 100
+  function toOccupancyPct(remainPct) {
+    var remainSeats = Math.ceil(TOTAL_SEATS * remainPct / 100);
+    return Math.round((TOTAL_SEATS - remainSeats) / TOTAL_SEATS * 100);
+  }
+  var levelThresholds = [
+    { y: toOccupancyPct(lv1Pct), label: 'やや空いています' },
+    { y: toOccupancyPct(lv2Pct), label: '普通'             },
+    { y: toOccupancyPct(lv3Pct), label: 'やや混んでいます' },
+    { y: toOccupancyPct(lv4Pct), label: '混んでいます'     }
+  ];
+
+  return { ok: true, data: timeline, date: targetDateStr, levelThresholds: levelThresholds };
 }
 
 /**
@@ -740,7 +834,11 @@ function syncSeatsSettingsToProperties() {
     'キュー最大待ち(分)': 'QUEUE_MAX_WAIT',
     'キュー補正指数':     'QUEUE_EXPONENT',
     '残席自動更新':       'SEATS_AUTO_UPDATE',
-    '残席手動上書き':     'SEATS_OVERRIDE'
+    '残席手動上書き':     'SEATS_OVERRIDE',
+    '「空いています」残席率(%)':     'LEVEL1_PCT',
+    '「やや空いています」残席率(%)': 'LEVEL2_PCT',
+    '「普通」残席率(%)':             'LEVEL3_PCT',
+    '「やや混んでいます」残席率(%)': 'LEVEL4_PCT'
   };
 
   var data  = sheet.getDataRange().getValues();
@@ -767,6 +865,14 @@ function syncSeatsSettingsToProperties() {
       var boolVal = (val === true || String(val).toUpperCase() === 'TRUE') ? 'TRUE' : 'FALSE';
       props.setProperty('SEATS_AUTO_UPDATE', boolVal);
       synced[propKey] = boolVal;
+    } else if (CONGESTION_KEY_MAP[sheetKey]) {
+      var pct = parseInt(val);
+      if (isNaN(pct) || pct < 0 || pct > 100) {
+        Logger.log('混雑閾値が不正 (' + sheetKey + '): ' + val + ' → スキップ');
+        continue;
+      }
+      props.setProperty(propKey, String(pct));
+      synced[propKey] = String(pct) + '%';
     } else {
       props.setProperty(propKey, String(val));
       synced[propKey] = String(val);
@@ -790,6 +896,51 @@ function menuSyncSeatsSettings() {
   }
 }
 
+/**
+ * 混雑レベル閾値のみをScript Propertiesに反映するメニューラッパー
+ * 設定シートの「混雑LV1〜4閾値(%)」を編集後に実行する
+ */
+function menuSyncCongestionThresholds() {
+  try {
+    var ss    = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(SHEET_SETTINGS);
+    if (!sheet) throw new Error('設定シートが見つかりません');
+
+    var keyMap = CONGESTION_KEY_MAP;
+    var labels = {
+      'LEVEL1_PCT': '空いています',
+      'LEVEL2_PCT': 'やや空いています',
+      'LEVEL3_PCT': '普通',
+      'LEVEL4_PCT': 'やや混んでいます'
+    };
+
+    var data  = sheet.getDataRange().getValues();
+    var props = PropertiesService.getScriptProperties();
+    var lines = [];
+
+    for (var i = 1; i < data.length; i++) {
+      var sheetKey = String(data[i][0]);
+      var propKey  = keyMap[sheetKey];
+      if (!propKey) continue;
+
+      var pct = parseInt(data[i][1]);
+      if (isNaN(pct) || pct < 0 || pct > 100) {
+        throw new Error(sheetKey + ' の値が不正です（0〜100の整数を入力してください）: ' + data[i][1]);
+      }
+      props.setProperty(propKey, String(pct));
+      var seats = Math.ceil(TOTAL_SEATS * pct / 100);
+      lines.push(labels[propKey] + ': ' + pct + '% 以上（残席' + seats + '席以上）');
+    }
+
+    SpreadsheetApp.getUi().alert(
+      '混雑レベル閾値をGASに反映しました。\n\n' + lines.join('\n') +
+      '\n\n※ LV4未満はすべて「混んでいます」（LV5）と表示されます。'
+    );
+  } catch (e) {
+    SpreadsheetApp.getUi().alert('エラー: ' + e.message);
+  }
+}
+
 // ─── トリガー設定 ────────────────────────────────────────────
 
 /**
@@ -806,9 +957,9 @@ function setupVisitCountTrigger() {
   // 15分ごとに再登録
   ScriptApp.newTrigger('pollVisitCount')
     .timeBased()
-    .everyMinutes(15)
+    .everyMinutes(10)
     .create();
-  Logger.log('pollVisitCount トリガーを15分ごとに設定しました');
+  Logger.log('pollVisitCount トリガーを' + POLL_INTERVAL_MIN + '分ごとに設定しました');
 }
 
 /**
@@ -1029,4 +1180,31 @@ function testCalcRemainingSeats() {
   Logger.log('残席: ' + result.seats + '席 / 在席: ' + result.occupied + '名 / 手動: ' + result.isManual);
   Logger.log('レベル: ' + seatsToLevel_(result.seats));
   Logger.log('自動更新: ' + isAutoUpdateEnabled_());
+}
+
+/**
+ * 初回デプロイ後に一度だけ実行するブートストラップ処理
+ * 設定シートへの行追加・閾値のScript Properties反映・トリガー再設定を行い、完了フラグを立てる
+ */
+function runBootstrapIfNeeded_() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    if (props.getProperty('BOOTSTRAP_DONE_v3') === 'true') return;
+
+    Logger.log('=== ブートストラップ開始 ===');
+
+    // 1. 設定シートに不足行（混雑閾値など）を追加
+    ensureSeatsSettings_();
+
+    // 2. 閾値をScript Propertiesに反映
+    syncSeatsSettingsToProperties();
+
+    // 3. トリガー再設定（triggerFollowUpReminder 含む全トリガー）
+    updateTriggersFromSettings_();
+
+    props.setProperty('BOOTSTRAP_DONE_v3', 'true');
+    Logger.log('=== ブートストラップ完了 ===');
+  } catch (e) {
+    Logger.log('ブートストラップエラー（次回再試行）: ' + e.message);
+  }
 }

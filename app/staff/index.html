@@ -367,6 +367,7 @@
     .counter-pane { display: none; }
     .counter-pane.active { display: block; animation: fadeIn 0.3s; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .progress-card { background: #fff; padding: 16px; border-radius: 12px; border: 1px solid #eef2f6; margin-bottom: 12px; }
     .progress-label-row { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 8px; }
     .progress-name { font-size: 0.95rem; font-weight: 800; color: #1a3a5c; }
@@ -384,11 +385,11 @@
 </header>
 
 <nav class="tab-nav">
-  <button class="tab-btn active" id="tabCongestion" onclick="switchTab('congestion')">
-    <span class="tab-icon">👥</span>混雑更新
+  <button class="tab-btn active" id="tabQR" onclick="switchTab('qr')">
+    <span class="tab-icon">📱</span>QR管理
   </button>
-  <button class="tab-btn" id="tabSeats" onclick="switchTab('seats')">
-    <span class="tab-icon">💺</span>残席確認
+  <button class="tab-btn" id="tabCongestion" onclick="switchTab('congestion')">
+    <span class="tab-icon">👥</span>混雑更新
   </button>
   <button class="tab-btn" id="tabQA" onclick="switchTab('qa')">
     <span class="tab-icon">💬</span>Q&amp;A管理
@@ -405,10 +406,13 @@
   <button class="tab-btn" id="tabStaffRoom" onclick="switchTab('room')">
     <span class="tab-icon">🚪</span>ルーム管理
   </button>
+  <button class="tab-btn" id="tabSeats" onclick="switchTab('seats')">
+    <span class="tab-icon">💺</span>残席確認
+  </button>
 </nav>
 
 <div class="tab-content">
-  <div class="tab-pane active" id="paneCongestion">
+  <div class="tab-pane" id="paneCongestion">
     <div class="container">
       <div class="section-title">現在の混雑状況</div>
       <div class="current-card">
@@ -488,6 +492,10 @@
         </select>
       </div>
       <div style="background:white; border:1px solid #e0e7ef; border-radius:10px; padding:12px; margin-bottom:18px; position:relative; min-height:200px;">
+        <div id="visitTimelineLoading" style="display:none; position:absolute; inset:0; background:rgba(255,255,255,0.82); border-radius:10px; display:flex; align-items:center; justify-content:center; z-index:2; flex-direction:column; gap:10px;">
+          <svg width="36" height="36" viewBox="0 0 36 36" style="animation:spin 0.9s linear infinite;"><circle cx="18" cy="18" r="14" fill="none" stroke="#c0d4f0" stroke-width="4"/><path d="M18 4 a14 14 0 0 1 14 14" fill="none" stroke="#3b6fd4" stroke-width="4" stroke-linecap="round"/></svg>
+          <span style="font-size:0.8rem; color:#666;">読み込み中...</span>
+        </div>
         <canvas id="visitTimelineChart" style="width:100%; max-height:240px;"></canvas>
         <div id="visitTimelineEmpty" style="display:none; text-align:center; color:#aaa; padding:40px 0; font-size:0.85rem;">
           データがありません（ポーリング開始後に表示されます）
@@ -767,16 +775,161 @@
     </div>
   </div>
 
-  <div class="tab-pane" id="paneStaffRoom">
-    <!-- サブタブナビ -->
+  <!-- QR管理タブ -->
+  <div class="tab-pane active" id="paneQR">
     <div style="display:flex;background:#fff;border-bottom:2px solid #e0e7ef;">
-      <button class="room-sub-btn active" id="roomSubShiru" onclick="switchRoomSub('shiru')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.8rem;font-weight:700;color:#1a3a5c;border-bottom:3px solid #1a3a5c;margin-bottom:-2px;cursor:pointer;">🎫 知るパスID</button>
-      <button class="room-sub-btn" id="roomSubSettings" onclick="switchRoomSub('settings')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.8rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">⚙️ 設定</button>
-      <button class="room-sub-btn" id="roomSubReserve" onclick="switchRoomSub('reserve')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.8rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">📋 予約管理</button>
+      <button class="qr-sub-btn active" id="qrSubShiruStd" onclick="switchQRSub('shiruStd')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#1a3a5c;border-bottom:3px solid #1a3a5c;margin-bottom:-2px;cursor:pointer;">🎫 知るパス</button>
+      <button class="qr-sub-btn" id="qrSubShiruGold" onclick="switchQRSub('shiruGold')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🥇 GOLD</button>
+      <button class="qr-sub-btn" id="qrSubShiruBenefit" onclick="switchQRSub('shiruBenefit')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🎁 特典</button>
+      <button class="qr-sub-btn" id="qrSubShiruPoint" onclick="switchQRSub('shiruPoint')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🎯 ポイント</button>
+    </div>
+
+    <!-- 知るパス（通常） -->
+    <div class="container qr-sub-pane" id="qrPaneShiruStd">
+      <div class="current-card" style="padding:16px;margin-bottom:16px;">
+        <div class="section-title" style="margin-bottom:4px;">🎫 知るパス（通常）</div>
+        <div style="font-size:0.8rem;color:#1a6fc4;font-weight:700;margin-bottom:12px;">有効期限：翌月末まで</div>
+        <div style="font-size:0.82rem;color:#666;margin-bottom:14px;">お客さんにQRコードをスキャンしてもらうと、自動でIDが発行されます。</div>
+        <div style="background:#f7f9fc;border:2px solid #1a3a5c;border-radius:16px;padding:20px;text-align:center;margin-bottom:8px;">
+          <div id="qrStandard" style="display:inline-block;"></div>
+        </div>
+        <div id="siruPassQrExpiry" style="font-size:0.75rem;color:#1a6fc4;font-weight:700;text-align:center;margin-bottom:6px;"></div>
+        <div style="display:flex;justify-content:center;margin-bottom:10px;">
+          <button onclick="refreshShiruPassQRCodes(true)" style="padding:6px 18px;font-size:0.82rem;font-weight:700;background:#e8f0fb;color:#1a3a5c;border:1px solid #1a3a5c;border-radius:8px;cursor:pointer;">🔄 QR更新</button>
+        </div>
+        <div style="font-size:0.75rem;color:#888;margin-bottom:14px;text-align:center;">↑ お客さんのスマホで読み取ってもらってください</div>
+        <hr style="border:none;border-top:1px solid #e0e7ef;margin:0 0 14px;">
+        <div style="font-size:0.8rem;font-weight:700;color:#555;margin-bottom:8px;">手動発行（IDをカードに書く場合）</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+          <button onclick="issueShiruPass('standard')" style="flex:1;padding:16px;font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,#1a6fc4,#0d9488);color:#fff;border:none;border-radius:12px;cursor:pointer;letter-spacing:0.08em;box-shadow:0 4px 12px rgba(26,111,196,0.35);">🎫 知るパスID 発行</button>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <span style="font-size:0.72rem;color:#888;">枚数</span>
+            <input type="number" id="shiruPassCountStd" value="1" min="1" max="20" style="width:52px;text-align:center;border:1px solid #c9d3df;border-radius:8px;padding:6px 4px;font-size:1rem;font-weight:700;">
+          </div>
+        </div>
+        <div id="shiruPassResultStd" style="display:none;">
+          <div style="background:linear-gradient(135deg,#e8f4fd,#d4f5ef);border-radius:12px;padding:14px;margin-bottom:12px;border:2px solid #1a6fc4;">
+            <div style="font-size:0.78rem;color:#555;margin-bottom:8px;font-weight:600;">✅ 発行されたID（カードに記入してください）</div>
+            <div id="shiruPassIdDisplayStd"></div>
+            <div id="shiruPassExpiryDisplayStd" style="font-size:0.82rem;color:#1a6fc4;font-weight:700;margin-top:8px;text-align:center;"></div>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+            <div style="font-size:0.82rem;color:#555;font-weight:700;">発行済みID一覧（通常）</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <label style="font-size:0.78rem;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer;">
+                <input type="checkbox" id="shiruPassSelectAllStd" onchange="toggleAllShiruPass('standard',this.checked)"> 全選択
+              </label>
+              <button id="shiruPassBulkRenewBtnStd" onclick="bulkRenewShiruPass('standard')" style="display:none;padding:4px 12px;font-size:0.78rem;font-weight:700;background:#1a6fc4;color:#fff;border:none;border-radius:6px;cursor:pointer;">まとめて更新</button>
+            </div>
+          </div>
+          <input type="text" id="shiruPassSearchStd" class="room-date-input" placeholder="IDで検索..." style="width:100%;margin-bottom:8px;box-sizing:border-box;" oninput="filterShiruPassList('standard')">
+          <div id="shiruPassListStd"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 知るパスGOLD -->
+    <div class="container qr-sub-pane" id="qrPaneShiruGold" style="display:none;">
+      <div class="current-card" style="padding:16px;margin-bottom:16px;border:2px solid #d4a017;">
+        <div class="section-title" style="margin-bottom:4px;color:#7a5800;">🥇 知るパスGOLD</div>
+        <div style="font-size:0.8rem;color:#b8860b;font-weight:700;margin-bottom:12px;">有効期限：初回利用から2週間</div>
+        <div style="font-size:0.82rem;color:#666;margin-bottom:14px;">お客さんにQRコードをスキャンしてもらうと、自動でIDが発行されます。</div>
+        <div style="background:#fffbf0;border:2px solid #d4a017;border-radius:16px;padding:20px;text-align:center;margin-bottom:8px;">
+          <div id="qrGold" style="display:inline-block;"></div>
+        </div>
+        <div style="display:flex;justify-content:center;margin-bottom:10px;">
+          <button onclick="refreshShiruPassQRCodes(true)" style="padding:6px 18px;font-size:0.82rem;font-weight:700;background:#fffbf0;color:#7a5800;border:1px solid #d4a017;border-radius:8px;cursor:pointer;">🔄 QR更新</button>
+        </div>
+        <div style="font-size:0.75rem;color:#888;margin-bottom:14px;text-align:center;">↑ お客さんのスマホで読み取ってもらってください</div>
+        <hr style="border:none;border-top:1px solid #f0dfa0;margin:0 0 14px;">
+        <div style="font-size:0.8rem;font-weight:700;color:#7a5800;margin-bottom:8px;">手動発行（IDをカードに書く場合）</div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+          <button onclick="issueShiruPass('gold')" style="flex:1;padding:16px;font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;border:none;border-radius:12px;cursor:pointer;letter-spacing:0.08em;box-shadow:0 4px 12px rgba(212,160,23,0.35);">🥇 知るパスGOLD 発行</button>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+            <span style="font-size:0.72rem;color:#888;">枚数</span>
+            <input type="number" id="shiruPassCountGold" value="1" min="1" max="20" style="width:52px;text-align:center;border:1px solid #d4a017;border-radius:8px;padding:6px 4px;font-size:1rem;font-weight:700;">
+          </div>
+        </div>
+        <div id="shiruPassResultGold" style="display:none;">
+          <div style="background:linear-gradient(135deg,#fff9e6,#fff3cc);border-radius:12px;padding:14px;margin-bottom:12px;border:2px solid #d4a017;">
+            <div style="font-size:0.78rem;color:#7a5800;margin-bottom:8px;font-weight:600;">✅ 発行されたGOLD ID（カードに記入してください）</div>
+            <div id="shiruPassIdDisplayGold"></div>
+            <div id="shiruPassExpiryDisplayGold" style="font-size:0.82rem;color:#7a5800;font-weight:700;margin-top:8px;text-align:center;"></div>
+          </div>
+        </div>
+        <div style="margin-top:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
+            <div style="font-size:0.82rem;color:#7a5800;font-weight:700;">発行済みID一覧（GOLD）</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <label style="font-size:0.78rem;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer;">
+                <input type="checkbox" id="shiruPassSelectAllGold" onchange="toggleAllShiruPass('gold',this.checked)"> 全選択
+              </label>
+              <button id="shiruPassBulkRenewBtnGold" onclick="bulkRenewShiruPass('gold')" style="display:none;padding:4px 12px;font-size:0.78rem;font-weight:700;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;border:none;border-radius:6px;cursor:pointer;">まとめて更新</button>
+            </div>
+          </div>
+          <input type="text" id="shiruPassSearchGold" class="room-date-input" placeholder="IDで検索..." style="width:100%;margin-bottom:8px;box-sizing:border-box;" oninput="filterShiruPassList('gold')">
+          <div id="shiruPassListGold"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 特典 -->
+    <div class="container qr-sub-pane" id="qrPaneShiruBenefit" style="display:none;">
+      <div class="current-card" style="padding:16px;margin-bottom:16px;border:2px solid #e8a000;">
+        <div class="section-title" style="margin-bottom:4px;color:#7a5800;">🎁 特典（軽食 × 2回）</div>
+        <div style="font-size:0.8rem;color:#b8860b;font-weight:700;margin-bottom:12px;">GOLD保持者限定</div>
+        <div style="font-size:0.82rem;color:#666;margin-bottom:14px;">お客さんにQRコードをスキャンしてもらうと特典1回分が消費されます。</div>
+        <div style="background:#fff9f0;border:2px solid #e8a000;border-radius:16px;padding:20px;text-align:center;margin-bottom:8px;">
+          <div id="qrBenefit" style="display:inline-block;"></div>
+        </div>
+        <div style="display:flex;justify-content:center;margin-bottom:14px;">
+          <button onclick="refreshShiruPassQRCodes(true)" style="padding:6px 18px;font-size:0.82rem;font-weight:700;background:#fff9f0;color:#7a5800;border:1px solid #e8a000;border-radius:8px;cursor:pointer;">🔄 QR更新</button>
+        </div>
+        <div style="font-size:0.75rem;color:#888;text-align:center;">↑ お客さんのスマホで読み取ってもらってください</div>
+      </div>
+    </div>
+
+    <!-- ポイント -->
+    <div class="container qr-sub-pane" id="qrPaneShiruPoint" style="display:none;">
+      <div class="current-card" style="padding:16px;margin-bottom:16px;">
+        <div class="section-title" style="margin-bottom:4px;">🎯 ポイント付与QR</div>
+        <div style="font-size:0.8rem;color:#555;margin-bottom:16px;">イベント種別を選択してQRコードを表示。お客さんにスキャンしてもらうとポイントが付与されます。</div>
+        <div style="display:flex;border-bottom:2px solid #e0e7ef;margin-bottom:18px;gap:2px;">
+          <button class="point-type-btn" id="pointTypeBtnMcs" onclick="switchPointType('mcs')" style="flex:1;padding:8px 2px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#1a6fc4;border-bottom:3px solid #1a6fc4;margin-bottom:-2px;cursor:pointer;">MCS<br><span style="font-size:0.65rem;color:#888;">1p</span></button>
+          <button class="point-type-btn" id="pointTypeBtnShiruru" onclick="switchPointType('shiruru')" style="flex:1;padding:8px 2px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">パンフ<br><span style="font-size:0.65rem;color:#888;">2p</span></button>
+          <button class="point-type-btn" id="pointTypeBtnMeetup" onclick="switchPointType('meetup')" style="flex:1;padding:8px 2px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">Meetup<br><span style="font-size:0.65rem;color:#888;">5p</span></button>
+          <button class="point-type-btn" id="pointTypeBtnPickup" onclick="switchPointType('pickup')" style="flex:1;padding:8px 2px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">Pickup<br><span style="font-size:0.65rem;color:#888;">7p</span></button>
+        </div>
+        <div id="pointQrArea" style="text-align:center;padding:16px 0 8px;">
+          <div id="pointQrCanvas" style="display:inline-block;background:#f7f9fc;border:2px solid #1a6fc4;border-radius:16px;padding:20px;"></div>
+          <div id="pointQrLabel" style="margin-top:10px;font-size:1rem;font-weight:800;color:#1a3a5c;"></div>
+          <div id="pointQrPoints" style="font-size:0.8rem;color:#555;margin-top:2px;"></div>
+          <div id="pointQrExpiry" style="font-size:0.72rem;color:#888;margin-top:6px;"></div>
+          <div style="font-size:0.72rem;color:#888;margin-top:2px;">↑ お客さんのスマホでスキャンしてもらってください</div>
+          <button id="pointQrRefreshBtn" onclick="refreshPointQr(true)" style="margin-top:10px;padding:8px 20px;background:none;border:1.5px solid #c9d3df;border-radius:8px;font-size:0.78rem;font-weight:700;color:#555;cursor:pointer;">🔄 QR更新</button>
+          <div style="font-size:0.68rem;color:#aaa;margin-top:4px;">※ 更新するとQRコードが無効化されます</div>
+        </div>
+        <hr style="border:none;border-top:1px solid #e0e7ef;margin:16px 0;">
+        <div style="font-size:0.8rem;font-weight:700;color:#555;margin-bottom:8px;">ポイント確認（IDで検索）</div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="pointCheckInput" placeholder="例: A7K3P9" maxlength="6" style="flex:1;border:1px solid #c9d3df;border-radius:8px;padding:8px 10px;font-family:monospace;font-size:1rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          <button onclick="checkShiruPoints()" style="padding:8px 16px;background:#1a3a5c;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:0.85rem;cursor:pointer;">確認</button>
+        </div>
+        <div id="pointCheckResult" style="margin-top:10px;min-height:20px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="paneStaffRoom">
+    <div style="display:flex;background:#fff;border-bottom:2px solid #e0e7ef;">
+      <button class="room-sub-btn active" id="roomSubReserve" onclick="switchRoomSub('reserve')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#1a3a5c;border-bottom:3px solid #1a3a5c;margin-bottom:-2px;cursor:pointer;">📋 予約管理</button>
+      <button class="room-sub-btn" id="roomSubSettings" onclick="switchRoomSub('settings')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">⚙️ 設定</button>
     </div>
 
     <!-- 予約管理 -->
-    <div class="container room-sub-pane" id="roomPaneReserve" style="display:none;">
+    <div class="container room-sub-pane" id="roomPaneReserve">
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
         <input type="date" id="staffRoomDate" class="room-date-input" style="flex:1;">
         <button class="btn-primary" style="white-space:nowrap;" onclick="loadStaffRoomList()">一覧を表示</button>
@@ -786,41 +939,6 @@
         <div class="section-title" style="margin-bottom:8px;">利用者管理</div>
         <button class="btn-secondary" style="width:100%;margin-bottom:12px;" onclick="loadRoomUserList()">利用者一覧を読み込む</button>
         <div id="staffRoomUserList"></div>
-      </div>
-    </div>
-
-    <!-- 知るパスID -->
-    <div class="container room-sub-pane" id="roomPaneShiru">
-      <div class="current-card" style="padding:16px;margin-bottom:16px;">
-        <div class="section-title" style="margin-bottom:8px;">🎫 知るパスID発行</div>
-        <div style="font-size:0.82rem;color:#666;margin-bottom:10px;">知るパスを渡す際にIDを発行して、カードに書いてください。</div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
-          <button onclick="issueShiruPass()" style="flex:1;padding:16px;font-size:1.1rem;font-weight:900;background:linear-gradient(135deg,#1a6fc4,#0d9488);color:#fff;border:none;border-radius:12px;cursor:pointer;letter-spacing:0.08em;box-shadow:0 4px 12px rgba(26,111,196,0.35);">🎫 知るパスID 発行</button>
-          <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-            <span style="font-size:0.72rem;color:#888;">枚数</span>
-            <input type="number" id="shiruPassCount" value="1" min="1" max="20" style="width:52px;text-align:center;border:1px solid #c9d3df;border-radius:8px;padding:6px 4px;font-size:1rem;font-weight:700;">
-          </div>
-        </div>
-        <div id="shiruPassResult" style="display:none;">
-          <div style="background:linear-gradient(135deg,#e8f4fd,#d4f5ef);border-radius:12px;padding:14px;margin-bottom:12px;border:2px solid #1a6fc4;">
-            <div style="font-size:0.78rem;color:#555;margin-bottom:8px;font-weight:600;">✅ 発行されたID（カードに記入してください）</div>
-            <div id="shiruPassIdDisplay"></div>
-            <div id="shiruPassExpiryDisplay" style="font-size:0.82rem;color:#1a6fc4;font-weight:700;margin-top:8px;text-align:center;"></div>
-          </div>
-        </div>
-        <div style="margin-top:8px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:6px;">
-            <div style="font-size:0.82rem;color:#555;font-weight:700;">発行済みID一覧</div>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <label style="font-size:0.78rem;color:#555;display:flex;align-items:center;gap:4px;cursor:pointer;">
-                <input type="checkbox" id="shiruPassSelectAll" onchange="toggleAllShiruPass(this.checked)"> 全選択
-              </label>
-              <button id="shiruPassBulkRenewBtn" onclick="bulkRenewShiruPass()" style="display:none;padding:4px 12px;font-size:0.78rem;font-weight:700;background:#1a6fc4;color:#fff;border:none;border-radius:6px;cursor:pointer;">まとめて更新</button>
-            </div>
-          </div>
-          <input type="text" id="shiruPassSearch" class="room-date-input" placeholder="IDで検索..." style="width:100%;margin-bottom:8px;box-sizing:border-box;" oninput="filterShiruPassList()">
-          <div id="shiruPassList"></div>
-        </div>
       </div>
     </div>
 
@@ -871,7 +989,8 @@
     qa:         'Q&A',
     board:      'お知らせ',
     corner:     'なんでも掲示板',
-    room:       'ルーム予約'
+    room:       'ルーム予約',
+    sirupass:   '知るパス'
   };
 
   function applyStaffLabels() {
@@ -899,7 +1018,8 @@
     counterBtn.id = 'tabCounter';
     counterBtn.onclick = function() { switchTab('counter'); };
     counterBtn.innerHTML = '<span class="tab-icon">📊</span>カウンタ';
-    nav.appendChild(counterBtn);
+    var seatsBtn = document.getElementById('tabSeats');
+    if (seatsBtn) { nav.insertBefore(counterBtn, seatsBtn); } else { nav.appendChild(counterBtn); }
 
     var pane = document.createElement('div');
     pane.className = 'tab-pane';
@@ -998,7 +1118,7 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(btn) { btn.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(pane) { pane.classList.remove('active'); });
-    var suffix = { congestion: 'Congestion', seats: 'Seats', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance', room: 'StaffRoom' }[name];
+    var suffix = { congestion: 'Congestion', seats: 'Seats', qa: 'QA', board: 'Board', corner: 'Corner', counter: 'Counter', maintenance: 'Maintenance', room: 'StaffRoom', qr: 'QR' }[name];
     document.getElementById('tab' + suffix).classList.add('active');
     document.getElementById('pane' + suffix).classList.add('active');
     if (name === 'qa' && !qaLoaded) { qaLoaded = true; loadQA(); }
@@ -1011,6 +1131,7 @@
     if (name === 'corner' && !cornerContentLoaded) { cornerContentLoaded = true; loadCornerContentAdmin(); }
     if (name === 'maintenance' && !maintenanceLoaded) { maintenanceLoaded = true; loadMaintenance(); }
     if (name === 'room' && !staffRoomLoaded) { staffRoomLoaded = true; loadStaffRoom(); }
+    if (name === 'qr'   && !qrTabLoaded)    { qrTabLoaded = true; loadQRTab(); }
     if (name === 'seats') { loadAutoSeats(); loadVisitDates(); }
   }
 
@@ -1214,16 +1335,27 @@
     var sel = document.getElementById('visitDateSelect');
     var date = sel ? sel.value : '';
     var url = GAS_API_URL + '?page=calendar&action=getVisitTimeline' + (date ? '&date=' + date : '');
+    var loading = document.getElementById('visitTimelineLoading');
+    var canvas  = document.getElementById('visitTimelineChart');
+    var emptyEl = document.getElementById('visitTimelineEmpty');
+    if (loading) { loading.style.display = 'flex'; }
+    if (canvas)  { canvas.style.visibility = 'hidden'; }
+    if (emptyEl) { emptyEl.style.display = 'none'; }
     fetch(url)
       .then(function(r) { return r.json(); })
       .then(function(d) {
+        if (loading) loading.style.display = 'none';
+        if (canvas)  canvas.style.visibility = 'visible';
         if (!d.ok) return;
-        renderVisitTimelineChart(d.data || []);
+        renderVisitTimelineChart(d.data || [], d.levelThresholds || null);
       })
-      .catch(function() {});
+      .catch(function() {
+        if (loading) loading.style.display = 'none';
+        if (canvas)  canvas.style.visibility = 'visible';
+      });
   }
 
-  function renderVisitTimelineChart(data) {
+  function renderVisitTimelineChart(data, levelThresholds) {
     var canvas  = document.getElementById('visitTimelineChart');
     var emptyEl = document.getElementById('visitTimelineEmpty');
 
@@ -1249,11 +1381,12 @@
     var hasQueueData  = queueData.some(function(v)  { return v > 0; });
     var hasMeetupData = meetupData.some(function(v) { return v > 0; });
 
-    var thresholds = [
-      { y: 19,  label: 'やや空いています' },
-      { y: 44,  label: '普通'             },
-      { y: 68,  label: 'やや混んでいます' },
-      { y: 89,  label: '混んでいます'     }
+    // GASから取得した閾値を使用（未取得時は旧デフォルトにフォールバック）
+    var thresholds = levelThresholds || [
+      { y: 29, label: 'やや空いています' },
+      { y: 53, label: '普通'             },
+      { y: 77, label: 'やや混んでいます' },
+      { y: 98, label: '混んでいます'     }
     ];
 
     if (visitChartInstance) { visitChartInstance.destroy(); visitChartInstance = null; }
@@ -3388,22 +3521,155 @@
     if (el) el.value = yyyy + '-' + mm + '-' + dd;
   })();
 
+  // 初期タブ = QR管理
+  loadQRTab();
+
   function loadStaffRoom() {
     loadCheckinMode();
     loadStaffRoomList();
-    loadShiruPassList();
     loadRoomSettings();
   }
 
+  var qrTabLoaded = true; // 初期タブなので即ロード済みとしてフラグ立て
+
+  function loadQRTab() {
+    loadShiruPassList();
+    getOrFetchPassToken(false, function(token) {
+      if (!shiruQrRendered) {
+        shiruQrRendered = true;
+        renderShiruPassQRCodesWithToken(token);
+      }
+    });
+  }
+
+  function switchQRSub(name) {
+    document.querySelectorAll('.qr-sub-btn').forEach(function(b) {
+      b.style.color = '#888'; b.style.borderBottomColor = 'transparent';
+    });
+    document.querySelectorAll('.qr-sub-pane').forEach(function(p) { p.style.display = 'none'; });
+    var map = { shiruStd: 'ShiruStd', shiruGold: 'ShiruGold', shiruBenefit: 'ShiruBenefit', shiruPoint: 'ShiruPoint' };
+    var activeColor = (name === 'shiruGold' || name === 'shiruBenefit') ? '#7a5800' : (name === 'shiruPoint' ? '#166534' : '#1a3a5c');
+    var btn  = document.getElementById('qrSub'  + map[name]);
+    var pane = document.getElementById('qrPane' + map[name]);
+    if (btn)  { btn.style.color = activeColor; btn.style.borderBottomColor = activeColor; }
+    if (pane) pane.style.display = 'block';
+    if (name === 'shiruPoint' && !pointQrRendered) {
+      pointQrRendered = true;
+      fetchPointToken(false, function(token) { renderPointQr('mcs', token); switchPointType('mcs'); });
+    }
+  }
+
   // ===== ルーム管理 サブタブ =====
-  function switchRoomSub(name) {
-    document.querySelectorAll('.room-sub-btn').forEach(function(b) {
+  var shiruQrRendered = false;
+  var pointQrRendered = false;
+  var currentPointType = 'mcs';
+  var currentPointToken = '';
+
+  var POINT_TYPES = {
+    mcs:     { label: 'MCS',          points: 1, color: '#1a3a5c', bg: '#f7f9fc' },
+    shiruru: { label: 'パンフレット',   points: 2, color: '#7b3fe4', bg: '#f5f0fe' },
+    meetup:  { label: 'Meetup',        points: 5, color: '#166534', bg: '#f0fdf4' },
+    pickup:  { label: 'Pickup Meetup', points: 7, color: '#9a3412', bg: '#fff7ed' }
+  };
+
+  function fetchPointToken(rotate, callback) {
+    getOrFetchPassToken(rotate, callback);
+  }
+
+  function switchPointType(type) {
+    currentPointType = type;
+    document.querySelectorAll('.point-type-btn').forEach(function(b) {
       b.style.color = '#888';
       b.style.borderBottomColor = 'transparent';
     });
+    var info = POINT_TYPES[type];
+    var btn = document.getElementById('pointTypeBtn' + type.charAt(0).toUpperCase() + type.slice(1));
+    if (btn) { btn.style.color = info.color; btn.style.borderBottomColor = info.color; }
+    if (currentPointToken) {
+      renderPointQr(type, currentPointToken);
+    } else {
+      var canvas = document.getElementById('pointQrCanvas');
+      if (canvas) canvas.innerHTML = '<div style="color:#888;font-size:0.78rem;padding:20px;">読み込み中...</div>';
+    }
+    var label  = document.getElementById('pointQrLabel');
+    var ptsTxt = document.getElementById('pointQrPoints');
+    if (label)  label.textContent  = info.label;
+    if (ptsTxt) { ptsTxt.textContent = '+' + info.points + 'ポイント付与'; ptsTxt.style.color = info.color; }
+  }
+
+  function renderPointQr(type, token) {
+    var info   = POINT_TYPES[type];
+    var canvas = document.getElementById('pointQrCanvas');
+    if (!canvas) return;
+    canvas.innerHTML = '';
+    canvas.style.borderColor = info.color;
+    canvas.style.background  = info.bg;
+    var url = window.location.origin + '/calendar?addpoint=' + type + '&t=' + token;
+    try {
+      new QRCode(canvas, { text: url, width: 160, height: 160, colorDark: info.color, colorLight: info.bg, correctLevel: QRCode.CorrectLevel.M });
+    } catch(e) {
+      canvas.innerHTML = '<div style="font-size:0.75rem;color:#c0392b;">QR生成失敗</div>';
+    }
+    var expEl = document.getElementById('pointQrExpiry');
+    if (expEl) {
+      var now = new Date();
+      var last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      expEl.textContent = '有効期限: ' + last.getFullYear() + '/' + ('0'+(last.getMonth()+1)).slice(-2) + '/' + ('0'+last.getDate()).slice(-2) + ' まで';
+    }
+  }
+
+  function refreshPointQr(rotate) {
+    var btn = document.getElementById('pointQrRefreshBtn');
+    if (btn) { btn.disabled = true; btn.textContent = rotate ? '更新中...' : '取得中...'; }
+    fetchPointToken(rotate, function(token) {
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 QR更新'; btn.style.display = rotate ? '' : 'none'; }
+      if (token) renderPointQr(currentPointType, token);
+      else {
+        var canvas = document.getElementById('pointQrCanvas');
+        if (canvas) canvas.innerHTML = '<div style="color:#c0392b;font-size:0.78rem;">取得失敗。再試行してください。</div>';
+      }
+    });
+  }
+
+  function checkShiruPoints() {
+    var input = document.getElementById('pointCheckInput');
+    var result = document.getElementById('pointCheckResult');
+    var id = (input.value || '').trim().toUpperCase();
+    if (!id || id.length !== 6) { result.innerHTML = '<span style="color:#c0392b;font-size:0.82rem;">6桁のIDを入力してください</span>'; return; }
+    result.innerHTML = '<span style="color:#888;font-size:0.82rem;">確認中...</span>';
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassValidate&id=' + encodeURIComponent(id))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.reason === 'not_found') {
+          result.innerHTML = '<span style="color:#c0392b;font-size:0.82rem;">IDが見つかりません</span>';
+          return;
+        }
+        if (data.type === 'gold') {
+          result.innerHTML = '<span style="color:#7a5800;font-size:0.82rem;font-weight:700;">🥇 GOLDパス — ポイント対象外</span>';
+          return;
+        }
+        var pts = data.points || 0;
+        var remaining = Math.max(0, 10 - pts);
+        var pct = Math.min(100, Math.round(pts / 10 * 100));
+        result.innerHTML =
+          '<div style="background:#f0fdf4;border:1.5px solid #166534;border-radius:10px;padding:12px 14px;">' +
+          '<div style="font-size:0.82rem;font-weight:700;color:#166534;margin-bottom:6px;">🎫 ' + id + '</div>' +
+          '<div style="font-size:1.3rem;font-weight:900;color:#1a3a5c;margin-bottom:6px;">' + pts + ' / 10 p</div>' +
+          '<div style="background:#e0e7ef;border-radius:99px;height:10px;overflow:hidden;margin-bottom:6px;">' +
+          '<div style="height:100%;background:linear-gradient(90deg,#1a6fc4,#166534);border-radius:99px;width:' + pct + '%;transition:width 0.4s;"></div></div>' +
+          '<div style="font-size:0.78rem;color:#555;">' + (remaining > 0 ? 'あと ' + remaining + 'p でGOLD昇格' : '🎉 GOLD昇格条件達成！') + '</div>' +
+          '</div>';
+      })
+      .catch(function() { result.innerHTML = '<span style="color:#c0392b;font-size:0.82rem;">通信エラー</span>'; });
+  }
+
+  function switchRoomSub(name) {
+    document.querySelectorAll('.room-sub-btn').forEach(function(b) {
+      b.style.color = '#888'; b.style.borderBottomColor = 'transparent';
+    });
     document.querySelectorAll('.room-sub-pane').forEach(function(p) { p.style.display = 'none'; });
-    var map = { reserve: 'Reserve', shiru: 'Shiru', settings: 'Settings' };
-    var btn  = document.getElementById('roomSub' + map[name]);
+    var map = { reserve: 'Reserve', settings: 'Settings' };
+    var btn  = document.getElementById('roomSub'  + map[name]);
     var pane = document.getElementById('roomPane' + map[name]);
     if (btn)  { btn.style.color = '#1a3a5c'; btn.style.borderBottomColor = '#1a3a5c'; }
     if (pane) pane.style.display = 'block';
@@ -3770,25 +4036,112 @@
       .catch(function() { msg.textContent = '通信エラー'; msg.style.color = '#c0392b'; });
   }
 
-  function issueShiruPass() {
-    var count = parseInt((document.getElementById('shiruPassCount') || {}).value) || 1;
-    fetch(GAS_API_URL + '?page=calendar&action=shiruPassIssue&count=' + encodeURIComponent(count))
+  // ===== 知るパスQRコード生成（トークン付き・キャッシュ対応）=====
+  var PASS_TOKEN_SS_KEY = 'bizcafe_pass_token_cache';
+
+  function getOrFetchPassToken(rotate, callback) {
+    if (!rotate) {
+      try {
+        var cached = JSON.parse(sessionStorage.getItem(PASS_TOKEN_SS_KEY) || 'null');
+        var yyyyMM = (function() { var d = new Date(); return d.getFullYear() + ('0'+(d.getMonth()+1)).slice(-2); })();
+        if (cached && cached.month === yyyyMM && cached.token) {
+          currentPointToken = cached.token;
+          return callback(cached.token);
+        }
+      } catch(e) {}
+    }
+    var url = GAS_API_URL + '?page=calendar&action=shiruPassPointToken' + (rotate ? '&rotate=1' : '');
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok && d.token) {
+          currentPointToken = d.token;
+          try {
+            var yyyyMM = (function() { var dd = new Date(); return dd.getFullYear() + ('0'+(dd.getMonth()+1)).slice(-2); })();
+            sessionStorage.setItem(PASS_TOKEN_SS_KEY, JSON.stringify({ token: d.token, month: yyyyMM }));
+          } catch(e) {}
+          callback(d.token);
+        } else {
+          callback('');
+        }
+      })
+      .catch(function() { callback(''); });
+  }
+
+  function renderShiruPassQRCodes() {
+    getOrFetchPassToken(false, function(token) {
+      renderShiruPassQRCodesWithToken(token);
+    });
+  }
+
+  function renderShiruPassQRCodesWithToken(token) {
+    var base = window.location.origin + '/calendar?sirupass=';
+    var urlStd  = base + 'standard' + (token ? '&t=' + token : '');
+    var urlGold = base + 'gold'     + (token ? '&t=' + token : '');
+
+    var stdEl  = document.getElementById('qrStandard');
+    var goldEl = document.getElementById('qrGold');
+    if (!stdEl || !goldEl) return;
+
+    stdEl.innerHTML = '';
+    goldEl.innerHTML = '';
+
+    var benefitEl = document.getElementById('qrBenefit');
+    var urlBenefit = window.location.origin + '/calendar?benefit=meal' + (token ? '&t=' + token : '');
+    if (benefitEl) benefitEl.innerHTML = '';
+
+    try {
+      new QRCode(stdEl,  { text: urlStd,  width: 140, height: 140, colorDark: '#1a3a5c', colorLight: '#f7f9fc', correctLevel: QRCode.CorrectLevel.M });
+      new QRCode(goldEl, { text: urlGold, width: 140, height: 140, colorDark: '#7a5800', colorLight: '#fffbf0', correctLevel: QRCode.CorrectLevel.M });
+      if (benefitEl) new QRCode(benefitEl, { text: urlBenefit, width: 140, height: 140, colorDark: '#8b5e00', colorLight: '#fff9f0', correctLevel: QRCode.CorrectLevel.M });
+    } catch(e) {
+      stdEl.innerHTML  = '<div style="font-size:0.75rem;color:#c0392b;">QR生成失敗</div>';
+      goldEl.innerHTML = '<div style="font-size:0.75rem;color:#c0392b;">QR生成失敗</div>';
+    }
+    var expEl = document.getElementById('siruPassQrExpiry');
+    if (expEl) {
+      var d = new Date(); d.setMonth(d.getMonth() + 1); d.setDate(0);
+      expEl.textContent = '有効期限: ' + d.getFullYear() + '/' + (d.getMonth()+1) + '/' + d.getDate() + ' まで';
+    }
+  }
+
+  function refreshShiruPassQRCodes(rotate) {
+    var stdEl  = document.getElementById('qrStandard');
+    var goldEl = document.getElementById('qrGold');
+    if (stdEl) stdEl.innerHTML = '<div style="color:#888;font-size:0.75rem;padding:20px;">更新中...</div>';
+    if (goldEl) goldEl.innerHTML = '';
+    getOrFetchPassToken(rotate, function(token) {
+      renderShiruPassQRCodesWithToken(token);
+      if (rotate) showToast('QRコードを更新しました。');
+    });
+  }
+
+  function issueShiruPass(type) {
+    var isGold = type === 'gold';
+    var suffix = isGold ? 'Gold' : 'Std';
+    var count = parseInt((document.getElementById('shiruPassCount' + suffix) || {}).value) || 1;
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassIssue&count=' + encodeURIComponent(count) + '&type=' + encodeURIComponent(type))
       .then(function(r) { return r.json(); })
       .then(function(data) {
         if (!data.ok) { showToast('発行に失敗しました。', true); return; }
         var ids = data.ids || [];
-        var displayEl = document.getElementById('shiruPassIdDisplay');
+        var idStyle = isGold
+          ? 'font-size:2.6rem;font-weight:900;letter-spacing:0.3em;color:#7a5800;font-family:monospace;background:linear-gradient(135deg,#fff9e6,#fff3cc);border-radius:8px;padding:10px 16px;display:inline-block;box-shadow:0 2px 8px rgba(212,160,23,0.25);border:2px solid #d4a017;'
+          : 'font-size:2.6rem;font-weight:900;letter-spacing:0.3em;color:#1a3a5c;font-family:monospace;background:#fff;border-radius:8px;padding:10px 16px;display:inline-block;box-shadow:0 2px 8px rgba(0,0,0,0.12);';
+        var displayEl = document.getElementById('shiruPassIdDisplay' + suffix);
         if (ids.length === 1) {
-          displayEl.innerHTML = '<div style="font-size:2.6rem;font-weight:900;letter-spacing:0.3em;color:#1a3a5c;font-family:monospace;background:#fff;border-radius:8px;padding:10px 16px;display:inline-block;box-shadow:0 2px 8px rgba(0,0,0,0.12);">' + escStaff(ids[0]) + '</div>';
+          displayEl.innerHTML = '<div style="' + idStyle + '">' + escStaff(ids[0]) + '</div>';
         } else {
           displayEl.innerHTML = ids.map(function(id, i) {
-            return '<div style="display:inline-block;font-family:monospace;font-weight:900;font-size:1.4rem;letter-spacing:0.15em;color:#1a3a5c;background:#fff;border-radius:8px;padding:6px 12px;margin:4px;box-shadow:0 1px 4px rgba(0,0,0,0.10);">'
+            return '<div style="display:inline-block;font-family:monospace;font-weight:900;font-size:1.4rem;letter-spacing:0.15em;' + (isGold ? 'color:#7a5800;background:linear-gradient(135deg,#fff9e6,#fff3cc);border:1.5px solid #d4a017;' : 'color:#1a3a5c;background:#fff;') + 'border-radius:8px;padding:6px 12px;margin:4px;box-shadow:0 1px 4px rgba(0,0,0,0.10);">'
               + (ids.length > 1 ? '<span style="font-size:0.7rem;color:#888;font-weight:600;margin-right:4px;">No.' + (i+1) + '</span>' : '')
               + escStaff(id) + '</div>';
           }).join('');
         }
-        document.getElementById('shiruPassExpiryDisplay').textContent = '有効期限: ' + data.expiry + ' まで';
-        document.getElementById('shiruPassResult').style.display = 'block';
+        var expiryEl = document.getElementById('shiruPassExpiryDisplay' + suffix);
+        expiryEl.textContent = (isGold ? '知るパスGOLD' : '知るパス') + ' - 初回利用時に期限がスタートします';
+        expiryEl.style.color = isGold ? '#7a5800' : '#1a6fc4';
+        document.getElementById('shiruPassResult' + suffix).style.display = 'block';
         loadShiruPassList();
       })
       .catch(function() { showToast('通信エラー', true); });
@@ -3797,69 +4150,88 @@
   var shiruPassAllData = [];
 
   function loadShiruPassList() {
-    var listEl = document.getElementById('shiruPassList');
-    listEl.innerHTML = '<div style="color:#888;font-size:.82rem;">読み込み中...</div>';
+    ['Std', 'Gold'].forEach(function(s) {
+      var el = document.getElementById('shiruPassList' + s);
+      if (el) el.innerHTML = '<div style="color:#888;font-size:.82rem;">読み込み中...</div>';
+    });
     fetch(GAS_API_URL + '?page=calendar&action=shiruPassList')
       .then(function(r) { return r.json(); })
       .then(function(data) {
         shiruPassAllData = (data.ok && data.passes) ? data.passes : [];
-        filterShiruPassList();
+        filterShiruPassList('standard');
+        filterShiruPassList('gold');
       })
-      .catch(function() { listEl.innerHTML = '<div style="color:#c0392b;font-size:.82rem;">読み込みに失敗しました。</div>'; });
+      .catch(function() {
+        ['Std', 'Gold'].forEach(function(s) {
+          var el = document.getElementById('shiruPassList' + s);
+          if (el) el.innerHTML = '<div style="color:#c0392b;font-size:.82rem;">読み込みに失敗しました。</div>';
+        });
+      });
   }
 
-  function filterShiruPassList() {
-    var listEl = document.getElementById('shiruPassList');
-    var q = ((document.getElementById('shiruPassSearch') || {}).value || '').trim().toUpperCase();
-    var filtered = q ? shiruPassAllData.filter(function(p) { return p.id.indexOf(q) !== -1; }) : shiruPassAllData;
-    var selectAllEl = document.getElementById('shiruPassSelectAll');
+  function filterShiruPassList(type) {
+    var isGold = type === 'gold';
+    var suffix = isGold ? 'Gold' : 'Std';
+    var listEl = document.getElementById('shiruPassList' + suffix);
+    if (!listEl) return;
+    var q = ((document.getElementById('shiruPassSearch' + suffix) || {}).value || '').trim().toUpperCase();
+    var byType = shiruPassAllData.filter(function(p) { return (p.type || 'standard') === type; });
+    var filtered = q ? byType.filter(function(p) { return p.id.indexOf(q) !== -1; }) : byType;
+    var selectAllEl = document.getElementById('shiruPassSelectAll' + suffix);
     if (selectAllEl) selectAllEl.checked = false;
-    updateBulkRenewBtn();
+    updateBulkRenewBtn(type);
     if (!filtered.length) {
       listEl.innerHTML = '<div style="color:#888;font-size:.82rem;">' + (q ? '該当するIDがありません。' : '発行済みIDはありません。') + '</div>'; return;
     }
+    var checkClass = 'shiru-pass-check-' + (isGold ? 'gold' : 'std');
     listEl.innerHTML = filtered.map(function(p) {
-      return '<div style="padding:8px 10px;background:' + (p.expired ? '#f5f7fa' : '#fff') + ';border-radius:8px;margin-bottom:6px;border:1px solid #e0e7ef;">'
+      var bg = isGold ? (p.expired ? '#fdf8ec' : '#fffbf0') : (p.expired ? '#f5f7fa' : '#fff');
+      var border = isGold ? '#d4a017' : '#e0e7ef';
+      return '<div style="padding:8px 10px;background:' + bg + ';border-radius:8px;margin-bottom:6px;border:1px solid ' + border + ';">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
         +   '<div style="display:flex;align-items:center;gap:8px;">'
-        +     '<input type="checkbox" class="shiru-pass-check" value="' + escStaff(p.id) + '" onchange="updateBulkRenewBtn()">'
+        +     '<input type="checkbox" class="' + checkClass + '" value="' + escStaff(p.id) + '" onchange="updateBulkRenewBtn(\'' + type + '\')">'
         +     '<div>'
-        +       '<span style="font-family:monospace;font-weight:700;font-size:1rem;color:' + (p.expired ? '#aaa' : '#1a3a5c') + ';">' + escStaff(p.id) + '</span>'
-        +       '<span style="margin-left:10px;font-size:0.75rem;color:#888;">' + escStaff(p.issuedAt) + ' 発行</span>'
+        +       '<span style="font-family:monospace;font-weight:700;font-size:1rem;color:' + (p.expired ? '#aaa' : (isGold ? '#7a5800' : '#1a3a5c')) + ';">' + escStaff(p.id) + '</span>'
+        +       '<span style="margin-left:6px;font-size:0.75rem;color:#888;">' + escStaff(p.issuedAt) + ' 発行</span>'
         +     '</div>'
         +   '</div>'
         +   '<div style="display:flex;align-items:center;gap:6px;">'
-        +     '<span style="font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:' + (p.expired ? '#f8d7da' : '#d4edda') + ';color:' + (p.expired ? '#721c24' : '#155724') + ';">'
-        +       (p.expired ? '期限切れ' : p.expiry + 'まで')
+        +     '<span style="font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:' + (p.expired ? '#f8d7da' : (p.activated ? '#d4edda' : '#f0f0f0')) + ';color:' + (p.expired ? '#721c24' : (p.activated ? '#155724' : '#888')) + ';">'
+        +       (p.expired ? '期限切れ' : (p.activated ? p.expiry + 'まで' : '未アクティベート'))
         +     '</span>'
-        +     '<button style="border:none;background:#e8f4fd;color:#1a3a5c;border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;" onclick="renewShiruPass(\'' + escStaff(p.id) + '\',this)">更新</button>'
+        +     '<button style="border:none;background:' + (isGold ? '#fff9e6' : '#e8f4fd') + ';color:' + (isGold ? '#7a5800' : '#1a3a5c') + ';border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;" onclick="renewShiruPass(\'' + escStaff(p.id) + '\',this)">更新</button>'
         +   '</div>'
         + '</div>'
         + '</div>';
     }).join('');
   }
 
-  function toggleAllShiruPass(checked) {
-    var boxes = document.querySelectorAll('.shiru-pass-check');
-    boxes.forEach(function(cb) { cb.checked = checked; });
-    updateBulkRenewBtn();
+  function toggleAllShiruPass(type, checked) {
+    var cls = type === 'gold' ? '.shiru-pass-check-gold' : '.shiru-pass-check-std';
+    document.querySelectorAll(cls).forEach(function(cb) { cb.checked = checked; });
+    updateBulkRenewBtn(type);
   }
 
-  function updateBulkRenewBtn() {
-    var checked = document.querySelectorAll('.shiru-pass-check:checked');
-    var btn = document.getElementById('shiruPassBulkRenewBtn');
+  function updateBulkRenewBtn(type) {
+    var cls = type === 'gold' ? '.shiru-pass-check-gold:checked' : '.shiru-pass-check-std:checked';
+    var suffix = type === 'gold' ? 'Gold' : 'Std';
+    var checked = document.querySelectorAll(cls);
+    var btn = document.getElementById('shiruPassBulkRenewBtn' + suffix);
     if (btn) {
       btn.style.display = checked.length > 0 ? 'inline-block' : 'none';
       btn.textContent = checked.length > 1 ? checked.length + '件まとめて更新' : 'まとめて更新';
     }
   }
 
-  function bulkRenewShiruPass() {
-    var checked = document.querySelectorAll('.shiru-pass-check:checked');
+  function bulkRenewShiruPass(type) {
+    var cls = type === 'gold' ? '.shiru-pass-check-gold:checked' : '.shiru-pass-check-std:checked';
+    var suffix = type === 'gold' ? 'Gold' : 'Std';
+    var checked = document.querySelectorAll(cls);
     var ids = Array.prototype.slice.call(checked).map(function(cb) { return cb.value; });
     if (!ids.length) return;
     if (!confirm(ids.length + '件のIDを翌月末日まで延長しますか？')) return;
-    var btn = document.getElementById('shiruPassBulkRenewBtn');
+    var btn = document.getElementById('shiruPassBulkRenewBtn' + suffix);
     if (btn) { btn.disabled = true; btn.textContent = '更新中...'; }
     fetch(GAS_API_URL + '?page=calendar&action=shiruPassBulkRenew&ids=' + encodeURIComponent(JSON.stringify(ids)))
       .then(function(r) { return r.json(); })
@@ -4664,6 +5036,7 @@
     });
   }
 </script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 </body>

@@ -5,7 +5,102 @@
 var SHEET_ROOM_RESERVATIONS = 'ルーム予約';
 var SHEET_ROOM_USERS        = 'ルーム利用者';
 var SHEET_SHIRU_PASS        = '知るパスID';
+var SHEET_SIRU_POINTS       = '知るパスポイント';
 var ROOM_CHECKIN_MODE_KEY   = 'ROOM_CHECKIN_MODE'; // 'both' or 'staff'
+
+// ===== 知るパスポイント =====
+// シート列: デバイスID | 合計ポイント | 最終更新 | mcs最終 | shiruru最終 | meetup最終 | pickup最終
+
+var SIRU_POINT_VALUES  = { mcs: 1, shiruru: 2, meetup: 5, pickup: 7 };
+var SIRU_POINT_LABELS  = { mcs: 'MCS', shiruru: 'SHIRURU', meetup: 'Meetup', pickup: 'Pickup Meetup' };
+var SIRU_POINT_MAX     = 10;   // GOLD取得に必要なポイント
+var SIRU_POINT_COOLDOWN_MS = 60 * 60 * 1000; // 同種スタンプの再スキャン制限: 1時間
+
+function getSiruPointSheet_() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var sheet = ss.getSheetByName(SHEET_SIRU_POINTS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_SIRU_POINTS);
+    sheet.getRange(1, 1, 1, 7).setValues([['デバイスID', '合計ポイント', '最終更新', 'mcs最終', 'shiruru最終', 'meetup最終', 'pickup最終']]);
+    sheet.getRange(1, 1, 1, 7).setFontWeight('bold');
+  }
+  return sheet;
+}
+
+/**
+ * ポイント加算（1時間クールダウン付き）
+ * @returns {{ ok, total, added, cooldown, nextAt? }}
+ */
+function addSiruPoint_(deviceId, type) {
+  if (!deviceId || !SIRU_POINT_VALUES[type]) return { ok: false, error: 'invalid' };
+  var pts  = SIRU_POINT_VALUES[type];
+  var now  = new Date();
+  var sheet = getSiruPointSheet_();
+  var data  = sheet.getDataRange().getValues();
+  var colMap = { mcs: 4, shiruru: 5, meetup: 6, pickup: 7 }; // 1-indexed
+  var col = colMap[type];
+
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) !== String(deviceId)) continue;
+
+    // クールダウンチェック
+    var lastVal = data[i][col - 1]; // 0-indexed
+    if (lastVal) {
+      var last = lastVal instanceof Date ? lastVal : new Date(lastVal);
+      if (!isNaN(last.getTime()) && (now.getTime() - last.getTime()) < SIRU_POINT_COOLDOWN_MS) {
+        var nextAt = new Date(last.getTime() + SIRU_POINT_COOLDOWN_MS);
+        return { ok: false, cooldown: true, nextAt: Utilities.formatDate(nextAt, TIMEZONE, 'HH:mm') };
+      }
+    }
+
+    var current = parseInt(data[i][1]) || 0;
+    var newTotal = current + pts;
+    sheet.getRange(i + 1, 2).setValue(newTotal);
+    sheet.getRange(i + 1, 3).setValue(now);
+    sheet.getRange(i + 1, col).setValue(now);
+    return { ok: true, total: newTotal, added: pts };
+  }
+
+  // 新規デバイス
+  var row = [deviceId, pts, now, '', '', '', ''];
+  row[col - 1] = now; // 該当種別の最終スキャン日時
+  sheet.appendRow(row);
+  return { ok: true, total: pts, added: pts };
+}
+
+/** ポイント取得 */
+function getSiruPoint_(deviceId) {
+  if (!deviceId) return { ok: true, total: 0 };
+  var sheet = getSiruPointSheet_();
+  var data  = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(deviceId)) {
+      return { ok: true, total: parseInt(data[i][1]) || 0 };
+    }
+  }
+  return { ok: true, total: 0 };
+}
+
+/**
+ * GOLD取得：10pt消費してパスを発行
+ * @returns {{ ok, id, expiry, type, remainingPoints }}
+ */
+function claimSiruGold_(deviceId) {
+  if (!deviceId) return { ok: false, error: 'invalid' };
+  var sheet = getSiruPointSheet_();
+  var data  = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]) !== String(deviceId)) continue;
+    var current = parseInt(data[i][1]) || 0;
+    if (current < SIRU_POINT_MAX) return { ok: false, error: 'not_enough', total: current };
+    var remaining = current - SIRU_POINT_MAX;
+    sheet.getRange(i + 1, 2).setValue(remaining);
+    sheet.getRange(i + 1, 3).setValue(new Date());
+    var passResult = activateShiruPass_('gold');
+    return { ok: true, id: passResult.id, expiry: passResult.expiry, type: 'gold', remainingPoints: remaining };
+  }
+  return { ok: false, error: 'not_enough', total: 0 };
+}
 var ROOM_NO_SHOW_AFTER_MIN  = 15;  // 開始後N分でno_show判定
 var ROOM_CHECKIN_BEFORE_MIN = 10;  // 開始N分前からチェックイン可
 var ROOM_MAX_DAYS_AHEAD     = 14;
@@ -146,10 +241,70 @@ function getShiruPassSheet_() {
   var sheet = ss.getSheetByName(SHEET_SHIRU_PASS);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_SHIRU_PASS);
-    sheet.getRange(1, 1, 1, 4).setValues([['ID', '発行日時', '有効期限', 'メモ']]);
-    sheet.getRange(1, 1, 1, 4).setFontWeight('bold');
+    sheet.getRange(1, 1, 1, 9).setValues([['ID', '発行日時', '有効期限', 'メモ', '種別', '初回認証日時', 'ポイント', '軽食1使用日', '軽食2使用日']]);
+    sheet.getRange(1, 1, 1, 9).setFontWeight('bold');
   }
   return sheet;
+}
+
+var POINT_VALUES = { mcs: 1, shiruru: 2, meetup: 5, pickup: 7 };
+
+// ===== ポイントQRトークン（月次ローテーション） =====
+
+function computeMonthToken_(yyyyMM) {
+  var props = PropertiesService.getScriptProperties();
+  var secret = props.getProperty('POINT_QR_SECRET');
+  if (!secret) {
+    secret = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+    props.setProperty('POINT_QR_SECRET', secret);
+  }
+  var bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, secret + yyyyMM);
+  return bytes.slice(0, 4).map(function(b) { return ('0' + ((b + 256) % 256).toString(16)).slice(-2); }).join('');
+}
+
+function getCurrentPointQrToken_() {
+  var now = new Date();
+  return computeMonthToken_(Utilities.formatDate(now, TIMEZONE, 'yyyyMM'));
+}
+
+function isValidPointToken_(token) {
+  if (!token) return false;
+  var now = new Date();
+  if (token === computeMonthToken_(Utilities.formatDate(now, TIMEZONE, 'yyyyMM'))) return true;
+  // 月初め猶予：前月トークンも有効
+  var prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return token === computeMonthToken_(Utilities.formatDate(prev, TIMEZONE, 'yyyyMM'));
+}
+
+function rotatePointQrSecret_() {
+  var newSecret = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+  PropertiesService.getScriptProperties().setProperty('POINT_QR_SECRET', newSecret);
+  return getCurrentPointQrToken_();
+}
+
+// ===== ポイント付与 =====
+
+function addShiruPoint_(id, pointType, token) {
+  if (!id || !POINT_VALUES.hasOwnProperty(pointType)) return { ok: false, error: 'invalid_param' };
+  if (!isValidPointToken_(token)) return { ok: false, error: 'invalid_token' };
+  var pts = POINT_VALUES[pointType];
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).toUpperCase() !== String(id).toUpperCase()) continue;
+    var passType = String(data[i][4] || '').trim() || 'standard';
+    if (passType !== 'standard') return { ok: false, error: 'not_standard' };
+    var current = parseInt(data[i][6]) || 0;
+    var newTotal = current + pts;
+    sheet.getRange(i + 1, 7).setValue(newTotal);
+    // 10p達成で自動GOLD昇格
+    if (newTotal >= 10) {
+      var goldResult = activateShiruPass_('gold');
+      return { ok: true, points: newTotal, added: pts, upgraded: true, goldId: goldResult.id, goldExpiry: goldResult.expiry };
+    }
+    return { ok: true, points: newTotal, added: pts };
+  }
+  return { ok: false, error: 'not_found' };
 }
 
 function generateShiruPassId_() {
@@ -174,10 +329,22 @@ function setShiruPassValidDays_(days) {
   return { ok: true, days: d };
 }
 
-// 発行日の月＋翌月末日 23:59:59 を返す（例: 4/9発行 → 5/31 23:59:59）
-function getShiruPassExpiry_() {
-  var now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() + 2, 0, 23, 59, 59);
+/**
+ * 知るパスの有効期限を計算する（初回認証日起算）
+ * @param {string} type - 'standard'（翌月末）or 'gold'（14日後）
+ * @param {Date}   fromDate - 起算日（省略時は今日）
+ */
+function getShiruPassExpiry_(type, fromDate) {
+  var base = fromDate instanceof Date ? fromDate : new Date();
+  if (type === 'gold') {
+    // GOLD: 認証日から14日後の23:59:59
+    var d = new Date(base.getTime());
+    d.setDate(d.getDate() + 14);
+    d.setHours(23, 59, 59, 0);
+    return d;
+  }
+  // standard（デフォルト）: 認証日の月＋翌月末日 23:59:59
+  return new Date(base.getFullYear(), base.getMonth() + 2, 0, 23, 59, 59);
 }
 
 function getRoomMaxHours_() {
@@ -281,46 +448,92 @@ function renewShiruPassId_(id) {
   if (!id) return { ok: false, error: 'missing_id' };
   var sheet = getShiruPassSheet_();
   var data = sheet.getDataRange().getValues();
-  var newExpiry = getShiruPassExpiry_();
   for (var i = 1; i < data.length; i++) {
     if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
+      var passType = String(data[i][4] || '').trim() || 'standard';
+      var newExpiry = getShiruPassExpiry_(passType, new Date());
       sheet.getRange(i + 1, 3).setValue(newExpiry); // C列: 有効期限
-      return { ok: true, id: String(data[i][0]), expiry: Utilities.formatDate(newExpiry, TIMEZONE, 'yyyy-MM-dd') };
+      sheet.getRange(i + 1, 6).setValue(new Date()); // F列: 初回認証日時をリセット
+      return { ok: true, id: String(data[i][0]), expiry: Utilities.formatDate(newExpiry, TIMEZONE, 'yyyy-MM-dd'), type: passType };
     }
   }
   return { ok: false, error: 'not_found' };
 }
 
-// 複数IDをまとめて翌月末日に更新
+// 複数IDをまとめて更新（種別ごとに期限計算）
 function bulkRenewShiruPassIds_(ids) {
   if (!Array.isArray(ids) || !ids.length) return { ok: false, error: 'missing_ids' };
   var sheet = getShiruPassSheet_();
   var data = sheet.getDataRange().getValues();
-  var newExpiry = getShiruPassExpiry_();
-  var expiryStr = Utilities.formatDate(newExpiry, TIMEZONE, 'yyyy-MM-dd');
+  var now = new Date();
   var updated = [];
   var notFound = [];
   ids.forEach(function(id) {
     var found = false;
     for (var i = 1; i < data.length; i++) {
       if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
+        var passType = String(data[i][4] || '').trim() || 'standard';
+        var newExpiry = getShiruPassExpiry_(passType, now);
         sheet.getRange(i + 1, 3).setValue(newExpiry);
-        updated.push(String(data[i][0]));
+        sheet.getRange(i + 1, 6).setValue(now);
+        updated.push({ id: String(data[i][0]), expiry: Utilities.formatDate(newExpiry, TIMEZONE, 'yyyy-MM-dd'), type: passType });
         found = true;
         break;
       }
     }
     if (!found) notFound.push(id);
   });
-  return { ok: true, updated: updated, notFound: notFound, expiry: expiryStr };
+  return { ok: true, updated: updated, notFound: notFound };
 }
 
-function issueShiruPassId_(note, count) {
+/**
+ * QRスキャンによる知るパス自動アクティベーション
+ * 新しいIDを発行し、今日起算で有効期限をセットして返す
+ * @param {string} type - 'standard' or 'gold'
+ * @returns {{ ok, id, type, typeLabel, expiry }}
+ */
+function activateShiruPass_(type, token) {
+  var passType = (type === 'gold') ? 'gold' : 'standard';
+  if (token !== undefined && token !== null && token !== '') {
+    if (!isValidPointToken_(token)) return { ok: false, error: 'invalid_token' };
+  }
   var sheet = getShiruPassSheet_();
   var data = sheet.getDataRange().getValues();
   var now = new Date();
-  var expiry = getShiruPassExpiry_();
+
+  var existingIds = data.slice(1).map(function(r) { return String(r[0]); });
+  var id;
+  var tries = 0;
+  do {
+    id = generateShiruPassId_();
+    tries++;
+  } while (existingIds.indexOf(id) !== -1 && tries < 100);
+
+  var expiry = getShiruPassExpiry_(passType, now);
   var expiryStr = Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd');
+
+  sheet.appendRow([id, now, expiry, 'QRスキャン', passType, now]);
+
+  return {
+    ok: true,
+    id: id,
+    type: passType,
+    typeLabel: passType === 'gold' ? '知るパスGOLD' : '知るパス',
+    expiry: expiryStr
+  };
+}
+
+/**
+ * 知るパスIDを発行する
+ * @param {string} note  - メモ
+ * @param {string} count - 発行枚数（1〜20）
+ * @param {string} type  - 'standard' or 'gold'
+ */
+function issueShiruPassId_(note, count, type) {
+  var passType = (type === 'gold') ? 'gold' : 'standard';
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var now = new Date();
   var num = Math.min(Math.max(parseInt(count) || 1, 1), 20); // 最大20枚
 
   // 既存ID一覧（重複チェック用）
@@ -336,28 +549,87 @@ function issueShiruPassId_(note, count) {
     } while ((existingIds.indexOf(id) !== -1 || issued.indexOf(id) !== -1) && tries < 100);
     existingIds.push(id);
     issued.push(id);
-    sheet.appendRow([id, now, expiry, note || '']);
+    // 有効期限は初回認証時にセット → 発行時は空欄
+    sheet.appendRow([id, now, '', note || '', passType, '']);
   }
 
-  return { ok: true, ids: issued, expiry: expiryStr };
+  var typeLabel = passType === 'gold' ? '知るパスGOLD（14日）' : '知るパス（翌月末）';
+  return { ok: true, ids: issued, type: passType, typeLabel: typeLabel };
 }
 
+/**
+ * 知るパスIDを検証する
+ * 初回認証時（有効期限が未設定）: 有効期限をセットして返す（認証日起算）
+ * @returns {{ valid, expiry, type, typeLabel, reason? }}
+ */
 function validateShiruPassId_(id) {
   if (!id) return { valid: false, reason: 'missing' };
   var sheet = getShiruPassSheet_();
   var data = sheet.getDataRange().getValues();
-  var nowTime = new Date().getTime();
+  var now = new Date();
+  var nowTime = now.getTime();
+
   for (var i = 1; i < data.length; i++) {
-    if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
-      var expiry = data[i][2] instanceof Date ? data[i][2] : new Date(data[i][2]);
-      if (isNaN(expiry.getTime())) return { valid: false, reason: 'invalid_data' };
-      if (expiry.getTime() < nowTime) {
-        return { valid: false, reason: 'expired', expiry: Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd') };
-      }
-      return { valid: true, expiry: Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd') };
+    if (String(data[i][0]).toUpperCase() !== String(id).toUpperCase()) continue;
+
+    var passType = String(data[i][4] || '').trim() || 'standard'; // 列5: 種別
+    var typeLabel = passType === 'gold' ? '知るパスGOLD' : '知るパス';
+    var expiryRaw = data[i][2]; // 列3: 有効期限
+
+    // 初回認証（有効期限が空）: 今日起算で期限をセット
+    var expiryDate;
+    if (!expiryRaw || expiryRaw === '') {
+      expiryDate = getShiruPassExpiry_(passType, now);
+      sheet.getRange(i + 1, 3).setValue(expiryDate); // 有効期限を書き込み
+      sheet.getRange(i + 1, 6).setValue(now);        // 初回認証日時を書き込み
+    } else {
+      expiryDate = expiryRaw instanceof Date ? expiryRaw : new Date(expiryRaw);
     }
+
+    if (isNaN(expiryDate.getTime())) return { valid: false, reason: 'invalid_data' };
+
+    var expiryStr = Utilities.formatDate(expiryDate, TIMEZONE, 'yyyy-MM-dd');
+    var benefitsUsed = passType === 'gold' ? (data[i][7] ? 1 : 0) + (data[i][8] ? 1 : 0) : 0;
+    if (expiryDate.getTime() < nowTime) {
+      return { valid: false, reason: 'expired', expiry: expiryStr, type: passType, typeLabel: typeLabel, points: parseInt(data[i][6]) || 0, benefitsUsed: benefitsUsed };
+    }
+    return { valid: true, expiry: expiryStr, type: passType, typeLabel: typeLabel, points: parseInt(data[i][6]) || 0, benefitsUsed: benefitsUsed };
   }
   return { valid: false, reason: 'not_found' };
+}
+
+/**
+ * GOLD特典（軽食）を1回使用する
+ * @param {string} goldId - GOLD パスID
+ * @param {string} token  - 月次トークン
+ * @returns {{ ok, used, remaining, error? }}
+ */
+function useMealBenefit_(goldId, token) {
+  if (!goldId) return { ok: false, error: 'missing_id' };
+  if (!isValidPointToken_(token)) return { ok: false, error: 'invalid_token' };
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var now = new Date();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).toUpperCase() !== String(goldId).toUpperCase()) continue;
+    var passType = String(data[i][4] || '').trim() || 'standard';
+    if (passType !== 'gold') return { ok: false, error: 'not_gold' };
+    var expiryRaw = data[i][2];
+    if (!expiryRaw) return { ok: false, error: 'not_activated' };
+    var expiryDate = expiryRaw instanceof Date ? expiryRaw : new Date(expiryRaw);
+    if (isNaN(expiryDate.getTime()) || expiryDate.getTime() < now.getTime()) return { ok: false, error: 'expired' };
+    var meal1 = data[i][7]; // 列8: 軽食1使用日
+    var meal2 = data[i][8]; // 列9: 軽食2使用日
+    var used = (meal1 ? 1 : 0) + (meal2 ? 1 : 0);
+    if (used >= 2) return { ok: false, error: 'all_used' };
+    if (!meal1) {
+      sheet.getRange(i + 1, 8).setValue(now);
+    } else {
+      sheet.getRange(i + 1, 9).setValue(now);
+    }
+    return { ok: true, used: used + 1, remaining: 2 - (used + 1) };
+  }
+  return { ok: false, error: 'not_found' };
 }
 
 function getShiruPassList_() {
@@ -367,13 +639,20 @@ function getShiruPassList_() {
   var rows = [];
   for (var i = 1; i < data.length; i++) {
     if (!data[i][0]) continue;
-    var expiry = data[i][2] instanceof Date ? data[i][2] : new Date(data[i][2]);
+    var expiryRaw = data[i][2];
+    var expiry = expiryRaw instanceof Date ? expiryRaw : (expiryRaw ? new Date(expiryRaw) : null);
+    var passType = String(data[i][4] || '').trim() || 'standard';
     rows.push({
-      id:        String(data[i][0]),
-      issuedAt:  data[i][1] instanceof Date ? Utilities.formatDate(data[i][1], TIMEZONE, 'yyyy-MM-dd HH:mm') : String(data[i][1]),
-      expiry:    isNaN(expiry.getTime()) ? '' : Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd'),
-      expired:   isNaN(expiry.getTime()) ? true : expiry.getTime() < now.getTime(),
-      note:      String(data[i][3] || '')
+      id:          String(data[i][0]),
+      issuedAt:    data[i][1] instanceof Date ? Utilities.formatDate(data[i][1], TIMEZONE, 'yyyy-MM-dd HH:mm') : String(data[i][1]),
+      expiry:      (!expiry || isNaN(expiry.getTime())) ? '' : Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd'),
+      expired:     (!expiry || isNaN(expiry.getTime())) ? false : expiry.getTime() < now.getTime(),
+      activated:   !(!expiry || isNaN(expiry.getTime())),
+      note:        String(data[i][3] || ''),
+      type:         passType,
+      typeLabel:    passType === 'gold' ? '知るパスGOLD' : '知るパス',
+      points:       parseInt(data[i][6]) || 0,
+      benefitsUsed: passType === 'gold' ? (data[i][7] ? 1 : 0) + (data[i][8] ? 1 : 0) : 0
     });
   }
   return { ok: true, passes: rows.reverse() }; // 新しい順

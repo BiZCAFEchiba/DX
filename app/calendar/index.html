@@ -1230,13 +1230,17 @@
       <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
       ルーム予約
     </button>
+    <button class="tab-btn" id="tabBtnSirupass" onclick="switchTab('sirupass')">
+      <svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M2 10h20M7 10v8"/></svg>
+      知るパス
+    </button>
     <button class="tab-btn" id="tabBtnRecruit" onclick="window.open('https://recruit.shirucafe.com/','_blank')">
       <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       採用
     </button>
     <button class="tab-btn" id="tabBtnSweets" onclick="window.open('https://mcstudy.mynavi.jp/conts/shirucafe/sweets/index.html?utm_source=ig&utm_medium=social&utm_content=link_in_bio','_blank')">
-      <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-      お菓子もらう
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+      動画視聴
     </button>
   </nav>
 
@@ -1555,10 +1559,204 @@
       </div>
     </div>
 
+    <!-- 知るパスパネル -->
+    <div class="tab-pane" id="paneSirupass">
+      <div style="max-width:480px;margin:0 auto;padding:20px 16px;">
+        <h2 style="font-size:1.1rem;font-weight:800;color:#1a3a5c;margin:0 0 4px;">🎫 知るパス</h2>
+        <p style="font-size:0.8rem;color:#888;margin:0 0 14px;">イベントに参加してポイントを貯め、GOLDを目指しましょう。</p>
+
+        <!-- QRスキャンボタン -->
+        <button onclick="openSirupassCamera()" style="width:100%;padding:14px;margin-bottom:16px;font-size:0.95rem;font-weight:800;background:linear-gradient(135deg,#6b4c35,#8a6448);color:#fff;border:none;border-radius:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 4px 14px rgba(107,76,53,0.28);">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="4" height="4" rx="1"/><rect x="13" y="7" width="4" height="4" rx="1"/><rect x="7" y="13" width="4" height="4" rx="1"/><path d="M13 13h1v1m2-1h1v1m-4 2h1v1m2-1h1v1"/></svg>
+          スタッフのQRをスキャン
+        </button>
+
+        <style>
+          .wallet-stack{display:flex;flex-direction:column;gap:8px;}
+          .wallet-card{border-radius:18px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.13);transition:box-shadow 0.3s;}
+          .wallet-card.wallet-active{box-shadow:0 8px 32px rgba(0,0,0,0.20);}
+          .wallet-header{min-height:62px;display:flex;align-items:center;padding:0 18px;gap:10px;cursor:pointer;color:#fff;user-select:none;-webkit-tap-highlight-color:transparent;}
+          .wallet-header-title{font-size:1rem;font-weight:800;flex:1;}
+          .wallet-header-badge{font-size:0.78rem;font-weight:700;opacity:0.95;white-space:nowrap;}
+          .wallet-chevron{flex-shrink:0;width:18px;height:18px;transition:transform 0.35s;}
+          .wallet-active .wallet-chevron{transform:rotate(90deg);}
+          .wallet-body{overflow:hidden;max-height:0;transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1);}
+          .wallet-active .wallet-body{max-height:900px;}
+          .wallet-body-inner{padding:14px;}
+        </style>
+
+        <div class="wallet-stack">
+
+          <!-- 🎫 知るパス（通常） -->
+          <div class="wallet-card wallet-active" id="wc-standard">
+            <div class="wallet-header" onclick="selectWalletCard('standard')" style="background:linear-gradient(135deg,#3b1f0e,#6b3a2a);">
+              <div class="wallet-header-title">🎫 知るパス</div>
+              <div class="wallet-header-badge" id="wcBadge-standard">—</div>
+              <svg class="wallet-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"/></svg>
+            </div>
+            <div class="wallet-body">
+              <div class="wallet-body-inner" style="background:linear-gradient(160deg,#fdf6ec,#f5e6d3);padding:0;">
+                <div id="sirupassCard-standard" style="display:none;">
+                  <!-- パスカード画像 -->
+                  <div style="border-bottom:1.5px dashed #c8a882;position:relative;">
+                    <img src="/sirupasu.png" alt="知るパス" style="width:100%;display:block;border-radius:0;">
+                    <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 16px;background:linear-gradient(transparent,rgba(30,10,0,0.6));">
+                      <div id="sirupassId-standard" style="font-family:monospace;font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:0.2em;text-shadow:0 1px 4px rgba(0,0,0,0.6);"></div>
+                      <div id="sirupassExpiry-standard" style="font-size:0.78rem;color:rgba(255,240,220,0.95);margin-top:2px;font-weight:600;"></div>
+                    </div>
+                  </div>
+                  <!-- スタンプカード -->
+                  <div style="padding:16px 14px 18px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                      <div>
+                        <div style="font-size:0.65rem;letter-spacing:0.18em;color:#8b5e3c;font-weight:700;text-transform:uppercase;">BizCAFÉ Stamp Card</div>
+                        <div style="font-size:0.72rem;color:#a07850;margin-top:1px;">10スタンプでGOLD昇格</div>
+                      </div>
+                      <svg viewBox="0 0 36 36" width="34" height="34" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.35;">
+                        <path d="M11 17 C9 14 11 11 10 8" stroke="#6b3a2a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                        <path d="M18 17 C16 14 18 11 17 8" stroke="#6b3a2a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+                        <rect x="7" y="18" width="18" height="14" rx="3" fill="#6b3a2a"/>
+                        <path d="M25 21 C31 21 31 29 25 29" stroke="#6b3a2a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                        <ellipse cx="16" cy="19" rx="9" ry="2.5" fill="#a0632a"/>
+                        <ellipse cx="28" cy="34" rx="10" ry="2" fill="#6b3a2a" opacity="0.4"/>
+                      </svg>
+                    </div>
+                    <!-- スタンプグリッド -->
+                    <div id="sirupassStampGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin-bottom:10px;"></div>
+                    <div id="sirupassStampMsg" style="text-align:center;font-size:0.75rem;font-weight:700;color:#8b5e3c;min-height:1.2em;margin-bottom:10px;"></div>
+                    <!-- ポイント説明トグル -->
+                    <div style="border-top:1px dashed #c8a882;padding-top:10px;">
+                      <button onclick="(function(b){var d=document.getElementById('stampPointDetail');var open=d.style.display!=='none';d.style.display=open?'none':'block';b.textContent=open?'▶ ポイントのしくみ':'▼ ポイントのしくみ';})(this)" style="background:none;border:none;font-size:0.72rem;font-weight:700;color:#8b5e3c;cursor:pointer;padding:0;letter-spacing:0.05em;">▶ ポイントのしくみ</button>
+                      <div id="stampPointDetail" style="display:none;margin-top:8px;background:#fdf5ec;border-radius:10px;padding:10px 12px;">
+                        <div style="font-size:0.72rem;color:#6b3a2a;margin-bottom:6px;font-weight:700;">イベント参加でスタンプをゲット！</div>
+                        <div style="display:flex;flex-direction:column;gap:5px;">
+                          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:#5c3317;">
+                            <span style="display:flex;align-items:center;gap:4px;">
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#5c3317" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8" fill="#5c3317" stroke="none"/></svg>
+                              MCS <span style="font-size:0.65rem;color:#8b5e3c;">動画視聴</span>
+                            </span>
+                            <span style="font-weight:800;color:#3b1f0e;">+1 スタンプ</span>
+                          </div>
+                          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:#5c3317;">
+                            <span style="display:flex;align-items:center;gap:4px;">
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#5c3317" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                              パンフレット <span style="font-size:0.65rem;color:#8b5e3c;">SHIRURU</span>
+                            </span>
+                            <span style="font-weight:800;color:#3b1f0e;">+2 スタンプ</span>
+                          </div>
+                          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:#5c3317;">
+                            <span style="display:flex;align-items:center;gap:4px;">
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#5c3317" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                              Meetup
+                            </span>
+                            <span style="font-weight:800;color:#3b1f0e;">+5 スタンプ</span>
+                          </div>
+                          <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:#5c3317;">
+                            <span style="display:flex;align-items:center;gap:4px;">
+                              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#5c3317" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                              Pickup Meetup
+                            </span>
+                            <span style="font-weight:800;color:#3b1f0e;">+7 スタンプ</span>
+                          </div>
+                        </div>
+                        <div style="margin-top:8px;padding-top:7px;border-top:1px dashed #c8a882;font-size:0.7rem;color:#8b5e3c;text-align:center;">10スタンプ達成で <strong>知るパスGOLD</strong> に自動昇格 🥇</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="sirupassExpiredBanner-standard" style="display:none;background:#c0392b;color:#fff;text-align:center;padding:10px;font-weight:700;font-size:0.85rem;">期限切れです。スタッフにお声がけください。</div>
+                </div>
+                <div id="sirupassNoId-standard" style="display:none;padding:16px;">
+                  <div style="background:#fff9f3;border:1.5px dashed #c8a882;border-radius:14px;padding:20px 14px;text-align:center;">
+                    <svg viewBox="0 0 48 48" width="52" height="52" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom:8px;opacity:0.5;">
+                      <path d="M15 22 C12 18 15 14 13 10" stroke="#8b5e3c" stroke-width="2" fill="none" stroke-linecap="round"/>
+                      <path d="M24 22 C21 18 24 14 22 10" stroke="#8b5e3c" stroke-width="2" fill="none" stroke-linecap="round"/>
+                      <rect x="9" y="24" width="24" height="18" rx="4" fill="#8b5e3c"/>
+                      <path d="M33 28 C42 28 42 38 33 38" stroke="#8b5e3c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                      <ellipse cx="21" cy="25" rx="12" ry="3.5" fill="#a07040"/>
+                    </svg>
+                    <div style="font-size:0.82rem;color:#8b5e3c;margin-bottom:12px;font-weight:600;">まだ登録されていません。<br>スタッフのQRをスキャンするか、IDを入力してください。</div>
+                    <input id="sirupassInput-standard" type="text" placeholder="例: A7K3P9" maxlength="6"
+                      style="width:150px;text-align:center;font-family:monospace;font-size:1.4rem;font-weight:900;letter-spacing:0.2em;text-transform:uppercase;border:2px solid #8b5e3c;border-radius:10px;padding:8px 10px;outline:none;background:#fffaf5;color:#3b1f0e;"
+                      oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')activateSirupassManual('standard')">
+                    <div id="sirupassInputMsg-standard" style="font-size:0.75rem;color:#c0392b;margin-top:4px;min-height:1.1em;"></div>
+                    <button onclick="activateSirupassManual('standard')" style="margin-top:10px;width:100%;padding:12px;font-size:0.9rem;font-weight:800;background:linear-gradient(135deg,#6b3a2a,#3b1f0e);color:#fff;border:none;border-radius:10px;cursor:pointer;letter-spacing:0.05em;">登録する</button>
+                  </div>
+                </div>
+                <div id="sirupassLoading-standard" style="text-align:center;padding:24px 0;color:#a07850;font-size:0.85rem;">読み込み中...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 🥇 GOLD -->
+          <div class="wallet-card" id="wc-gold">
+            <div class="wallet-header" onclick="selectWalletCard('gold')" style="background:linear-gradient(135deg,#d4a017,#b8860b);">
+              <div class="wallet-header-title">🥇 GOLD</div>
+              <div class="wallet-header-badge" id="wcBadge-gold">—</div>
+              <svg class="wallet-chevron" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"/></svg>
+            </div>
+            <div class="wallet-body">
+              <div class="wallet-body-inner">
+                <div id="sirupassCard-gold" style="display:none;">
+                  <div style="border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(212,160,23,0.3);position:relative;margin-bottom:10px;">
+                    <img src="/sirupasu-gold.png" alt="知るパスGOLD" style="width:100%;display:block;">
+                    <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 16px;background:linear-gradient(transparent,rgba(0,0,0,0.55));">
+                      <div id="sirupassId-gold" style="font-family:monospace;font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:0.2em;text-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>
+                      <div id="sirupassExpiry-gold" style="font-size:0.78rem;color:rgba(255,255,255,0.9);margin-top:2px;font-weight:600;"></div>
+                    </div>
+                  </div>
+                  <div id="sirupassExpiredBanner-gold" style="display:none;background:#c0392b;color:#fff;text-align:center;padding:10px;border-radius:10px;font-weight:700;font-size:0.85rem;margin-bottom:8px;">期限切れです。スタッフにお声がけください。</div>
+                  <!-- 特典セクション -->
+                  <div style="background:linear-gradient(135deg,#fffbf0,#fff9e6);border:1.5px solid #d4a017;border-radius:14px;padding:14px 16px;margin-top:8px;">
+                    <div style="font-size:0.82rem;font-weight:800;color:#7a5800;margin-bottom:10px;text-align:center;">🎁 特典（軽食 × 2回）</div>
+                    <div id="sirupassBenefitGrid" style="display:flex;gap:24px;justify-content:center;"></div>
+                    <div id="sirupassBenefitMsg" style="font-size:0.75rem;color:#8b6000;text-align:center;margin-top:8px;"></div>
+                  </div>
+                </div>
+                <div id="sirupassNoId-gold" style="display:none;">
+                  <div style="background:#fffbf0;border:1.5px dashed #d4a017;border-radius:14px;padding:20px 14px;text-align:center;">
+                    <div style="font-size:0.82rem;color:#7a5800;margin-bottom:12px;">まだ登録されていません。<br>スタッフのQRをスキャンするか、IDを入力してください。</div>
+                    <input id="sirupassInput-gold" type="text" placeholder="例: A7K3P9" maxlength="6"
+                      style="width:150px;text-align:center;font-family:monospace;font-size:1.4rem;font-weight:900;letter-spacing:0.2em;text-transform:uppercase;border:2px solid #d4a017;border-radius:10px;padding:8px 10px;outline:none;"
+                      oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')activateSirupassManual('gold')">
+                    <div id="sirupassInputMsg-gold" style="font-size:0.75rem;color:#c0392b;margin-top:4px;min-height:1.1em;"></div>
+                    <button onclick="activateSirupassManual('gold')" style="margin-top:10px;width:100%;padding:12px;font-size:0.9rem;font-weight:800;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;border:none;border-radius:10px;cursor:pointer;">登録する</button>
+                  </div>
+                </div>
+                <div id="sirupassLoading-gold" style="text-align:center;padding:24px 0;color:#888;font-size:0.85rem;">読み込み中...</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.wallet-stack -->
+
+      </div>
+    </div>
+
+    <!-- addpoint モーダル -->
+    <div id="addpointOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+        <div id="addpointTitle" style="font-size:1.1rem;font-weight:800;color:#1a3a5c;margin-bottom:4px;"></div>
+        <div id="addpointPts" style="font-size:0.82rem;color:#555;margin-bottom:16px;"></div>
+        <div id="addpointBody"></div>
+        <button onclick="closeAddpointOverlay()" style="margin-top:14px;width:100%;padding:12px;background:#f7f9fc;border:1px solid #c9d3df;border-radius:10px;font-size:0.9rem;font-weight:700;color:#555;cursor:pointer;">閉じる</button>
+      </div>
+    </div>
+
+    <!-- benefit モーダル -->
+    <div id="benefitOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+      <div style="background:#fff;border-radius:20px;padding:24px;width:100%;max-width:360px;box-shadow:0 8px 40px rgba(0,0,0,0.3);">
+        <div style="font-size:1.1rem;font-weight:800;color:#7a5800;margin-bottom:4px;">🎁 特典（軽食）</div>
+        <div style="font-size:0.82rem;color:#555;margin-bottom:16px;">知るパスGOLDの軽食特典を使用します</div>
+        <div id="benefitBody"></div>
+        <button onclick="closeBenefitOverlay()" style="margin-top:14px;width:100%;padding:12px;background:#f7f9fc;border:1px solid #c9d3df;border-radius:10px;font-size:0.9rem;font-weight:700;color:#555;cursor:pointer;">閉じる</button>
+      </div>
+    </div>
+
   </div><!-- /.tab-content -->
 </div><!-- /.app-layout -->
 
 <script src="corner_data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
   var GAS_API_URL = '/api/gas';
 
@@ -1625,8 +1823,460 @@
       qa: 'qa',
       board: 'notices',
       corner: 'free_board',
-      recruit: 'recruit'
+      recruit: 'recruit',
+      sirupass: 'sirupass'
     }[name] || 'calendar';
+  }
+
+  // ===== 知るパス（通常・GOLD 2枚管理） =====
+  var SIRUPASS_LS = {
+    standard: 'bizcafe_shiru_pass_standard',
+    gold:     'bizcafe_shiru_pass_gold'
+  };
+
+  // 旧キーからの移行（初回のみ）
+  (function() {
+    var oldId = localStorage.getItem('bizcafe_shiru_pass_id');
+    if (!oldId) return;
+    // 旧IDを検証して種別に振り分け
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassValidate&id=' + encodeURIComponent(oldId))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var type = data.type || 'standard';
+        if (!localStorage.getItem(SIRUPASS_LS[type])) {
+          try { localStorage.setItem(SIRUPASS_LS[type], oldId); } catch(e) {}
+        }
+        localStorage.removeItem('bizcafe_shiru_pass_id');
+      })
+      .catch(function() {});
+  })();
+
+  // QRスキャン時のURLパラメータを確認（ページ読み込み時に一度だけ処理）
+  (function() {
+    var params = new URLSearchParams(window.location.search);
+    var qrType   = params.get('sirupass');
+    var addPoint      = params.get('addpoint');
+    var addPointToken = params.get('t') || '';
+
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    var benefitParam = params.get('benefit');
+    if (qrType === 'standard' || qrType === 'gold') {
+      localStorage.removeItem(SIRUPASS_LS[qrType]);
+      doActivateSirupass_(qrType, params.get('t') || '');
+    } else if (addPoint) {
+      setTimeout(function() {
+        switchTab('sirupass');
+        openAddpointOverlay(addPoint, addPointToken);
+      }, 300);
+    } else if (benefitParam === 'meal') {
+      setTimeout(function() {
+        switchTab('sirupass');
+        openBenefitOverlay(params.get('t') || '');
+      }, 300);
+    }
+  })();
+
+  function doActivateSirupass_(type, token) {
+    showPassSection(type, 'loading');
+    setTimeout(function() { switchTab('sirupass'); }, 100);
+    var url = GAS_API_URL + '?page=calendar&action=shiruPassActivate&type=' + encodeURIComponent(type);
+    if (token) url += '&t=' + encodeURIComponent(token);
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.ok) {
+          if (data.error === 'invalid_token') {
+            showPassSection(type, 'noId');
+            var body = document.getElementById('sirupassBody' + (type === 'gold' ? 'Gold' : 'Std'));
+            if (body) body.innerHTML = '<div style="color:#c0392b;font-size:0.85rem;text-align:center;padding:16px;">このQRコードは期限切れです。<br>スタッフに新しいQRを表示してもらってください。</div>';
+            return;
+          }
+          showPassSection(type, 'noId'); return;
+        }
+        try { localStorage.setItem(SIRUPASS_LS[type], data.id); } catch(e) {}
+        renderPassCard(type, data.id, { valid: true, expiry: data.expiry, type: type });
+      })
+      .catch(function() { showPassSection(type, 'noId'); });
+  }
+
+  // ===== ウォレット スタック =====
+  function selectWalletCard(name) {
+    ['standard', 'gold'].forEach(function(n) {
+      var card = document.getElementById('wc-' + n);
+      if (card) card.classList.toggle('wallet-active', n === name);
+    });
+  }
+
+  function loadSirupassTab() {
+    ['standard', 'gold'].forEach(function(type) {
+      var savedId = localStorage.getItem(SIRUPASS_LS[type]) || '';
+      if (!savedId) { showPassSection(type, 'noId'); return; }
+      showPassSection(type, 'loading');
+      fetch(GAS_API_URL + '?page=calendar&action=shiruPassValidate&id=' + encodeURIComponent(savedId))
+        .then(function(r) { return r.json(); })
+        .then(function(data) { renderPassCard(type, savedId, data); })
+        .catch(function() { renderPassCard(type, savedId, { valid: false, reason: 'error' }); });
+    });
+  }
+
+  function showPassSection(type, section) {
+    document.getElementById('sirupassCard-'    + type).style.display    = section === 'card'    ? '' : 'none';
+    document.getElementById('sirupassNoId-'    + type).style.display    = section === 'noId'   ? '' : 'none';
+    document.getElementById('sirupassLoading-' + type).style.display    = section === 'loading' ? '' : 'none';
+    // バッジ更新
+    var badge = document.getElementById('wcBadge-' + type);
+    if (!badge) return;
+    if (section === 'loading') badge.textContent = '読み込み中…';
+    if (section === 'noId')    badge.textContent = '未登録';
+  }
+
+  function renderPassCard(type, id, data) {
+    document.getElementById('sirupassId-' + type).textContent = id.toUpperCase();
+    var expiryEl  = document.getElementById('sirupassExpiry-' + type);
+    var expiredEl = document.getElementById('sirupassExpiredBanner-' + type);
+    var badge     = document.getElementById('wcBadge-' + type);
+    if (data.valid) {
+      expiryEl.textContent = '有効期限: ' + data.expiry + ' まで';
+      expiredEl.style.display = 'none';
+      if (badge) badge.textContent = data.expiry + ' まで';
+    } else if (data.reason === 'expired') {
+      expiryEl.textContent = data.expiry + ' 期限切れ';
+      expiredEl.style.display = '';
+      if (badge) badge.textContent = '期限切れ';
+    } else {
+      expiryEl.textContent = '';
+      expiredEl.textContent = 'IDが見つかりません。確認してください。';
+      expiredEl.style.display = '';
+      if (badge) badge.textContent = 'ID不明';
+    }
+    showPassSection(type, 'card');
+    if (type === 'standard') {
+      renderStamps(data.points || 0);
+    }
+    if (type === 'gold') {
+      renderBenefits(data.benefitsUsed !== undefined ? data.benefitsUsed : 0);
+    }
+  }
+
+  var COFFEE_CUP_SVG_FILLED = '<svg viewBox="0 0 36 36" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 11 C10.5 8.5 12 6 11 3.5" stroke="rgba(255,220,180,0.8)" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M18 11 C16.5 8.5 18 6 17 3.5" stroke="rgba(255,220,180,0.8)" stroke-width="1.6" fill="none" stroke-linecap="round"/><rect x="6" y="13" width="20" height="16" rx="3.5" fill="rgba(255,240,210,0.95)"/><path d="M26 16.5 C33 16.5 33 25.5 26 25.5" stroke="rgba(255,240,210,0.95)" stroke-width="2.8" fill="none" stroke-linecap="round"/><ellipse cx="16" cy="14.5" rx="10" ry="3" fill="rgba(255,230,190,0.7)"/><path d="M10 14 Q13 12 16 14 Q19 12 22 14" stroke="rgba(255,255,255,0.6)" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>';
+  var COFFEE_CUP_SVG_EMPTY  = '<svg viewBox="0 0 36 36" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 11 C10.5 8.5 12 6 11 3.5" stroke="#c8a882" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M18 11 C16.5 8.5 18 6 17 3.5" stroke="#c8a882" stroke-width="1.4" fill="none" stroke-linecap="round"/><rect x="6" y="13" width="20" height="16" rx="3.5" stroke="#c8a882" stroke-width="1.4" fill="none"/><path d="M26 16.5 C32 16.5 32 25.5 26 25.5" stroke="#c8a882" stroke-width="2.2" fill="none" stroke-linecap="round"/><ellipse cx="16" cy="14.5" rx="10" ry="3" stroke="#c8a882" stroke-width="1" fill="none"/></svg>';
+
+  function renderStamps(pts) {
+    var grid = document.getElementById('sirupassStampGrid');
+    var msg  = document.getElementById('sirupassStampMsg');
+    var badge = document.getElementById('wcBadge-standard');
+    if (!grid) return;
+    var html = '';
+    for (var i = 0; i < 10; i++) {
+      if (i < pts) {
+        html += '<div style="aspect-ratio:1;border-radius:50%;background:radial-gradient(circle at 35% 35%,#a0632a,#5c2d0e);display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(91,45,14,0.4),inset 0 1px 2px rgba(255,220,160,0.3);">' + COFFEE_CUP_SVG_FILLED + '</div>';
+      } else {
+        html += '<div style="aspect-ratio:1;border-radius:50%;background:#fdf0e0;border:1.8px dashed #c8a882;display:flex;align-items:center;justify-content:center;">' + COFFEE_CUP_SVG_EMPTY + '</div>';
+      }
+    }
+    grid.innerHTML = html;
+    var remaining = Math.max(0, 10 - pts);
+    if (msg) {
+      if (pts >= 10) {
+        msg.textContent = '🎉 おめでとう！GOLDへの昇格条件達成！';
+        msg.style.color = '#7a5800';
+      } else {
+        msg.textContent = 'あと ' + remaining + ' スタンプでGOLD昇格';
+        msg.style.color = '#8b5e3c';
+      }
+    }
+    if (badge) badge.textContent = pts + ' / 10';
+  }
+
+  // ===== 特典（軽食）=====
+  var FOOD_SVG_AVAIL = '<svg viewBox="0 0 44 44" width="44" height="44" xmlns="http://www.w3.org/2000/svg">'
+    + '<ellipse cx="22" cy="15" rx="15" ry="5.5" fill="#f5c842"/>'
+    + '<path d="M7 15 Q7 8 22 8 Q37 8 37 15" fill="#e8a000"/>'
+    + '<circle cx="17" cy="12" r="1.2" fill="rgba(255,255,255,0.75)"/>'
+    + '<circle cx="22" cy="11" r="1.2" fill="rgba(255,255,255,0.75)"/>'
+    + '<circle cx="27" cy="12" r="1.2" fill="rgba(255,255,255,0.75)"/>'
+    + '<rect x="8" y="19" width="28" height="3.5" rx="1.8" fill="#5cb85c"/>'
+    + '<rect x="10" y="22" width="24" height="2.5" rx="1.2" fill="#e53935"/>'
+    + '<rect x="7" y="24" width="30" height="8" rx="4" fill="#f5c842"/>'
+    + '<rect x="7" y="29" width="30" height="3" rx="2" fill="#e8a000"/>'
+    + '</svg>';
+
+  var FOOD_SVG_USED = '<svg viewBox="0 0 44 44" width="44" height="44" xmlns="http://www.w3.org/2000/svg">'
+    + '<ellipse cx="22" cy="15" rx="15" ry="5.5" fill="#ccc"/>'
+    + '<path d="M7 15 Q7 8 22 8 Q37 8 37 15" fill="#bbb"/>'
+    + '<rect x="8" y="19" width="28" height="3.5" rx="1.8" fill="#aaa"/>'
+    + '<rect x="10" y="22" width="24" height="2.5" rx="1.2" fill="#bbb"/>'
+    + '<rect x="7" y="24" width="30" height="8" rx="4" fill="#ccc"/>'
+    + '<rect x="7" y="29" width="30" height="3" rx="2" fill="#bbb"/>'
+    + '<circle cx="22" cy="22" r="12" fill="rgba(39,174,96,0.88)"/>'
+    + '<polyline points="15,22 20,27 30,16" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'
+    + '</svg>';
+
+  function renderBenefits(used) {
+    var grid = document.getElementById('sirupassBenefitGrid');
+    var msg  = document.getElementById('sirupassBenefitMsg');
+    if (!grid) return;
+    var html = '';
+    for (var i = 0; i < 2; i++) {
+      if (i < used) {
+        html += '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">'
+          + '<div style="width:56px;height:56px;border-radius:50%;background:#e8f5e9;border:2px solid #27ae60;display:flex;align-items:center;justify-content:center;">' + FOOD_SVG_USED + '</div>'
+          + '<div style="font-size:0.68rem;color:#27ae60;font-weight:700;">使用済み</div>'
+          + '</div>';
+      } else {
+        html += '<div style="display:flex;flex-direction:column;align-items:center;gap:4px;">'
+          + '<div style="width:56px;height:56px;border-radius:50%;background:#fffbf0;border:2px dashed #d4a017;display:flex;align-items:center;justify-content:center;">' + FOOD_SVG_AVAIL + '</div>'
+          + '<div style="font-size:0.68rem;color:#8b6000;font-weight:700;">未使用</div>'
+          + '</div>';
+      }
+    }
+    grid.innerHTML = html;
+    if (msg) {
+      var remaining = 2 - used;
+      if (remaining <= 0) {
+        msg.textContent = '特典はすべて使用済みです';
+        msg.style.color = '#888';
+      } else {
+        msg.textContent = 'あと ' + remaining + ' 回使用できます';
+        msg.style.color = '#8b6000';
+      }
+    }
+  }
+
+  function openBenefitOverlay(token) {
+    var overlay = document.getElementById('benefitOverlay');
+    var body    = document.getElementById('benefitBody');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    var goldId = localStorage.getItem(SIRUPASS_LS.gold) || '';
+    if (goldId) {
+      doUseBenefit_(goldId, token || '', body);
+    } else {
+      showBenefitIdForm(token || '', body);
+    }
+  }
+
+  function closeBenefitOverlay() {
+    var overlay = document.getElementById('benefitOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function showBenefitIdForm(token, body) {
+    if (!body) return;
+    body.innerHTML =
+      '<div style="font-size:0.82rem;color:#7a5800;margin-bottom:10px;">GOLDパスのIDを入力してください</div>'
+      + '<input id="benefitIdInput" type="text" maxlength="6" placeholder="例: A7K3P9"'
+      + ' style="width:100%;text-align:center;font-family:monospace;font-size:1.6rem;font-weight:900;letter-spacing:0.2em;text-transform:uppercase;border:2px solid #d4a017;border-radius:10px;padding:10px;box-sizing:border-box;outline:none;"'
+      + ' oninput="this.value=this.value.toUpperCase()">'
+      + '<div id="benefitIdMsg" style="font-size:0.75rem;color:#c0392b;margin-top:4px;min-height:1.1em;"></div>'
+      + '<button onclick="submitBenefitId(\'' + (token||'') + '\')" style="margin-top:10px;width:100%;padding:14px;font-size:1rem;font-weight:800;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;border:none;border-radius:10px;cursor:pointer;">🎁 特典を使用する</button>';
+  }
+
+  function submitBenefitId(token) {
+    var input = document.getElementById('benefitIdInput');
+    var msg   = document.getElementById('benefitIdMsg');
+    if (!input) return;
+    var val = input.value.trim().toUpperCase();
+    if (val.length < 6) { if (msg) msg.textContent = 'IDは6文字で入力してください'; return; }
+    try { localStorage.setItem(SIRUPASS_LS.gold, val); } catch(e) {}
+    doUseBenefit_(val, token, document.getElementById('benefitBody'));
+  }
+
+  function doUseBenefit_(goldId, token, body) {
+    if (body) body.innerHTML = '<div style="text-align:center;padding:20px;color:#888;">処理中...</div>';
+    var url = GAS_API_URL + '?page=calendar&action=shiruPassUseBenefit&id=' + encodeURIComponent(goldId) + '&t=' + encodeURIComponent(token);
+    fetch(url)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!body) return;
+        if (data.ok) {
+          var remaining = data.remaining;
+          body.innerHTML =
+            '<div style="text-align:center;">'
+            + '<div style="font-size:2.5rem;margin-bottom:8px;">🎉</div>'
+            + '<div style="font-size:1rem;font-weight:800;color:#27ae60;margin-bottom:6px;">特典を使用しました！</div>'
+            + '<div style="font-size:0.85rem;color:#555;">残り ' + remaining + ' 回使用できます</div>'
+            + '</div>';
+          renderBenefits(data.used);
+        } else {
+          var errMsgs = {
+            invalid_token: 'QRコードが期限切れです。スタッフに新しいQRを表示してもらってください。',
+            not_gold:      'このIDは知るパスGOLDではありません。',
+            not_activated: 'パスがまだ有効化されていません。',
+            expired:       'パスの有効期限が切れています。',
+            all_used:      '特典はすでにすべて使用済みです。',
+            not_found:     'IDが見つかりません。確認してください。'
+          };
+          body.innerHTML =
+            '<div style="text-align:center;">'
+            + '<div style="font-size:2rem;margin-bottom:8px;">😢</div>'
+            + '<div style="font-size:0.88rem;color:#c0392b;">' + (errMsgs[data.error] || 'エラーが発生しました') + '</div>'
+            + '</div>';
+        }
+      })
+      .catch(function() {
+        if (body) body.innerHTML = '<div style="text-align:center;color:#c0392b;font-size:0.85rem;">通信エラーが発生しました</div>';
+      });
+  }
+
+  // ===== addpoint モーダル =====
+  var ADD_POINT_INFO = {
+    mcs:     { label: 'MCS',          pts: 1, color: '#1a3a5c' },
+    shiruru: { label: 'パンフレット',   pts: 2, color: '#7b3fe4' },
+    meetup:  { label: 'Meetup',        pts: 5, color: '#166534' },
+    pickup:  { label: 'Pickup Meetup', pts: 7, color: '#9a3412' }
+  };
+
+  function openAddpointOverlay(pointType, token) {
+    var info = ADD_POINT_INFO[pointType];
+    if (!info) return;
+    var overlay = document.getElementById('addpointOverlay');
+    var title   = document.getElementById('addpointTitle');
+    var ptsEl   = document.getElementById('addpointPts');
+    var body    = document.getElementById('addpointBody');
+    if (!overlay) return;
+    if (title) title.textContent = info.label + ' 参加ポイント';
+    if (ptsEl) ptsEl.textContent = '+' + info.pts + 'p 付与されます';
+    overlay.style.display = 'flex';
+    var stdId = localStorage.getItem(SIRUPASS_LS.standard) || '';
+    if (stdId) {
+      doAddpointFetch(pointType, stdId, token || '', info, body, false);
+    } else {
+      showAddpointIdForm(pointType, token || '', info, body);
+    }
+  }
+
+  function showAddpointIdForm(pointType, token, info, body) {
+    if (!body) return;
+    body.innerHTML =
+      '<div style="background:#fdf6ec;border:1.5px solid #c8a882;border-radius:12px;padding:14px;">' +
+      '<div style="font-size:0.82rem;color:#6b3a2a;margin-bottom:10px;font-weight:600;">カードのIDを入力してください</div>' +
+      '<input id="addpointIdInput" type="text" placeholder="例: A7K3P9" maxlength="6" ' +
+        'style="width:100%;text-align:center;font-family:monospace;font-size:1.4rem;font-weight:900;letter-spacing:0.2em;text-transform:uppercase;border:2px solid #8b5e3c;border-radius:10px;padding:10px;outline:none;background:#fffaf5;color:#3b1f0e;box-sizing:border-box;" ' +
+        'oninput="this.value=this.value.toUpperCase()">' +
+      '<div id="addpointIdMsg" style="font-size:0.75rem;color:#c0392b;min-height:1.2em;margin-top:4px;"></div>' +
+      '<button onclick="submitAddpointId(\'' + pointType + '\',\'' + token + '\')" ' +
+        'style="margin-top:8px;width:100%;padding:12px;font-size:0.92rem;font-weight:800;background:linear-gradient(135deg,#6b3a2a,#3b1f0e);color:#fff;border:none;border-radius:10px;cursor:pointer;">スタンプを押す ☕</button>' +
+      '</div>';
+    setTimeout(function() {
+      var inp = document.getElementById('addpointIdInput');
+      if (inp) inp.focus();
+    }, 100);
+  }
+
+  function submitAddpointId(pointType, token) {
+    var inp  = document.getElementById('addpointIdInput');
+    var msg  = document.getElementById('addpointIdMsg');
+    var body = document.getElementById('addpointBody');
+    var val  = (inp ? inp.value : '').trim().toUpperCase();
+    if (!val || val.length !== 6) { if (msg) msg.textContent = '6桁のIDを入力してください'; return; }
+    if (msg) msg.textContent = '';
+    var info = ADD_POINT_INFO[pointType];
+    doAddpointFetch(pointType, val, token || '', info, body);
+  }
+
+  function doAddpointFetch(pointType, id, token, info, body) {
+    if (body) body.innerHTML = '<div style="text-align:center;padding:12px 0;color:#8b5e3c;font-size:0.85rem;">☕ スタンプ処理中...</div>';
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassAddPoint&id=' + encodeURIComponent(id) + '&pointType=' + encodeURIComponent(pointType) + '&t=' + encodeURIComponent(token))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          try { localStorage.setItem(SIRUPASS_LS.standard, id); } catch(e) {}
+          var pct = Math.min(100, Math.round(data.points / 10 * 100));
+          var remaining = Math.max(0, 10 - data.points);
+          if (data.upgraded && data.goldId) {
+            // 10スタンプ達成 → GOLD自動昇格
+            try { localStorage.setItem(SIRUPASS_LS.gold, data.goldId); } catch(e) {}
+            if (body) body.innerHTML =
+              '<div style="background:linear-gradient(135deg,#fff9e6,#fff3cc);border:2px solid #d4a017;border-radius:14px;padding:20px;text-align:center;">' +
+              '<div style="font-size:2.8rem;margin-bottom:6px;">🥇</div>' +
+              '<div style="font-size:1.4rem;font-weight:900;color:#7a5800;margin-bottom:4px;">GOLDに昇格しました！</div>' +
+              '<div style="font-size:0.85rem;color:#8b6000;margin-bottom:12px;">新しいGOLD IDが発行されました</div>' +
+              '<div style="font-family:monospace;font-size:2rem;font-weight:900;color:#7a5800;letter-spacing:0.2em;background:#fff9e6;border:2px solid #d4a017;border-radius:10px;padding:10px;">' + data.goldId + '</div>' +
+              '<div style="font-size:0.78rem;color:#8b6000;margin-top:8px;">有効期限: ' + data.goldExpiry + ' まで</div>' +
+              '<div style="font-size:0.75rem;color:#a07800;margin-top:6px;">知るパスタブのGOLDカードに自動で登録されました</div>' +
+              '</div>';
+            renderStamps(data.points);
+            renderPassCard('gold', data.goldId, { valid: true, expiry: data.goldExpiry, type: 'gold', points: 0 });
+          } else {
+            var goalMsg = remaining > 0 ? 'あと ' + remaining + ' スタンプでGOLD昇格' : '🎉 GOLD昇格条件達成！';
+            if (body) body.innerHTML =
+              '<div style="background:linear-gradient(135deg,#fdf6ec,#f5e6d3);border:2px solid #c8a882;border-radius:14px;padding:18px;text-align:center;">' +
+              '<div style="font-size:2.6rem;margin-bottom:4px;">☕</div>' +
+              '<div style="font-size:1.8rem;font-weight:900;color:' + info.color + ';margin-bottom:2px;">+' + data.added + 'p</div>' +
+              '<div style="font-size:0.82rem;color:#6b3a2a;margin-bottom:10px;">スタンプを押しました！</div>' +
+              '<div style="background:#e8d5b7;border-radius:99px;height:10px;overflow:hidden;margin-bottom:8px;">' +
+              '<div style="height:100%;background:linear-gradient(90deg,#6b3a2a,#a07040);border-radius:99px;width:' + pct + '%;transition:width 0.6s;"></div></div>' +
+              '<div style="font-size:0.85rem;font-weight:700;color:#3b1f0e;">' + data.points + ' / 10 スタンプ</div>' +
+              '<div style="font-size:0.75rem;color:#8b5e3c;margin-top:4px;">' + goalMsg + '</div>' +
+              '</div>';
+            renderStamps(data.points);
+          }
+        } else {
+          var errMsg = data.error === 'invalid_token' ? 'QRコードの有効期限が切れています。スタッフに新しいQRコードを表示してもらってください。'
+            : data.error === 'not_found' ? 'IDが見つかりません。カードを確認してください。'
+            : data.error === 'not_standard' ? 'このIDはGOLD用です。通常パスのIDを入力してください。'
+            : 'エラーが発生しました';
+          if (body) body.innerHTML =
+            '<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:14px;font-size:0.85rem;color:#c0392b;text-align:center;">' + errMsg + '</div>';
+          if (data.error !== 'invalid_token') {
+            setTimeout(function() { showAddpointIdForm(pointType, token, info, body); }, 2500);
+          }
+        }
+      })
+      .catch(function() {
+        if (body) body.innerHTML =
+          '<div style="background:#fef2f2;border:1.5px solid #fecaca;border-radius:12px;padding:14px;font-size:0.85rem;color:#c0392b;text-align:center;">通信エラーが発生しました。再度お試しください。</div>';
+        setTimeout(function() { showAddpointIdForm(pointType, token, info, body); }, 2500);
+      });
+  }
+
+  function closeAddpointOverlay() {
+    var overlay = document.getElementById('addpointOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function activateSirupassManual(type) {
+    var input = document.getElementById('sirupassInput-' + type);
+    var msgEl = document.getElementById('sirupassInputMsg-' + type);
+    var val = (input.value || '').trim().toUpperCase();
+    if (!val || val.length !== 6) { msgEl.textContent = '6桁のIDを入力してください。'; return; }
+    msgEl.textContent = '';
+    input.disabled = true;
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassValidate&id=' + encodeURIComponent(val))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        input.disabled = false;
+        if (data.reason === 'not_found') { msgEl.textContent = 'IDが見つかりません。カードのIDを確認してください。'; return; }
+        // 種別ミスマッチチェック
+        var resultType = data.type || 'standard';
+        if (resultType !== type) {
+          var label = resultType === 'gold' ? '知るパスGOLD' : '知るパス';
+          msgEl.textContent = 'このIDは「' + label + '」用です。';
+          return;
+        }
+        try { localStorage.setItem(SIRUPASS_LS[type], val); } catch(e) {}
+        renderPassCard(type, val, data);
+      })
+      .catch(function() { input.disabled = false; msgEl.textContent = '通信エラーが発生しました。再度お試しください。'; });
+  }
+
+  function changeSirupassId(type) {
+    localStorage.removeItem(SIRUPASS_LS[type]);
+    var inputEl = document.getElementById('sirupassInput-' + type);
+    if (inputEl) inputEl.value = '';
+    showPassSection(type, 'noId');
+  }
+
+  // ルーム予約フォーム自動入力用（通常→GOLDの優先）
+  function getSirupassIdForRoom() {
+    return localStorage.getItem(SIRUPASS_LS.standard)
+      || localStorage.getItem(SIRUPASS_LS.gold)
+      || localStorage.getItem('bizcafe_shiru_pass_id')
+      || '';
   }
 
   function trackPageView(pageKey) {
@@ -1642,8 +2292,8 @@
   function switchTab(name) {
     document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
     document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
-    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner', room: 'Room' }[name];
-    var paneId = { congestion: 'Congesion',  calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner', room: 'Room' }[name];
+    var btnId  = { congestion: 'Congestion', calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner', room: 'Room', sirupass: 'Sirupass' }[name];
+    var paneId = { congestion: 'Congesion',  calendar: 'Calendar', qa: 'QA', board: 'Board', corner: 'Corner', room: 'Room', sirupass: 'Sirupass' }[name];
     
     var targetBtn = document.getElementById('tabBtn' + btnId);
     if(targetBtn) targetBtn.classList.add('active');
@@ -1671,6 +2321,9 @@
       }
       loadCornerQuestions();
     }
+
+    if (name === 'sirupass') { loadSirupassTab(); }
+
     trackPageView(getCurrentPageViewKey(name));
   }
 
@@ -3236,7 +3889,9 @@ window.onDayClick = function(dateISO) {
                 if (data.valid) {
                   passMsg.textContent = '✅ 有効です（有効期限: ' + data.expiry + '）';
                   passMsg.style.color = '#28a745';
-                  try { localStorage.setItem('bizcafe_shiru_pass_id', v); } catch(e) {}
+                  var saveType = data.type || 'standard';
+                  var saveKey = (typeof SIRUPASS_LS !== 'undefined' && SIRUPASS_LS[saveType]) ? SIRUPASS_LS[saveType] : 'bizcafe_shiru_pass_' + saveType;
+                  try { localStorage.setItem(saveKey, v); } catch(e) {}
                 } else {
                   var msgs = { not_found: '❌ IDが見つかりません', expired: '❌ 有効期限切れです' };
                   passMsg.textContent = msgs[data.reason] || '❌ 無効なIDです';
@@ -3316,7 +3971,7 @@ window.onDayClick = function(dateISO) {
     var passEl = document.getElementById('roomShiruPassId');
     if (passEl && !passEl.value) {
       try {
-        var saved = localStorage.getItem('bizcafe_shiru_pass_id');
+        var saved = getSirupassIdForRoom();
         if (saved) { passEl.value = saved; passEl.dispatchEvent(new Event('input')); }
       } catch(e) {}
     }
@@ -3578,6 +4233,99 @@ window.onDayClick = function(dateISO) {
   }
 
   loadCornerSettings();
+
+  // ===== 知るパス QRカメラスキャン =====
+  var sirupassCameraStream = null;
+  var sirupassCameraRaf    = null;
+
+  function openSirupassCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('このブラウザはカメラに対応していません。');
+      return;
+    }
+    var overlay = document.getElementById('sirupassCameraOverlay');
+    overlay.style.display = 'flex';
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+      .then(function(stream) {
+        sirupassCameraStream = stream;
+        var video = document.getElementById('sirupassCameraVideo');
+        video.srcObject = stream;
+        video.play();
+        video.addEventListener('loadedmetadata', function() {
+          sirupassCameraRaf = requestAnimationFrame(tickSirupassCamera);
+        }, { once: true });
+      })
+      .catch(function() {
+        closeSirupassCamera();
+        alert('カメラへのアクセスを許可してください。');
+      });
+  }
+
+  function closeSirupassCamera() {
+    if (sirupassCameraRaf) { cancelAnimationFrame(sirupassCameraRaf); sirupassCameraRaf = null; }
+    if (sirupassCameraStream) {
+      sirupassCameraStream.getTracks().forEach(function(t) { t.stop(); });
+      sirupassCameraStream = null;
+    }
+    var overlay = document.getElementById('sirupassCameraOverlay');
+    if (overlay) overlay.style.display = 'none';
+  }
+
+  function tickSirupassCamera() {
+    var video  = document.getElementById('sirupassCameraVideo');
+    var canvas = document.getElementById('sirupassCameraCanvas');
+    if (!video || !canvas || !sirupassCameraStream) return;
+
+    var w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) { sirupassCameraRaf = requestAnimationFrame(tickSirupassCamera); return; }
+
+    canvas.width = w; canvas.height = h;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, w, h);
+    var img = ctx.getImageData(0, 0, w, h);
+
+    if (typeof jsQR === 'function') {
+      var code = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+      if (code && code.data) {
+        var mPass = code.data.match(/[?&]sirupass=(standard|gold)(?:.*?[?&]t=([a-f0-9]+))?/);
+        if (mPass) {
+          closeSirupassCamera();
+          var type = mPass[1];
+          var passToken = mPass[2] || '';
+          localStorage.removeItem(SIRUPASS_LS[type]);
+          doActivateSirupass_(type, passToken);
+          return;
+        }
+        var mPoint = code.data.match(/[?&]addpoint=(mcs|shiruru|meetup|pickup)(?:.*?[?&]t=([a-f0-9]+))?/);
+        if (mPoint) {
+          closeSirupassCamera();
+          openAddpointOverlay(mPoint[1], mPoint[2] || '');
+          return;
+        }
+        var mBenefit = code.data.match(/[?&]benefit=meal(?:.*?[?&]t=([a-f0-9]+))?/);
+        if (mBenefit) {
+          closeSirupassCamera();
+          openBenefitOverlay(mBenefit[1] || '');
+          return;
+        }
+      }
+    }
+    sirupassCameraRaf = requestAnimationFrame(tickSirupassCamera);
+  }
 </script>
+
+<!-- 知るパス QRカメラオーバーレイ -->
+<div id="sirupassCameraOverlay" style="display:none;position:fixed;inset:0;background:#000;z-index:9999;flex-direction:column;align-items:center;justify-content:center;">
+  <div style="width:100%;max-width:480px;position:relative;">
+    <video id="sirupassCameraVideo" autoplay playsinline muted style="width:100%;display:block;border-radius:4px;"></video>
+    <canvas id="sirupassCameraCanvas" style="display:none;"></canvas>
+    <!-- スキャン枠 -->
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+      <div style="width:220px;height:220px;border-radius:16px;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);border:3px solid #fff;"></div>
+    </div>
+  </div>
+  <div style="color:#fff;font-size:0.9rem;font-weight:600;margin-top:20px;text-align:center;line-height:1.6;">スタッフのQRコードに向けてください<br><span style="font-size:0.75rem;opacity:0.7;">自動で読み取られます</span></div>
+  <button onclick="closeSirupassCamera()" style="margin-top:24px;padding:14px 40px;background:rgba(255,255,255,0.15);color:#fff;border:1.5px solid rgba(255,255,255,0.5);border-radius:14px;font-size:1rem;font-weight:700;cursor:pointer;letter-spacing:0.05em;">キャンセル</button>
+</div>
 </body>
 </html>

@@ -625,8 +625,14 @@ function doGet(e) {
     }
     // 知るパスID発行（スタッフ用）
     if (param.action === 'shiruPassIssue') {
-      var issueResult = issueShiruPassId_(param.note || '', param.count || '1');
+      var issueResult = issueShiruPassId_(param.note || '', param.count || '1', param.type || 'standard');
       return ContentService.createTextOutput(JSON.stringify(issueResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 知るパスQRスキャンによる自動アクティベーション（顧客用）
+    if (param.action === 'shiruPassActivate') {
+      var activateResult = activateShiruPass_(param.type || 'standard', param.t || '');
+      return ContentService.createTextOutput(JSON.stringify(activateResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // 知るパスID検証（顧客用）
@@ -653,6 +659,25 @@ function doGet(e) {
       try { bulkIds = JSON.parse(param.ids || '[]'); } catch(e) {}
       var bulkRenewResult = bulkRenewShiruPassIds_(bulkIds);
       return ContentService.createTextOutput(JSON.stringify(bulkRenewResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 知るパスポイントQRトークン取得（スタッフ用）
+    if (param.action === 'shiruPassPointToken') {
+      var rotate = param.rotate === '1';
+      var tok = rotate ? rotatePointQrSecret_() : getCurrentPointQrToken_();
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, token: tok }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // GOLD特典使用（顧客用）
+    if (param.action === 'shiruPassUseBenefit') {
+      var benefitResult = useMealBenefit_(param.id || '', param.t || '');
+      return ContentService.createTextOutput(JSON.stringify(benefitResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 知るパスポイント付与（顧客用）
+    if (param.action === 'shiruPassAddPoint') {
+      var addPointResult = addShiruPoint_(param.id || '', param.pointType || '', param.t || '');
+      return ContentService.createTextOutput(JSON.stringify(addPointResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // 知るパスID有効日数 取得/設定（スタッフ用）
@@ -1112,7 +1137,11 @@ function triggerFollowUpReminder() {
 
   // 送信
   const token = getLineWorksAccessToken();
-  if (!token) return;
+  if (!token) {
+    Logger.log('追っかけリマインド: アクセストークン取得失敗');
+    writeLogToSheets_(targetISO, unconfirmedStaff.length, 'followup', 'error', 'トークン取得失敗');
+    return;
+  }
 
   const url = LINEWORKS_API_BASE + '/bots/' + LINEWORKS_BOT_ID + '/channels/' + LINEWORKS_CHANNEL_ID + '/messages';
   const body = {
@@ -1122,15 +1151,27 @@ function triggerFollowUpReminder() {
     }
   };
 
-  UrlFetchApp.fetch(url, {
-    method: 'post',
-    contentType: 'application/json',
-    headers: { 'Authorization': 'Bearer ' + token },
-    payload: JSON.stringify(body),
-    muteHttpExceptions: true
-  });
-
-  Logger.log('追っかけリマインド送信完了');
+  try {
+    const response = UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'Authorization': 'Bearer ' + token },
+      payload: JSON.stringify(body),
+      muteHttpExceptions: true
+    });
+    const code = response.getResponseCode();
+    if (code === 200 || code === 201) {
+      Logger.log('追っかけリマインド送信完了 (' + unconfirmedStaff.length + '名未確認)');
+      writeLogToSheets_(targetISO, unconfirmedStaff.length, 'followup', 'success',
+        '未確認: ' + unconfirmedStaff.map(function(s) { return s.name; }).join(', '));
+    } else {
+      Logger.log('追っかけリマインド送信失敗: HTTP ' + code + ' - ' + response.getContentText());
+      writeLogToSheets_(targetISO, unconfirmedStaff.length, 'followup', 'error', 'HTTP ' + code);
+    }
+  } catch (e) {
+    Logger.log('追っかけリマインド送信エラー: ' + e.message);
+    writeLogToSheets_(targetISO, unconfirmedStaff.length, 'followup', 'error', e.message);
+  }
 
   // 確認サイクル終了 → 当日分の確認状況をリセット
   resetAcknowledgment_(targetISO);
