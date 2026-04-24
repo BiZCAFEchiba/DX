@@ -400,6 +400,79 @@ function parseVisitCountFromHtml_(html) {
   }
 }
 
+/**
+ * /store ページから今日の来店学生数・来店ユニーク学生数を同時取得する
+ * @returns {{ visit: number|null, unique: number|null }}
+ */
+function fetchTodayVisitCounts_() {
+  try {
+    var cookies = loginToShirucafe_();
+    if (!cookies) {
+      Logger.log('fetchTodayVisitCounts_: ログイン失敗');
+      return { visit: null, unique: null };
+    }
+    var res = UrlFetchApp.fetch(SHIRUCAFE_BASE_URL + '/store', {
+      headers: { 'Cookie': buildCookieString_(cookies), 'Accept': 'text/html' },
+      followRedirects: true,
+      muteHttpExceptions: true
+    });
+    if (res.getResponseCode() !== 200) {
+      Logger.log('fetchTodayVisitCounts_: /store HTTP ' + res.getResponseCode());
+      return { visit: null, unique: null };
+    }
+    var html = res.getContentText();
+    var todayLabel = Utilities.formatDate(new Date(), TIMEZONE, 'MM.dd');
+    return {
+      visit:  parseChartDatasetValue_(html, '来店学生数', todayLabel),
+      unique: parseChartDatasetValue_(html, '来店ユニーク学生数', todayLabel)
+    };
+  } catch (e) {
+    Logger.log('fetchTodayVisitCounts_ error: ' + e.message);
+    return { visit: null, unique: null };
+  }
+}
+
+/**
+ * day_order_chart HTML から指定データセットラベルの今日分の値を抽出する
+ * @param {string} html  /store ページのHTML
+ * @param {string} datasetLabel  例: '来店学生数' / '来店ユニーク学生数'
+ * @param {string} todayLabel    MM.dd 形式の今日の日付
+ * @returns {number|null}
+ */
+function parseChartDatasetValue_(html, datasetLabel, todayLabel) {
+  try {
+    var chartBlockMatch = html.match(/day_order_chart[\s\S]*?labels:\s*(\[[\s\S]*?\])\s*,[\s\S]*?datasets:\s*\[([\s\S]*?)\]\s*\}\s*,\s*options:/);
+    if (!chartBlockMatch) return null;
+
+    var labels = JSON.parse(chartBlockMatch[1].replace(/\s+/g, ' '));
+    var datasetsBlock = chartBlockMatch[2];
+
+    var escaped = datasetLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    var dataMatch = datasetsBlock.match(new RegExp("label:\\s*'" + escaped + "'[\\s\\S]*?data:\\s*(\\[[^\\]]+\\])"));
+    if (!dataMatch) {
+      Logger.log('parseChartDatasetValue_: ' + datasetLabel + ' が見つかりません');
+      return null;
+    }
+
+    var data = JSON.parse(dataMatch[1]);
+    for (var i = 0; i < labels.length; i++) {
+      if (String(labels[i]).indexOf(todayLabel) === 0) {
+        var val = typeof data[i] === 'number' ? data[i] : parseInt(data[i]);
+        Logger.log('parseChartDatasetValue_: ' + datasetLabel + '(' + labels[i] + ') = ' + val);
+        return isNaN(val) ? null : val;
+      }
+    }
+    if (data.length > 0) {
+      var last = typeof data[data.length - 1] === 'number' ? data[data.length - 1] : parseInt(data[data.length - 1]);
+      return isNaN(last) ? null : last;
+    }
+    return null;
+  } catch (e) {
+    Logger.log('parseChartDatasetValue_ error (' + datasetLabel + '): ' + e.message);
+    return null;
+  }
+}
+
 // ─── Meetup席数補正 ─────────────────────────────────────────
 
 var MEETUP_SEATS_PER_EVENT = 4; // 1対面Meetupあたりの占有席数

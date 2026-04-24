@@ -788,7 +788,7 @@
     <div class="container qr-sub-pane" id="qrPaneShiruStd">
       <div class="current-card" style="padding:16px;margin-bottom:16px;">
         <div class="section-title" style="margin-bottom:4px;">🎫 知るパス（通常）</div>
-        <div style="font-size:0.8rem;color:#1a6fc4;font-weight:700;margin-bottom:12px;">有効期限：翌月末まで</div>
+        <div style="font-size:0.8rem;color:#1a6fc4;font-weight:700;margin-bottom:12px;">有効期限：発行日から30日間</div>
         <div style="font-size:0.82rem;color:#666;margin-bottom:14px;">お客さんにQRコードをスキャンしてもらうと、自動でIDが発行されます。</div>
         <div style="background:#f7f9fc;border:2px solid #1a3a5c;border-radius:16px;padding:20px;text-align:center;margin-bottom:8px;">
           <div id="qrStandard" style="display:inline-block;"></div>
@@ -822,6 +822,8 @@
                 <input type="checkbox" id="shiruPassSelectAllStd" onchange="toggleAllShiruPass('standard',this.checked)"> 全選択
               </label>
               <button id="shiruPassBulkRenewBtnStd" onclick="bulkRenewShiruPass('standard')" style="display:none;padding:4px 12px;font-size:0.78rem;font-weight:700;background:#1a6fc4;color:#fff;border:none;border-radius:6px;cursor:pointer;">まとめて更新</button>
+              <button id="shiruPassBulkDeleteBtnStd" onclick="bulkDeleteShiruPass('standard')" style="display:none;padding:4px 12px;font-size:0.78rem;font-weight:700;background:#c0392b;color:#fff;border:none;border-radius:6px;cursor:pointer;">まとめて削除</button>
+              <button onclick="deleteExpiredShiruPass('standard')" style="padding:4px 12px;font-size:0.78rem;font-weight:700;background:#888;color:#fff;border:none;border-radius:6px;cursor:pointer;">期限切れを削除</button>
             </div>
           </div>
           <input type="text" id="shiruPassSearchStd" class="room-date-input" placeholder="IDで検索..." style="width:100%;margin-bottom:8px;box-sizing:border-box;" oninput="filterShiruPassList('standard')">
@@ -867,6 +869,8 @@
                 <input type="checkbox" id="shiruPassSelectAllGold" onchange="toggleAllShiruPass('gold',this.checked)"> 全選択
               </label>
               <button id="shiruPassBulkRenewBtnGold" onclick="bulkRenewShiruPass('gold')" style="display:none;padding:4px 12px;font-size:0.78rem;font-weight:700;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;border:none;border-radius:6px;cursor:pointer;">まとめて更新</button>
+              <button id="shiruPassBulkDeleteBtnGold" onclick="bulkDeleteShiruPass('gold')" style="display:none;padding:4px 12px;font-size:0.78rem;font-weight:700;background:#c0392b;color:#fff;border:none;border-radius:6px;cursor:pointer;">まとめて削除</button>
+              <button onclick="deleteExpiredShiruPass('gold')" style="padding:4px 12px;font-size:0.78rem;font-weight:700;background:#888;color:#fff;border:none;border-radius:6px;cursor:pointer;">期限切れを削除</button>
             </div>
           </div>
           <input type="text" id="shiruPassSearchGold" class="room-date-input" placeholder="IDで検索..." style="width:100%;margin-bottom:8px;box-sizing:border-box;" oninput="filterShiruPassList('gold')">
@@ -4185,22 +4189,25 @@
     }
     var checkClass = 'shiru-pass-check-' + (isGold ? 'gold' : 'std');
     listEl.innerHTML = filtered.map(function(p) {
-      var bg = isGold ? (p.expired ? '#fdf8ec' : '#fffbf0') : (p.expired ? '#f5f7fa' : '#fff');
-      var border = isGold ? '#d4a017' : '#e0e7ef';
+      var bg = p.cancelled ? '#faf7f0' : (isGold ? (p.expired ? '#fdf8ec' : '#fffbf0') : (p.expired ? '#f5f7fa' : '#fff'));
+      var border = p.cancelled ? '#c8a060' : (isGold ? '#d4a017' : '#e0e7ef');
+      var idColor = p.cancelled ? '#bbb' : (p.expired ? '#aaa' : (isGold ? '#7a5800' : '#1a3a5c'));
+      var badgeBg = p.cancelled ? '#f5e8cc' : (p.expired ? '#f8d7da' : (p.activated ? '#d4edda' : '#f0f0f0'));
+      var badgeColor = p.cancelled ? '#8b6000' : (p.expired ? '#721c24' : (p.activated ? '#155724' : '#888'));
+      var badgeText = p.cancelled ? 'キャンセル済み' : (p.expired ? '期限切れ' : (p.activated ? p.expiry + 'まで' : '未アクティベート'));
       return '<div style="padding:8px 10px;background:' + bg + ';border-radius:8px;margin-bottom:6px;border:1px solid ' + border + ';">'
         + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
         +   '<div style="display:flex;align-items:center;gap:8px;">'
         +     '<input type="checkbox" class="' + checkClass + '" value="' + escStaff(p.id) + '" onchange="updateBulkRenewBtn(\'' + type + '\')">'
         +     '<div>'
-        +       '<span style="font-family:monospace;font-weight:700;font-size:1rem;color:' + (p.expired ? '#aaa' : (isGold ? '#7a5800' : '#1a3a5c')) + ';">' + escStaff(p.id) + '</span>'
+        +       '<span style="font-family:monospace;font-weight:700;font-size:1rem;color:' + idColor + ';">' + escStaff(p.id) + '</span>'
         +       '<span style="margin-left:6px;font-size:0.75rem;color:#888;">' + escStaff(p.issuedAt) + ' 発行</span>'
         +     '</div>'
         +   '</div>'
         +   '<div style="display:flex;align-items:center;gap:6px;">'
-        +     '<span style="font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:' + (p.expired ? '#f8d7da' : (p.activated ? '#d4edda' : '#f0f0f0')) + ';color:' + (p.expired ? '#721c24' : (p.activated ? '#155724' : '#888')) + ';">'
-        +       (p.expired ? '期限切れ' : (p.activated ? p.expiry + 'まで' : '未アクティベート'))
-        +     '</span>'
-        +     '<button style="border:none;background:' + (isGold ? '#fff9e6' : '#e8f4fd') + ';color:' + (isGold ? '#7a5800' : '#1a3a5c') + ';border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;" onclick="renewShiruPass(\'' + escStaff(p.id) + '\',this)">更新</button>'
+        +     '<span style="font-size:0.75rem;font-weight:700;padding:2px 8px;border-radius:999px;background:' + badgeBg + ';color:' + badgeColor + ';">' + badgeText + '</span>'
+        +     (p.cancelled ? '' : '<button style="border:none;background:' + (isGold ? '#fff9e6' : '#e8f4fd') + ';color:' + (isGold ? '#7a5800' : '#1a3a5c') + ';border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;" onclick="renewShiruPass(\'' + escStaff(p.id) + '\',this)">更新</button>')
+        +     '<button style="border:none;background:#fde8e8;color:#c0392b;border-radius:6px;padding:3px 10px;font-size:0.75rem;font-weight:700;cursor:pointer;" onclick="deleteShiruPass(\'' + escStaff(p.id) + '\',this)">' + (p.cancelled ? '削除済み' : '削除') + '</button>'
         +   '</div>'
         + '</div>'
         + '</div>';
@@ -4217,11 +4224,60 @@
     var cls = type === 'gold' ? '.shiru-pass-check-gold:checked' : '.shiru-pass-check-std:checked';
     var suffix = type === 'gold' ? 'Gold' : 'Std';
     var checked = document.querySelectorAll(cls);
-    var btn = document.getElementById('shiruPassBulkRenewBtn' + suffix);
-    if (btn) {
-      btn.style.display = checked.length > 0 ? 'inline-block' : 'none';
-      btn.textContent = checked.length > 1 ? checked.length + '件まとめて更新' : 'まとめて更新';
+    var n = checked.length;
+    var renewBtn = document.getElementById('shiruPassBulkRenewBtn' + suffix);
+    if (renewBtn) {
+      renewBtn.style.display = n > 0 ? 'inline-block' : 'none';
+      renewBtn.textContent = n > 1 ? n + '件まとめて更新' : 'まとめて更新';
     }
+    var delBtn = document.getElementById('shiruPassBulkDeleteBtn' + suffix);
+    if (delBtn) {
+      delBtn.style.display = n > 0 ? 'inline-block' : 'none';
+      delBtn.textContent = n > 1 ? n + '件まとめて削除' : '削除';
+    }
+  }
+
+  function deleteShiruPass(id, btn) {
+    if (!confirm('知るパスID「' + id + '」を削除しますか？\nこの操作は取り消せません。')) return;
+    btn.disabled = true; btn.textContent = '削除中...';
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassDelete&ids=' + encodeURIComponent(JSON.stringify([id])))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { showToast('削除しました: ' + id); loadShiruPassList(); }
+        else { showToast('エラー: ' + (data.error || '不明'), true); btn.disabled = false; btn.textContent = '削除'; }
+      })
+      .catch(function() { showToast('通信エラー', true); btn.disabled = false; btn.textContent = '削除'; });
+  }
+
+  function bulkDeleteShiruPass(type) {
+    var cls = type === 'gold' ? '.shiru-pass-check-gold:checked' : '.shiru-pass-check-std:checked';
+    var suffix = type === 'gold' ? 'Gold' : 'Std';
+    var ids = Array.prototype.slice.call(document.querySelectorAll(cls)).map(function(cb) { return cb.value; });
+    if (!ids.length) return;
+    if (!confirm(ids.length + '件の知るパスIDを削除しますか？\nこの操作は取り消せません。')) return;
+    var btn = document.getElementById('shiruPassBulkDeleteBtn' + suffix);
+    if (btn) { btn.disabled = true; btn.textContent = '削除中...'; }
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassDelete&ids=' + encodeURIComponent(JSON.stringify(ids)))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) { showToast(data.deleted.length + '件を削除しました'); loadShiruPassList(); }
+        else { showToast('エラー: ' + (data.error || '不明'), true); if (btn) { btn.disabled = false; btn.textContent = '削除'; } }
+      })
+      .catch(function() { showToast('通信エラー', true); if (btn) { btn.disabled = false; btn.textContent = '削除'; } });
+  }
+
+  function deleteExpiredShiruPass(type) {
+    var label = type === 'gold' ? 'GOLD' : '通常';
+    if (!confirm('期限切れの知るパス（' + label + '）を全て削除しますか？\nこの操作は取り消せません。')) return;
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassDeleteExpired&passType=' + type)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          showToast(data.deleted + '件の期限切れIDを削除しました');
+          loadShiruPassList();
+        } else { showToast('エラー: ' + (data.error || '不明'), true); }
+      })
+      .catch(function() { showToast('通信エラー', true); });
   }
 
   function bulkRenewShiruPass(type) {
@@ -4230,7 +4286,7 @@
     var checked = document.querySelectorAll(cls);
     var ids = Array.prototype.slice.call(checked).map(function(cb) { return cb.value; });
     if (!ids.length) return;
-    if (!confirm(ids.length + '件のIDを翌月末日まで延長しますか？')) return;
+    if (!confirm(ids.length + '件のIDを今日から30日後まで延長しますか？')) return;
     var btn = document.getElementById('shiruPassBulkRenewBtn' + suffix);
     if (btn) { btn.disabled = true; btn.textContent = '更新中...'; }
     fetch(GAS_API_URL + '?page=calendar&action=shiruPassBulkRenew&ids=' + encodeURIComponent(JSON.stringify(ids)))

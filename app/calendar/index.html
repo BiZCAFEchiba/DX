@@ -1583,6 +1583,9 @@
           .wallet-body{overflow:hidden;max-height:0;transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1);}
           .wallet-active .wallet-body{max-height:900px;}
           .wallet-body-inner{padding:14px;}
+          @keyframes sirupassSpin { to { transform: rotate(360deg); } }
+          .sirupass-spinner { display:inline-block;width:30px;height:30px;border:3px solid #e8d5c0;border-top-color:#8b5e3c;border-radius:50%;animation:sirupassSpin 0.75s linear infinite; }
+          .sirupass-spinner-gold { border-color:#f0dfa0;border-top-color:#b8860b; }
         </style>
 
         <div class="wallet-stack">
@@ -1599,7 +1602,9 @@
                 <div id="sirupassCard-standard" style="display:none;">
                   <!-- パスカード画像 -->
                   <div style="border-bottom:1.5px dashed #c8a882;position:relative;">
-                    <img src="/sirupasu.png" alt="知るパス" style="width:100%;display:block;border-radius:0;">
+                    <img id="sirupassImg-standard" src="/sirupasu.png" alt="知るパス" style="width:100%;display:block;border-radius:0;transition:opacity 0.3s;">
+                    <!-- ステータスオーバーレイ（画像にかぶせる） -->
+                    <div id="sirupassExpiredBanner-standard" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;z-index:2;align-items:center;justify-content:center;color:#fff;text-align:center;font-weight:700;font-size:0.9rem;line-height:1.7;padding:20px;white-space:pre-line;"></div>
                     <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 16px;background:linear-gradient(transparent,rgba(30,10,0,0.6));">
                       <div id="sirupassId-standard" style="font-family:monospace;font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:0.2em;text-shadow:0 1px 4px rgba(0,0,0,0.6);"></div>
                       <div id="sirupassExpiry-standard" style="font-size:0.78rem;color:rgba(255,240,220,0.95);margin-top:2px;font-weight:600;"></div>
@@ -1663,7 +1668,6 @@
                       </div>
                     </div>
                   </div>
-                  <div id="sirupassExpiredBanner-standard" style="display:none;background:#c0392b;color:#fff;text-align:center;padding:10px;font-weight:700;font-size:0.85rem;">期限切れです。スタッフにお声がけください。</div>
                 </div>
                 <div id="sirupassNoId-standard" style="display:none;padding:16px;">
                   <div style="background:#fff9f3;border:1.5px dashed #c8a882;border-radius:14px;padding:20px 14px;text-align:center;">
@@ -1682,7 +1686,10 @@
                     <button onclick="activateSirupassManual('standard')" style="margin-top:10px;width:100%;padding:12px;font-size:0.9rem;font-weight:800;background:linear-gradient(135deg,#6b3a2a,#3b1f0e);color:#fff;border:none;border-radius:10px;cursor:pointer;letter-spacing:0.05em;">登録する</button>
                   </div>
                 </div>
-                <div id="sirupassLoading-standard" style="text-align:center;padding:24px 0;color:#a07850;font-size:0.85rem;">読み込み中...</div>
+                <div id="sirupassLoading-standard" style="text-align:center;padding:36px 0;">
+                  <div class="sirupass-spinner"></div>
+                  <div style="margin-top:10px;color:#a07850;font-size:0.8rem;">確認中...</div>
+                </div>
               </div>
             </div>
           </div>
@@ -1698,13 +1705,14 @@
               <div class="wallet-body-inner">
                 <div id="sirupassCard-gold" style="display:none;">
                   <div style="border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(212,160,23,0.3);position:relative;margin-bottom:10px;">
-                    <img src="/sirupasu-gold.png" alt="知るパスGOLD" style="width:100%;display:block;">
+                    <img id="sirupassImg-gold" src="/sirupasu-gold.png" alt="知るパスGOLD" style="width:100%;display:block;transition:opacity 0.3s;">
+                    <!-- ステータスオーバーレイ（画像にかぶせる） -->
+                    <div id="sirupassExpiredBanner-gold" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;z-index:2;align-items:center;justify-content:center;color:#fff;text-align:center;font-weight:700;font-size:0.9rem;line-height:1.7;padding:20px;white-space:pre-line;"></div>
                     <div style="position:absolute;bottom:0;left:0;right:0;padding:12px 16px;background:linear-gradient(transparent,rgba(0,0,0,0.55));">
                       <div id="sirupassId-gold" style="font-family:monospace;font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:0.2em;text-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>
                       <div id="sirupassExpiry-gold" style="font-size:0.78rem;color:rgba(255,255,255,0.9);margin-top:2px;font-weight:600;"></div>
                     </div>
                   </div>
-                  <div id="sirupassExpiredBanner-gold" style="display:none;background:#c0392b;color:#fff;text-align:center;padding:10px;border-radius:10px;font-weight:700;font-size:0.85rem;margin-bottom:8px;">期限切れです。スタッフにお声がけください。</div>
                   <!-- 特典セクション -->
                   <div style="background:linear-gradient(135deg,#fffbf0,#fff9e6);border:1.5px solid #d4a017;border-radius:14px;padding:14px 16px;margin-top:8px;">
                     <div style="font-size:0.82rem;font-weight:800;color:#7a5800;margin-bottom:10px;text-align:center;">🎁 特典（軽食 × 2回）</div>
@@ -1722,12 +1730,79 @@
                     <button onclick="activateSirupassManual('gold')" style="margin-top:10px;width:100%;padding:12px;font-size:0.9rem;font-weight:800;background:linear-gradient(135deg,#d4a017,#b8860b);color:#fff;border:none;border-radius:10px;cursor:pointer;">登録する</button>
                   </div>
                 </div>
-                <div id="sirupassLoading-gold" style="text-align:center;padding:24px 0;color:#888;font-size:0.85rem;">読み込み中...</div>
+                <div id="sirupassLoading-gold" style="text-align:center;padding:36px 0;">
+                  <div class="sirupass-spinner sirupass-spinner-gold"></div>
+                  <div style="margin-top:10px;color:#b8860b;font-size:0.8rem;">確認中...</div>
+                </div>
               </div>
             </div>
           </div>
 
         </div><!-- /.wallet-stack -->
+
+        <!-- 知るパス 案内セクション -->
+        <div style="margin-top:20px;display:flex;flex-direction:column;gap:10px;">
+
+          <!-- 特典 -->
+          <div style="background:#fdf6ec;border-radius:12px;padding:14px 16px;">
+            <div style="font-size:0.75rem;font-weight:700;color:#6b3a2a;margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase;">特典</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:#5c3317;">
+                <span style="display:flex;align-items:center;gap:6px;">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#5c3317" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  ルーム予約
+                </span>
+                <span style="font-size:0.72rem;color:#8b5e3c;">個室が使える</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:#5c3317;">
+                <span style="display:flex;align-items:center;gap:6px;">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#5c3317" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>
+                  限定ドリンク
+                </span>
+                <span style="font-size:0.72rem;color:#8b5e3c;">追加で楽しめる</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:#5c3317;">
+                <span style="display:flex;align-items:center;gap:6px;">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#5c3317" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                  テイクアウト
+                </span>
+                <span style="font-size:0.72rem;color:#8b5e3c;">ドリンクを持ち帰れる</span>
+              </div>
+              <div style="border-top:1px dashed #c8a882;padding-top:8px;display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:#5c3317;">
+                <span style="display:flex;align-items:center;gap:6px;">
+                  <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#c8930a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11"/></svg>
+                  <span style="color:#a07000;">GOLD 軽食特典</span>
+                </span>
+                <span style="font-size:0.72rem;color:#8b6000;">10スタンプで昇格 → 軽食 × 2回</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 使い方 -->
+          <div style="background:#f0f6ff;border-radius:12px;padding:14px 16px;">
+            <div style="font-size:0.75rem;font-weight:700;color:#1a3a5c;margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase;">使い方</div>
+            <div style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:#1a3a5c;">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#1a3a5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              このページを<strong>スタッフに見せるだけ</strong>でOK！
+            </div>
+          </div>
+
+          <!-- ルール -->
+          <div style="background:#fff3f3;border-radius:12px;padding:14px 16px;">
+            <div style="font-size:0.75rem;font-weight:700;color:#8b0000;margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase;">ご注意</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#8b0000;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#8b0000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                有効期限は<strong>発行日から30日間</strong>（期限切れで失効）
+              </div>
+              <div style="display:flex;align-items:flex-start;gap:6px;font-size:0.78rem;color:#8b0000;">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="#8b0000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <span><strong>Meetupをキャンセルすると知るパスが無効</strong>になります</span>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /.案内セクション -->
 
       </div>
     </div>
@@ -1937,19 +2012,33 @@
     document.getElementById('sirupassId-' + type).textContent = id.toUpperCase();
     var expiryEl  = document.getElementById('sirupassExpiry-' + type);
     var expiredEl = document.getElementById('sirupassExpiredBanner-' + type);
+    var imgEl     = document.getElementById('sirupassImg-' + type);
     var badge     = document.getElementById('wcBadge-' + type);
     if (data.valid) {
       expiryEl.textContent = '有効期限: ' + data.expiry + ' まで';
       expiredEl.style.display = 'none';
+      if (imgEl) imgEl.style.opacity = '1';
       if (badge) badge.textContent = data.expiry + ' まで';
+    } else if (data.reason === 'cancelled') {
+      expiryEl.textContent = '';
+      expiredEl.textContent = 'このパスはMeetupのキャンセルにより、\nご利用いただけません。';
+      expiredEl.style.background = 'rgba(140,80,0,0.82)';
+      expiredEl.style.display = 'flex';
+      if (imgEl) imgEl.style.opacity = '0.3';
+      if (badge) badge.textContent = '利用停止中';
     } else if (data.reason === 'expired') {
       expiryEl.textContent = data.expiry + ' 期限切れ';
-      expiredEl.style.display = '';
+      expiredEl.textContent = '期限切れです。\nスタッフにお声がけください。';
+      expiredEl.style.background = 'rgba(150,30,30,0.82)';
+      expiredEl.style.display = 'flex';
+      if (imgEl) imgEl.style.opacity = '0.3';
       if (badge) badge.textContent = '期限切れ';
     } else {
       expiryEl.textContent = '';
       expiredEl.textContent = 'IDが見つかりません。確認してください。';
-      expiredEl.style.display = '';
+      expiredEl.style.background = 'rgba(150,30,30,0.82)';
+      expiredEl.style.display = 'flex';
+      if (imgEl) imgEl.style.opacity = '1';
       if (badge) badge.textContent = 'ID不明';
     }
     showPassSection(type, 'card');
@@ -2250,6 +2339,7 @@
       .then(function(r) { return r.json(); })
       .then(function(data) {
         input.disabled = false;
+        if (data.reason === 'cancelled') { msgEl.textContent = 'このパスはMeetupのキャンセルにより、現在ご利用いただけません。'; return; }
         if (data.reason === 'not_found') { msgEl.textContent = 'IDが見つかりません。カードのIDを確認してください。'; return; }
         // 種別ミスマッチチェック
         var resultType = data.type || 'standard';

@@ -2487,22 +2487,23 @@ function cleanupPastMeetups() {
   const sheet = ss.getSheetByName(SHEET_MEETUP);
   if (!sheet || sheet.getLastRow() <= 1) return;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // 過去グラフでMeetup補正を正しく反映するため30日分は残す
+  const cutoff = new Date();
+  cutoff.setHours(0, 0, 0, 0);
+  cutoff.setDate(cutoff.getDate() - 30);
 
   const data = sheet.getDataRange().getValues();
   let deleted = 0;
 
-  // 下から削除（行番号ずれを防ぐため）
   for (let i = data.length - 1; i >= 1; i--) {
     const dateVal = data[i][0];
-    if (dateVal instanceof Date && dateVal < today) {
+    if (dateVal instanceof Date && dateVal < cutoff) {
       sheet.deleteRow(i + 1);
       deleted++;
     }
   }
 
-  Logger.log('過去Meetup削除: ' + deleted + '件');
+  Logger.log('過去Meetup削除(30日超): ' + deleted + '件');
 }
 
 /**

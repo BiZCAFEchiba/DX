@@ -331,20 +331,20 @@ function setShiruPassValidDays_(days) {
 
 /**
  * 知るパスの有効期限を計算する（初回認証日起算）
- * @param {string} type - 'standard'（翌月末）or 'gold'（14日後）
+ * @param {string} type - 'standard'（30日後）or 'gold'（14日後）
  * @param {Date}   fromDate - 起算日（省略時は今日）
  */
 function getShiruPassExpiry_(type, fromDate) {
   var base = fromDate instanceof Date ? fromDate : new Date();
+  var d = new Date(base.getTime());
   if (type === 'gold') {
-    // GOLD: 認証日から14日後の23:59:59
-    var d = new Date(base.getTime());
     d.setDate(d.getDate() + 14);
-    d.setHours(23, 59, 59, 0);
-    return d;
+  } else {
+    // standard: 認証日から30日後の23:59:59
+    d.setDate(d.getDate() + 30);
   }
-  // standard（デフォルト）: 認証日の月＋翌月末日 23:59:59
-  return new Date(base.getFullYear(), base.getMonth() + 2, 0, 23, 59, 59);
+  d.setHours(23, 59, 59, 0);
+  return d;
 }
 
 function getRoomMaxHours_() {
@@ -461,6 +461,57 @@ function renewShiruPassId_(id) {
 }
 
 // 複数IDをまとめて更新（種別ごとに期限計算）
+/**
+ * 知るパスIDをキャンセル済みとしてマークする（行は残す）
+ * キャンセルされたIDは顧客アプリで「Meetupキャンセルのため利用不可」と表示される
+ */
+function deleteShiruPassIds_(ids) {
+  if (!Array.isArray(ids) || !ids.length) return { ok: false, error: 'missing_ids' };
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var deleted = [];
+  var notFound = [];
+  ids.forEach(function(id) {
+    var found = false;
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
+        sheet.getRange(i + 1, 4).setValue('CANCELLED'); // note列にフラグ
+        deleted.push(String(data[i][0]));
+        found = true;
+        break;
+      }
+    }
+    if (!found) notFound.push(id);
+  });
+  return { ok: true, deleted: deleted, notFound: notFound };
+}
+
+/**
+ * 期限切れの知るパスIDを行ごと削除する（CANCELLEDは対象外）
+ * @param {string} type - 'standard' or 'gold' or 'all'
+ * @returns {{ ok, deleted: number }}
+ */
+function cleanupExpiredShiruPasses_(type) {
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var now = new Date();
+  var deleted = 0;
+  // 下から削除して行ズレを防ぐ
+  for (var i = data.length - 1; i >= 1; i--) {
+    var note = String(data[i][3] || '').trim();
+    if (note === 'CANCELLED') continue;
+    var passType = String(data[i][4] || '').trim() || 'standard';
+    if (type !== 'all' && passType !== type) continue;
+    var expiryRaw = data[i][2];
+    var expiry = expiryRaw instanceof Date ? expiryRaw : (expiryRaw ? new Date(expiryRaw) : null);
+    if (expiry && !isNaN(expiry.getTime()) && expiry < now) {
+      sheet.deleteRow(i + 1);
+      deleted++;
+    }
+  }
+  return { ok: true, deleted: deleted };
+}
+
 function bulkRenewShiruPassIds_(ids) {
   if (!Array.isArray(ids) || !ids.length) return { ok: false, error: 'missing_ids' };
   var sheet = getShiruPassSheet_();
@@ -553,7 +604,7 @@ function issueShiruPassId_(note, count, type) {
     sheet.appendRow([id, now, '', note || '', passType, '']);
   }
 
-  var typeLabel = passType === 'gold' ? '知るパスGOLD（14日）' : '知るパス（翌月末）';
+  var typeLabel = passType === 'gold' ? '知るパスGOLD（14日）' : '知るパス（30日間）';
   return { ok: true, ids: issued, type: passType, typeLabel: typeLabel };
 }
 
@@ -574,6 +625,10 @@ function validateShiruPassId_(id) {
 
     var passType = String(data[i][4] || '').trim() || 'standard'; // 列5: 種別
     var typeLabel = passType === 'gold' ? '知るパスGOLD' : '知るパス';
+    // キャンセル済みチェック
+    if (String(data[i][3] || '').trim() === 'CANCELLED') {
+      return { valid: false, reason: 'cancelled', type: passType, typeLabel: typeLabel };
+    }
     var expiryRaw = data[i][2]; // 列3: 有効期限
 
     // 初回認証（有効期限が空）: 今日起算で期限をセット
@@ -642,12 +697,14 @@ function getShiruPassList_() {
     var expiryRaw = data[i][2];
     var expiry = expiryRaw instanceof Date ? expiryRaw : (expiryRaw ? new Date(expiryRaw) : null);
     var passType = String(data[i][4] || '').trim() || 'standard';
+    var isCancelled = String(data[i][3] || '').trim() === 'CANCELLED';
     rows.push({
       id:          String(data[i][0]),
       issuedAt:    data[i][1] instanceof Date ? Utilities.formatDate(data[i][1], TIMEZONE, 'yyyy-MM-dd HH:mm') : String(data[i][1]),
       expiry:      (!expiry || isNaN(expiry.getTime())) ? '' : Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd'),
       expired:     (!expiry || isNaN(expiry.getTime())) ? false : expiry.getTime() < now.getTime(),
       activated:   !(!expiry || isNaN(expiry.getTime())),
+      cancelled:   isCancelled,
       note:        String(data[i][3] || ''),
       type:         passType,
       typeLabel:    passType === 'gold' ? '知るパスGOLD' : '知るパス',

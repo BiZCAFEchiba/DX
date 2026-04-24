@@ -661,6 +661,21 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(bulkRenewResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 知るパスID削除（スタッフ用）
+    if (param.action === 'shiruPassDelete') {
+      var delIds = [];
+      try { delIds = JSON.parse(param.ids || '[]'); } catch(e) {}
+      var delResult = deleteShiruPassIds_(delIds);
+      return ContentService.createTextOutput(JSON.stringify(delResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 期限切れ知るパスID削除（スタッフ用）
+    if (param.action === 'shiruPassDeleteExpired') {
+      var expType = param.passType || 'all';
+      var expResult = cleanupExpiredShiruPasses_(expType);
+      return ContentService.createTextOutput(JSON.stringify(expResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // 知るパスポイントQRトークン取得（スタッフ用）
     if (param.action === 'shiruPassPointToken') {
       var rotate = param.rotate === '1';

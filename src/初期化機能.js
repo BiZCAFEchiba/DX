@@ -269,7 +269,8 @@ function onOpen() {
     .addToUi();
 
   ui.createMenu('残席管理')
-    .addItem('設定をGASに反映', 'menuSyncSeatsSettings')
+    .addItem('残席・キュー設定をGASに反映', 'menuSyncSeatsSettings')
+    .addItem('混雑レベル閾値をGASに反映', 'menuSyncCongestionThresholds')
     .addSeparator()
     .addItem('ポーリングトリガー設定', 'setupVisitCountTrigger')
     .addItem('設定シート初期化', 'initSeatsSettings')

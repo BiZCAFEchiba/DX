@@ -110,6 +110,7 @@ function submitYuchiForm(formData) {
     var code = res.getResponseCode();
     if (code === 200 || code === 201) {
       Logger.log('誘致情報グループ投稿成功');
+      logYuchiToSheet_(formData);
       return 'success';
     } else {
       Logger.log('誘致情報グループ投稿失敗: ' + res.getContentText());
@@ -118,6 +119,32 @@ function submitYuchiForm(formData) {
   } catch (e) {
     Logger.log('submitYuchiForm エラー: ' + e.message);
     return 'エラー: ' + e.message;
+  }
+}
+
+/**
+ * 誘致フォームの回答を '誘致ログ' シートに1社1行で記録する
+ * 列: A=送信日時, B=誘致日, C=誘致者名, D=企業名, E=卒年情報(JSON), F=合計人数
+ */
+function logYuchiToSheet_(formData) {
+  try {
+    var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    var sheet = ss.getSheetByName(YUCHI_LOG_SHEET_NAME);
+    if (!sheet) {
+      sheet = ss.insertSheet(YUCHI_LOG_SHEET_NAME);
+      sheet.getRange(1, 1, 1, 6).setValues([['送信日時', '誘致日', '誘致者名', '企業名', '卒年情報', '合計人数']]);
+    }
+    var now = new Date();
+    var recruitDate = formData.recruitDate || Utilities.formatDate(now, TIMEZONE, 'yyyy-MM-dd');
+    var recruiterName = String(formData.recruiterName || '').trim();
+    (formData.entries || []).forEach(function(entry) {
+      var yearCounts = entry.yearCounts || [];
+      var total = yearCounts.reduce(function(s, yc) { return s + (Number(yc.count) || 0); }, 0);
+      sheet.appendRow([now, recruitDate, recruiterName, String(entry.companyName || '').trim(), JSON.stringify(yearCounts), total]);
+    });
+    Logger.log('誘致ログ記録: ' + (formData.entries || []).length + '社');
+  } catch (e) {
+    Logger.log('logYuchiToSheet_ error: ' + e.message);
   }
 }
 
