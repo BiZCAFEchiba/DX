@@ -147,7 +147,7 @@ function buildKashikiriMap_(year, month) {
     Logger.log('buildKashikiriMap_ Meetup取得エラー: ' + e.message);
   }
 
-  // ② 店舗ミーティングシートの予定（前後1時間バッファ付きで貸切扱い）
+  // ② 店舗ミーティングシートの予定（実時刻で登録。adjustHoursForKashikiri_ が開始1時間前で閉店計算する）
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const mSheet = ss.getSheetByName(SHEET_MEETING);
@@ -165,15 +165,9 @@ function buildKashikiriMap_(year, month) {
         const endStr   = extractTimeHHmm_(row[2]);
         if (!startStr || !endStr) continue;
 
-        // 前後1時間バッファ
-        const startMin = timeToMin_(startStr);
-        const endMin   = timeToMin_(endStr);
-        const bufStart = minToTime_(Math.max(0, startMin - 60));
-        const bufEnd   = minToTime_(endMin + 60);
-
         const dateISO = formatDateToISO_(d);
         if (!map[dateISO]) map[dateISO] = [];
-        map[dateISO].push({ start: bufStart, end: bufEnd, company: '店舗ミーティング' });
+        map[dateISO].push({ start: startStr, end: endStr, company: '店舗ミーティング' });
       }
     }
   } catch (e) {

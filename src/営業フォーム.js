@@ -15,6 +15,10 @@ var EIGYO_CHANNEL_ID = EIGYO_CHANNEL_ID_PROD;
  * 来店数 + Meetup誘致報告を YUCHI_BOT_ID でグループに送信する
  */
 function sendDailyEigyoReport() {
+  if (isTodayWeekendOrHoliday_()) {
+    Logger.log('sendDailyEigyoReport: 土日・祝日のためスキップ');
+    return;
+  }
   initChannelId_();
 
   // 1. 来店学生数・来店ユニーク学生数を取得
@@ -143,6 +147,27 @@ function formatYuchiEntry_(entry) {
   return txt + ycs.map(function(yc) {
     return yc.count + '人(' + yc.year + '卒)';
   }).join('・');
+}
+
+/**
+ * 今日が土曜・日曜・日本の祝日かどうかを返す
+ */
+function isTodayWeekendOrHoliday_() {
+  var today = new Date();
+  var dow = today.getDay(); // 0=日, 6=土
+  if (dow === 0 || dow === 6) return true;
+
+  // Google の日本祝日カレンダーで当日イベントを確認
+  try {
+    var cal = CalendarApp.getCalendarById('ja.japanese#holiday@group.v.calendar.google.com');
+    if (cal) {
+      var events = cal.getEventsForDay(today);
+      if (events.length > 0) return true;
+    }
+  } catch (e) {
+    Logger.log('isTodayWeekendOrHoliday_: 祝日チェック失敗 ' + e.message);
+  }
+  return false;
 }
 
 // ============================================================
