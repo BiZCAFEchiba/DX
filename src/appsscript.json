@@ -13,6 +13,11 @@
         "userSymbol": "BigQuery",
         "serviceId": "bigquery",
         "version": "v2"
+      },
+      {
+        "userSymbol": "Calendar",
+        "serviceId": "calendar",
+        "version": "v3"
       }
     ]
   },

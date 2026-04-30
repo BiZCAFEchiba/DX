@@ -19,6 +19,10 @@ function sendDailyEigyoReport() {
     Logger.log('sendDailyEigyoReport: 土日・祝日のためスキップ');
     return;
   }
+  if (!hasTodayNippoSubmission_()) {
+    Logger.log('sendDailyEigyoReport: 本日の日報提出なし → スキップ');
+    return;
+  }
   initChannelId_();
 
   // 1. 来店学生数・来店ユニーク学生数を取得
@@ -52,6 +56,42 @@ function sendDailyEigyoReport() {
 // ============================================================
 // 内部ヘルパー
 // ============================================================
+
+/**
+ * 本日の日報（YUCHI_FORM_SS_ID スプシのフォーム回答）が1件以上あるか確認する
+ * 誘致数0の日報も含む。タイムスタンプ列（A列）で今日の提出を判定する。
+ * @returns {boolean}
+ */
+function hasTodayNippoSubmission_() {
+  var STORE_NAME = '423BiZCAFE千葉大学店';
+  try {
+    var today = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+    var ss = SpreadsheetApp.openById(YUCHI_FORM_SS_ID);
+    var sheet = ss.getSheets()[0];
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) {
+      Logger.log('hasTodayNippoSubmission_: 回答なし');
+      return false;
+    }
+    // A列=タイムスタンプ, E列=店舗名 を取得
+    var data = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+    for (var i = data.length - 1; i >= 0; i--) {
+      var ts = data[i][0];
+      if (!ts) continue;
+      var tsDate = Utilities.formatDate(ts instanceof Date ? ts : new Date(ts), TIMEZONE, 'yyyy-MM-dd');
+      if (tsDate < today) break; // 古い行に達したら終了
+      if (tsDate === today && String(data[i][4]).trim() === STORE_NAME) {
+        Logger.log('hasTodayNippoSubmission_: ' + STORE_NAME + ' の本日提出あり');
+        return true;
+      }
+    }
+    Logger.log('hasTodayNippoSubmission_: ' + STORE_NAME + ' の本日提出なし');
+    return false;
+  } catch (e) {
+    Logger.log('hasTodayNippoSubmission_ error: ' + e.message + ' → アクセス不可のため提出ありとみなす');
+    return true;
+  }
+}
 
 /**
  * 今日の誘致ログシートから集計データを返す
@@ -151,21 +191,50 @@ function formatYuchiEntry_(entry) {
 
 /**
  * 今日が土曜・日曜・日本の祝日かどうかを返す
+ *
+ * 【事前設定】GASエディタ → 「サービス」→「Google Calendar API」を追加すること
+ * （追加しない場合でも CalendarApp フォールバックが動くが、
+ *   カレンダーをアカウントに追加済みの場合のみ機能する）
  */
 function isTodayWeekendOrHoliday_() {
   var today = new Date();
   var dow = today.getDay(); // 0=日, 6=土
   if (dow === 0 || dow === 6) return true;
 
-  // Google の日本祝日カレンダーで当日イベントを確認
+  var HOLIDAY_CAL_ID = 'ja.japanese#holiday@group.v.calendar.google.com';
+  var todayJst = Utilities.formatDate(today, TIMEZONE, 'yyyy-MM-dd');
+
+  // 方法1: Advanced Calendar Service（公開カレンダーにアカウント登録不要でアクセス可能）
   try {
-    var cal = CalendarApp.getCalendarById('ja.japanese#holiday@group.v.calendar.google.com');
+    var result = Calendar.Events.list(HOLIDAY_CAL_ID, {
+      timeMin: todayJst + 'T00:00:00+09:00',
+      timeMax: todayJst + 'T23:59:59+09:00',
+      singleEvents: true,
+      maxResults: 1
+    });
+    if (result.items && result.items.length > 0) {
+      Logger.log('isTodayWeekendOrHoliday_: 祝日「' + result.items[0].summary + '」のためスキップ');
+      return true;
+    }
+    return false;
+  } catch (advErr) {
+    Logger.log('isTodayWeekendOrHoliday_: Advanced Calendar API 失敗（サービス未追加？）: ' + advErr.message);
+  }
+
+  // 方法2: CalendarApp フォールバック（アカウントにカレンダー追加済みの場合のみ機能）
+  try {
+    var cal = CalendarApp.getCalendarById(HOLIDAY_CAL_ID);
     if (cal) {
       var events = cal.getEventsForDay(today);
-      if (events.length > 0) return true;
+      if (events.length > 0) {
+        Logger.log('isTodayWeekendOrHoliday_: CalendarApp で祝日検出');
+        return true;
+      }
+    } else {
+      Logger.log('isTodayWeekendOrHoliday_: 祝日カレンダーが見つかりません（要: アカウントに追加 または Advanced Calendar API を有効化）');
     }
   } catch (e) {
-    Logger.log('isTodayWeekendOrHoliday_: 祝日チェック失敗 ' + e.message);
+    Logger.log('isTodayWeekendOrHoliday_: CalendarApp フォールバック失敗: ' + e.message);
   }
   return false;
 }
@@ -230,6 +299,24 @@ function setupEigyoReportTrigger() {
     .inTimezone(TIMEZONE)
     .create();
   Logger.log('営業フォーム送信トリガー登録完了（毎日22:00）');
+}
+
+/**
+ * テスト: 送信せずに本日の送信条件を確認する
+ * GASエディタからこの関数を実行してログを確認する
+ */
+function testEigyoReportConditions() {
+  var today = Utilities.formatDate(new Date(), TIMEZONE, 'yyyy-MM-dd');
+  Logger.log('=== 営業報告Bot 送信条件チェック (' + today + ') ===');
+
+  var isHoliday = isTodayWeekendOrHoliday_();
+  Logger.log('① 土日・祝日か: ' + (isHoliday ? 'YES → スキップ' : 'NO → 送信対象'));
+
+  var hasNippo = hasTodayNippoSubmission_();
+  Logger.log('② 千葉大学店の日報提出あり: ' + (hasNippo ? 'YES → 送信対象' : 'NO → スキップ'));
+
+  var willSend = !isHoliday && hasNippo;
+  Logger.log('>>> 結果: ' + (willSend ? '✅ 本日22:00に送信されます' : '🚫 本日は送信しません'));
 }
 
 /**
