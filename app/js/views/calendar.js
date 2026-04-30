@@ -3,6 +3,7 @@
 // ============================================================
 var CalendarView = (function () {
   var currentYear, currentMonth, selectedDate, shiftDates, selectedName, allStaff;
+  var monthLoadToken = 0;
   // 店舗ミーティングデータ
   var meetingByDate = {};   // { 'YYYY-MM-DD': { rowIndex, startTime, endTime, note } }
   var meetingStaff = [];    // スタッフ名リスト
@@ -146,9 +147,11 @@ var CalendarView = (function () {
       try { applyShifts(JSON.parse(cached)); } catch (e) {}
     }
 
-    // バックグラウンドで最新取得・更新
+    // バックグラウンドで最新取得・更新（古いレスポンスは無視）
+    var token = ++monthLoadToken;
     API.getShifts(from, to)
       .then(function (res) {
+        if (token !== monthLoadToken) return;
         if (res.success && res.data.shifts) {
           localStorage.setItem(cacheKey, JSON.stringify(res.data.shifts));
           applyShifts(res.data.shifts);
@@ -156,7 +159,10 @@ var CalendarView = (function () {
           renderGrid();
         }
       })
-      .catch(function () { if (!cached) renderGrid(); });
+      .catch(function () {
+        if (token !== monthLoadToken) return;
+        if (!cached) renderGrid();
+      });
   }
 
   function renderGrid() {
