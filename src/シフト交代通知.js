@@ -57,9 +57,7 @@ function notifyShiftChange_(params) {
     }
 
     // 日付を日本語表示に変換
-    const d = new Date(params.date + 'T00:00:00+09:00');
-    const dow = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-    const dateLabel = (d.getMonth() + 1) + '月' + d.getDate() + '日（' + dow + '）';
+    const dateLabel = formatDateLabelFromISO_(params.date);
 
     // ── スプレッドシート更新 ─────────────────────────────────
     if (params.mode === 'assign' && params.date && params.originalStaff && params.agentStaff) {
@@ -236,7 +234,7 @@ function requestShiftRecruitment_(params) {
   // ── グループ通知（残オペ情報付き） ──────────────────────
   const mentionMarker = '@All ';
   let text = mentionMarker + '🔄 【シフト交代の募集】\n\n';
-  text += '📅 ' + params.date + '\n';
+  text += '📅 ' + formatDateLabelFromISO_(params.date) + '\n';
   text += '⏰ ' + timeLabel + '\n';
   text += '👤 ' + params.originalStaff + ' → (募集中)\n';
   text += '📝 理由: ' + (params.reason || '記載なし') + '\n\n';
@@ -508,9 +506,7 @@ function sendRecruitmentDMs_(token, recruitId, date, timeLabel, reason, absentSt
   var mappings = loadStaffMappingFromSheets_();
   var sendMap = mappings ? mappings.send : {};
 
-  var d = new Date(date + 'T00:00:00+09:00');
-  var dow = ['日','月','火','水','木','金','土'][d.getDay()];
-  var dateLabel = (d.getMonth() + 1) + '月' + d.getDate() + '日（' + dow + '）';
+  var dateLabel = formatDateLabelFromISO_(date);
 
   var slotsText = '';
   slots.forEach(function(s) {
@@ -661,9 +657,7 @@ function remindShiftRecruitment_(recruitId) {
   var responses = getRecruitmentResponses_(recruitId);
   var respondedNames = responses.available.concat(responses.unavailable);
 
-  var d = new Date(rowDate + 'T00:00:00+09:00');
-  var dow = ['日','月','火','水','木','金','土'][d.getDay()];
-  var dateLabel = (d.getMonth() + 1) + '月' + d.getDate() + '日（' + dow + '）';
+  var dateLabel = formatDateLabelFromISO_(rowDate);
 
   var slots = calcOpeCountPerSlot_(rowDate, absentStaff, start, end);
   var slotsText = '';
@@ -783,7 +777,7 @@ function approveShiftRecruitment_(params) {
   const timeLabel = newStart && newEnd ? newStart + '〜' + newEnd : (params.originalTime || '');
   let text = '✅ 【シフト交代 承認完了】\n\n';
   text += 'シフトの交代が成立しました。\n\n';
-  text += '📅 ' + params.date + '\n';
+  text += '📅 ' + formatDateLabelFromISO_(params.date) + '\n';
   text += '⏰ ' + timeLabel + '\n';
   text += '👤 ' + params.originalStaff + ' → ' + params.agentStaff + '\n\n';
   text += 'ご協力ありがとうございます🙏 ジョブカンへの反映をお願いします。';
@@ -804,11 +798,11 @@ function approveShiftRecruitment_(params) {
   const dmTargets = [
     {
       name: params.originalStaff,
-      text: '🔄 【シフト交代 完了のお知らせ】\n\n' + params.originalStaff + ' さんのシフトが交代されました。\n\n📅 ' + params.date + '\n⏰ ' + params.originalTime + '\n👤 ' + params.originalStaff + ' → ' + params.agentStaff + '\n\nジョブカンへの反映をご確認ください🙏'
+      text: '🔄 【シフト交代 完了のお知らせ】\n\n' + params.originalStaff + ' さんのシフトが交代されました。\n\n📅 ' + formatDateLabelFromISO_(params.date) + '\n⏰ ' + timeLabel + '\n👤 ' + params.originalStaff + ' → ' + params.agentStaff + '\n\nジョブカンへの反映をご確認ください🙏'
     },
     {
       name: params.agentStaff,
-      text: '🔄 【シフト交代 完了のお知らせ】\n\n' + params.agentStaff + ' さんがシフトを引き受けました。\n\n📅 ' + params.date + '\n⏰ ' + params.originalTime + '\n👤 ' + params.originalStaff + ' → ' + params.agentStaff + '\n\nジョブカンへの反映をご確認ください🙏'
+      text: '🔄 【シフト交代 完了のお知らせ】\n\n' + params.agentStaff + ' さんがシフトを引き受けました。\n\n📅 ' + formatDateLabelFromISO_(params.date) + '\n⏰ ' + timeLabel + '\n👤 ' + params.originalStaff + ' → ' + params.agentStaff + '\n\nジョブカンへの反映をご確認ください🙏'
     }
   ];
 
@@ -838,9 +832,7 @@ function notifyShiftFill_(params) {
     const token = getLineWorksAccessToken();
     if (!token) return { ok: false, error: 'token_error' };
 
-    const d = new Date(params.date + 'T00:00:00+09:00');
-    const dow = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-    const dateLabel = (d.getMonth() + 1) + '月' + d.getDate() + '日（' + dow + '）';
+    const dateLabel = formatDateLabelFromISO_(params.date);
 
     // 承認者向けテキスト
     let approverText = '✅ 【シフト補充のお知らせ】\n\n';
@@ -894,6 +886,20 @@ function notifyShiftFill_(params) {
     Logger.log('notifyShiftFill_ エラー: ' + e.message);
     return { ok: false, error: e.message };
   }
+}
+
+/**
+ * "YYYY-MM-DD" 形式の日付文字列を "M月D日（曜）" の日本語表記に変換する
+ * タイムゾーン依存の new Date().getDate() を使わず文字列パースで安全に変換する
+ */
+function formatDateLabelFromISO_(dateISO) {
+  var parts = String(dateISO).split('-');
+  if (parts.length < 3) return String(dateISO);
+  var y = parseInt(parts[0], 10);
+  var m = parseInt(parts[1], 10);
+  var d = parseInt(parts[2], 10);
+  var dow = ['日', '月', '火', '水', '木', '金', '土'][new Date(y, m - 1, d).getDay()];
+  return m + '月' + d + '日（' + dow + '）';
 }
 
 /**
