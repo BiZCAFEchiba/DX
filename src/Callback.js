@@ -40,6 +40,24 @@ function handleWebhook(e) {
         ? { type: 'channel', channelId: sourceChannelId }
         : { type: 'personal', userId: senderId };
 
+      // シフト募集応答を最優先で処理（スタッフマッピング不要）
+      if (messageText && (messageText.startsWith('【入れる】') || messageText.startsWith('【入れない】'))) {
+        var isAvail = messageText.startsWith('【入れる】');
+        var rId = messageText.replace(/^【.+?】/, '').trim();
+        // 名前はマッピングから取得、なければLINE WORKS IDをそのまま使用
+        const quickMappings = loadStaffMappingFromSheets_();
+        var responderName = (quickMappings && quickMappings.recv[senderId]) ? quickMappings.recv[senderId] : senderId;
+        Logger.log('募集応答受信: ' + responderName + ' → ' + (isAvail ? '入れる' : '入れない') + ' / ' + rId);
+        writeLogToSheets_('募集応答', 0, 'webhook', 'info', responderName + ' → ' + (isAvail ? '入れる' : '入れない') + ' / ' + rId);
+        recordRecruitmentResponse_(rId, responderName, isAvail ? '入れる' : '入れない');
+        touchShiftLastModified_();
+        var dmReply = isAvail
+          ? '✅ 入れると回答しました！\n担当者からの連絡をお待ちください。'
+          : '❌ 入れないと回答しました。';
+        sendLineWorksMessage(senderId, dmReply);
+        return;
+      }
+
       // 【受信用ID】スタッフマッピングからIDで名前を引く
       const mappings = loadStaffMappingFromSheets_();
       let senderName = mappings ? mappings.recv[senderId] : null;
@@ -108,6 +126,7 @@ function handleWebhook(e) {
         handleConversation_(senderId, senderName, messageText, replyContext);
         return;
       }
+
 
       // ボタンクリック（Message Action）によるシフト確認
       if (messageText && messageText.includes('【確認】')) {

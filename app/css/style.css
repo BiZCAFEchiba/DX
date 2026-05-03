@@ -120,8 +120,7 @@ body {
 }
 .shift-line-body {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  flex-direction: column;
   gap: 6px;
 }
 
@@ -133,8 +132,9 @@ body {
   background: var(--gray-50);
   border: 1px solid var(--gray-200);
   border-radius: 8px;
-  padding: 5px 8px;
-  min-width: 0;
+  padding: 8px 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .shift-line--split .shift-segment {
   border-color: var(--primary-light);
@@ -174,8 +174,7 @@ body {
 .shift-break {
   display: flex;
   align-items: center;
-  align-self: flex-start;
-  padding-top: 6px;
+  padding: 2px 0;
 }
 .shift-break-label {
   font-size: 0.75rem;
@@ -558,6 +557,44 @@ body {
 }
 .cal-day.selected .meeting-badge {
   background: rgba(255,255,255,0.85); color: #d97706;
+}
+
+/* --- 無理バッジ --- */
+.decline-badge {
+  font-size: 0.55rem; font-weight: 700; line-height: 1;
+  background: #6b7280; color: #fff;
+  border-radius: 4px; padding: 1px 4px;
+}
+.cal-day.selected .decline-badge {
+  background: rgba(255,255,255,0.85); color: #374151;
+}
+
+/* --- 無理な人カード --- */
+.decline-card {
+  background: #f9fafb;
+  border: 1.5px solid #d1d5db;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  padding: 10px 14px;
+}
+.decline-card-header {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #374151;
+  margin-bottom: 8px;
+}
+.decline-card-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.decline-name {
+  background: #e5e7eb;
+  color: #374151;
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
 }
 
 /* --- ミーティングカード --- */

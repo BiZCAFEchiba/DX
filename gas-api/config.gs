@@ -7,10 +7,11 @@
 var SPREADSHEET_ID = '1QOGLA_VL0x2FlD3WV_Vc6LJitGLI9yoCZTGbU6aCbFo';
 
 // シート名
-var SHEET_SHIFTS  = 'シフト';
-var SHEET_STAFF   = 'スタッフ';
-var SHEET_LOGS    = '送信ログ';
+var SHEET_SHIFTS   = 'シフト';
+var SHEET_STAFF    = 'スタッフ';
+var SHEET_LOGS     = '送信ログ';
 var SHEET_SETTINGS = '設定';
+var SHEET_DECLINES = '出欠確認';
 
 // --- LINE WORKS API ---
 var LW_CLIENT_ID       = 'iAWkZErjLqvOtg8cAkE7';
@@ -49,6 +50,9 @@ var LW_PRIVATE_KEY     = '-----BEGIN PRIVATE KEY-----\n' +
 
 var LW_AUTH_URL  = 'https://auth.worksmobile.com/oauth2/v2.0/token';
 var LW_API_BASE  = 'https://www.worksapis.com/v1.0';
+
+// シフトカレンダーPWA URL
+var LW_PWA_URL = 'https://shiftcalender.originalcafe423.workers.dev';
 
 // --- トークン有効期限（日数） ---
 var TOKEN_EXPIRY_DAYS = 30;

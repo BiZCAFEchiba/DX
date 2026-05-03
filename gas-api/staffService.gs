@@ -97,6 +97,21 @@ function deleteStaff(name) {
 }
 
 /**
+ * LINE WORKS ユーザーIDからスタッフ名を逆引きする
+ * @param {string} userId - LINE WORKSのuserId（webhookのsource.userId）
+ * @returns {string|null}
+ */
+function getStaffNameByLwUserId(userId) {
+  if (!userId) return null;
+  var sheet = getOrCreateSheet(SHEET_STAFF, STAFF_HEADERS);
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][1]).trim() === userId) return String(data[i][0]).trim();
+  }
+  return null;
+}
+
+/**
  * スタッフマッピング（名前 → アカウントID）を取得する
  * @returns {Object} { 'スタッフ名': 'account@xxx.com', ... }
  */

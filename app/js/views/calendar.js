@@ -4,6 +4,9 @@
 var CalendarView = (function () {
   var currentYear, currentMonth, selectedDate, shiftDates, selectedName, allStaff;
   var monthLoadToken = 0;
+  var lastModifiedKnown = null;
+  var pollTimer = null;
+  var visChangeListenerAdded = false;
   // 店舗ミーティングデータ
   var meetingByDate = {};   // { 'YYYY-MM-DD': { rowIndex, startTime, endTime, note } }
   var meetingStaff = [];    // スタッフ名リスト
@@ -12,6 +15,8 @@ var CalendarView = (function () {
   var meetingStaffLoaded = false;
   // 対面Meetupデータ
   var inPersonMeetupByDate = {}; // { 'YYYY-MM-DD': [{company, time, kind}] }
+  // 出欠確認データ（「無理」回答）
+  var declineByDate = {}; // { 'YYYY-MM-DD': ['name1', 'name2'] }
 
   function render() {
     var now = new Date();
@@ -19,7 +24,7 @@ var CalendarView = (function () {
     currentMonth = now.getMonth();
     selectedDate = formatISO(now);
     shiftDates = {};
-    selectedName = '';
+    selectedName = localStorage.getItem('cal_selected_name') || '';
     allStaff = [];
 
     var main = document.getElementById('main-content');
@@ -28,13 +33,15 @@ var CalendarView = (function () {
         '<div class="cal-header">' +
           '<button class="cal-nav-btn" id="cal-prev">◀</button>' +
           '<span class="cal-header-title" id="cal-title"></span>' +
+          '<span id="cal-loading" style="display:none;width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#6366f1;border-radius:50%;animation:spin 0.7s linear infinite;flex-shrink:0;"></span>' +
           '<button class="cal-nav-btn" id="cal-next">▶</button>' +
         '</div>' +
+        '<style>#cal-loading{display:inline-block;}@keyframes spin{to{transform:rotate(360deg);}}</style>' +
         '<div class="cal-grid" id="cal-grid"></div>' +
       '</div>' +
       '<div style="padding:4px 0 8px;">' +
-        '<select id="cal-name-filter" style="width:100%;padding:10px 12px;border:1px solid var(--gray-300);border-radius:8px;font-size:0.95rem;background:#fff;">' +
-          '<option value="">全員表示</option>' +
+        '<select id="cal-name-filter" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:0.9rem;background:#fff;color:#374151;">' +
+          '<option value="">自分のシフトを選択</option>' +
         '</select>' +
       '</div>' +
       '<div id="cal-shift-detail"></div>';
@@ -42,15 +49,17 @@ var CalendarView = (function () {
     document.getElementById('cal-prev').addEventListener('click', function () {
       currentMonth--;
       if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-      loadMonth(); loadMeetings(); loadInPersonMeetups();
+      loadMonth(); loadMeetings(); loadInPersonMeetups(); loadDeclines();
     });
     document.getElementById('cal-next').addEventListener('click', function () {
       currentMonth++;
       if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-      loadMonth(); loadMeetings(); loadInPersonMeetups();
+      loadMonth(); loadMeetings(); loadInPersonMeetups(); loadDeclines();
     });
     document.getElementById('cal-name-filter').addEventListener('change', function () {
       selectedName = this.value;
+      if (selectedName) localStorage.setItem('cal_selected_name', selectedName);
+      else localStorage.removeItem('cal_selected_name');
       renderGrid();
       loadDayDetail();
     });
@@ -74,6 +83,34 @@ var CalendarView = (function () {
     loadMonth();
     loadMeetings();
     loadInPersonMeetups();
+    loadDeclines();
+    startPolling();
+  }
+
+  function startPolling() {
+    if (!pollTimer) {
+      pollTimer = setInterval(checkForUpdates, 8000);
+    }
+    if (!visChangeListenerAdded) {
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) checkForUpdates();
+      });
+      visChangeListenerAdded = true;
+    }
+  }
+
+  function checkForUpdates() {
+    if (document.hidden) return;
+    API.getLastModified().then(function (res) {
+      if (!res || !res.lastModified) return;
+      var lm = res.lastModified;
+      if (lastModifiedKnown !== null && lm !== lastModifiedKnown) {
+        var cacheKey = 'cache_shifts_' + currentYear + '_' + pad(currentMonth + 1);
+        localStorage.removeItem(cacheKey);
+        loadMonth();
+      }
+      lastModifiedKnown = lm;
+    }).catch(function () {});
   }
 
   function loadMeetings() {
@@ -104,18 +141,34 @@ var CalendarView = (function () {
     }).catch(function () {});
   }
 
+  function loadDeclines() {
+    var from = currentYear + '-' + pad(currentMonth + 1) + '-01';
+    var lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+    var to = currentYear + '-' + pad(currentMonth + 1) + '-' + pad(lastDay);
+    API.getDeclines(from, to).then(function (res) {
+      declineByDate = (res.success && res.data.declines) ? res.data.declines : {};
+      renderGrid();
+      loadDayDetail();
+    }).catch(function () {});
+  }
+
   function populateNameFilter() {
     var sel = document.getElementById('cal-name-filter');
     if (!sel) return;
-    var current = sel.value;
-    sel.innerHTML = '<option value="">全員表示</option>';
+    var saved = localStorage.getItem('cal_selected_name') || '';
+    if (saved && allStaff.indexOf(saved) !== -1) {
+      selectedName = saved;
+    } else if (saved) {
+      selectedName = '';
+      localStorage.removeItem('cal_selected_name');
+    }
+    sel.innerHTML = '<option value="">自分のシフトを選択</option>';
     allStaff.forEach(function (n) {
       var opt = document.createElement('option');
       opt.value = n; opt.textContent = n;
-      if (n === current) opt.selected = true;
+      if (n === selectedName) opt.selected = true;
       sel.appendChild(opt);
     });
-    selectedName = sel.value;
   }
 
   function applyShifts(shifts) {
@@ -147,10 +200,15 @@ var CalendarView = (function () {
       try { applyShifts(JSON.parse(cached)); } catch (e) {}
     }
 
+    // スピナー表示
+    var spinner = document.getElementById('cal-loading');
+    if (spinner) spinner.style.display = 'inline-block';
+
     // バックグラウンドで最新取得・更新（古いレスポンスは無視）
     var token = ++monthLoadToken;
     API.getShifts(from, to)
       .then(function (res) {
+        if (spinner) spinner.style.display = 'none';
         if (token !== monthLoadToken) return;
         if (res.success && res.data.shifts) {
           localStorage.setItem(cacheKey, JSON.stringify(res.data.shifts));
@@ -160,6 +218,7 @@ var CalendarView = (function () {
         }
       })
       .catch(function () {
+        if (spinner) spinner.style.display = 'none';
         if (token !== monthLoadToken) return;
         if (!cached) renderGrid();
       });
@@ -210,11 +269,14 @@ var CalendarView = (function () {
 
       var hasMeeting = !!meetingByDate[dateStr];
       var hasInPerson = !!(inPersonMeetupByDate[dateStr] && inPersonMeetupByDate[dateStr].length > 0);
+      var hasDecline = !!(declineByDate[dateStr] && declineByDate[dateStr].length > 0);
       if (hasMeeting) classes += ' has-meeting';
       if (hasInPerson) classes += ' has-inperson';
+      if (hasDecline) classes += ' has-decline';
       var badges = '';
       if (hasZero)     badges += '<span class="zero-badge">0オペ</span>';
       if (hasShortage) badges += '<span class="shortage-badge">不足</span>';
+      if (hasDecline)  badges += '<span class="decline-badge">無理</span>';
       if (hasInPerson) badges += '<span class="inperson-badge">対面</span>';
       if (hasMeeting)  badges += '<span class="meeting-badge">MTG</span>';
       html += '<div class="' + classes + '" data-date="' + dateStr + '">' +
@@ -243,10 +305,112 @@ var CalendarView = (function () {
     }
 
     var filtered = selectedName
-      ? { date: dayData.date, dayOfWeek: dayData.dayOfWeek, staff: dayData.staff.filter(function (s) { return s.name === selectedName; }) }
+      ? { date: dayData.date, dayOfWeek: dayData.dayOfWeek, staff: dayData.staff.filter(function (s) { return s.name === selectedName || s.status === '募集中'; }) }
       : dayData;
 
-    detail.innerHTML = ShiftCard.render(filtered);
+    var staffForCard = allStaff.length > 0 ? allStaff : allStaffNames();
+    detail.innerHTML = ShiftCard.render(filtered, {
+      recruitments: dayData.recruitments || [],
+      selectedName: selectedName,
+      allStaff: staffForCard
+    });
+
+    // 引き受ける（シフト交代承認モーダルへ）
+    detail.querySelectorAll('.btn-recruit-approve').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var rId = btn.dataset.recruitId;
+        var sel = document.getElementById('recruit-sel-' + rId);
+        var agentName = (sel ? sel.value : '') || selectedName;
+        if (!agentName) { showToast('名前を選択してください', true); return; }
+        var fakeShift = {
+          name:  btn.dataset.absentStaff,
+          start: btn.dataset.start,
+          end:   btn.dataset.end,
+          recruitId: rId
+        };
+        openApproveModal(dayData, fakeShift, agentName);
+      });
+    });
+
+    // 入れない（応答記録）
+    detail.querySelectorAll('.btn-recruit-unavail').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var rId = btn.dataset.recruitId;
+        var sel = document.getElementById('recruit-sel-' + rId);
+        var name = (sel ? sel.value : '') || selectedName;
+        var msgEl = document.getElementById('recruit-msg-' + rId);
+        if (!name) {
+          if (msgEl) msgEl.innerHTML = '<span style="color:#dc2626;">名前を選択してください</span>';
+          return;
+        }
+        btn.disabled = true;
+        var origText = btn.textContent;
+        btn.textContent = '⏳';
+        API.respondRecruitment(rId, name, '入れない')
+          .then(function(res) {
+            if (res.ok) {
+              // 進行中の loadMonth() を無効化してから更新
+              monthLoadToken++;
+              var dd = shiftDates[selectedDate];
+              if (dd && dd.recruitments) {
+                dd.recruitments.forEach(function(r) {
+                  if (r.id === rId) {
+                    r.available   = r.available.filter(function(x) { return x !== name; });
+                    r.unavailable = r.unavailable.filter(function(x) { return x !== name; });
+                    r.unavailable.push(name);
+                  }
+                });
+              }
+              localStorage.removeItem('cache_shifts_' + selectedDate.substring(0, 4) + '_' + selectedDate.substring(5, 7));
+              showToast('❌ 入れないと回答しました');
+              loadDayDetail();
+              loadMonth();
+            } else {
+              showToast('保存エラー: ' + (res.error || ''), true);
+              btn.disabled = false; btn.textContent = origText;
+            }
+          })
+          .catch(function(e) { showToast('通信エラー: ' + e.message, true); btn.disabled = false; btn.textContent = origText; });
+      });
+    });
+
+    // リマインドボタン
+    detail.querySelectorAll('.btn-remind-recruitment').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var rId = btn.dataset.recruitId;
+        if (!rId) return;
+        btn.disabled = true;
+        btn.textContent = '送信中...';
+        API.remindRecruitment(rId)
+          .then(function(res) {
+            if (res.ok) {
+              showToast('📨 ' + (res.sent || 0) + '名にリマインドを送信しました');
+            } else {
+              showToast('送信エラー: ' + (res.error || ''), true);
+            }
+            btn.disabled = false;
+            btn.textContent = '📨 未回答者にリマインド';
+          })
+          .catch(function() {
+            showToast('通信エラー', true);
+            btn.disabled = false;
+            btn.textContent = '📨 未回答者にリマインド';
+          });
+      });
+    });
+
+    // 無理な人リストを挿入
+    var declines = declineByDate[selectedDate];
+    if (declines && declines.length > 0) {
+      var dcEl = document.createElement('div');
+      dcEl.className = 'decline-card';
+      dcEl.innerHTML =
+        '<div class="decline-card-header">❌ 無理な人</div>' +
+        '<div class="decline-card-names">' + declines.map(function (n) {
+          return '<span class="decline-name">' + n + '</span>';
+        }).join('') + '</div>';
+      detail.insertBefore(dcEl, detail.firstChild);
+    }
 
     // 店舗ミーティングカードを挿入
     var meeting = meetingByDate[selectedDate];
@@ -465,7 +629,8 @@ var CalendarView = (function () {
   }
 
   function staffSelectHtml(id, selectedValue) {
-    var names = allStaff.length > 0 ? allStaff : allStaffNames();
+    var names = (allStaff.length > 0 ? allStaff : allStaffNames()).slice();
+    if (selectedValue && names.indexOf(selectedValue) === -1) names.unshift(selectedValue);
     var html = '<select id="' + id + '" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;box-sizing:border-box;">';
     html += '<option value="">選択してください</option>';
     names.forEach(function (n) {
@@ -527,7 +692,7 @@ var CalendarView = (function () {
     });
   }
 
-  function openApproveModal(dayData, shift) {
+  function openApproveModal(dayData, shift, preAgent) {
     var overlay = document.getElementById('modal-overlay');
     var container = document.getElementById('modal-container');
     container.innerHTML =
@@ -535,7 +700,7 @@ var CalendarView = (function () {
       '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">元の担当: ' + shift.name + '　' + dayData.date.replace(/-/g, '/') + '</div>' +
       '<div style="margin-bottom:12px;">' +
         '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">あなたの名前</label>' +
-        staffSelectHtml('approve-name', '') +
+        staffSelectHtml('approve-name', preAgent || '') +
       '</div>' +
       '<div style="display:flex;gap:8px;margin-bottom:16px;">' +
         '<div style="flex:1;">' +
@@ -557,14 +722,30 @@ var CalendarView = (function () {
       var newEnd   = document.getElementById('approve-end').value;
       if (!agent) { showToast('名前を選択してください', true); return; }
       var btn = document.getElementById('approve-save'); btn.disabled = true; btn.textContent = '送信中...';
-      API.approveShiftRecruitment({ date: dayData.date, originalStaff: shift.name, originalStart: shift.start, originalEnd: shift.end, newStart: newStart, newEnd: newEnd, agentStaff: agent })
+      API.approveShiftRecruitment({ date: dayData.date, originalStaff: shift.name, originalStart: shift.start, originalEnd: shift.end, newStart: newStart, newEnd: newEnd, agentStaff: agent, recruitId: shift.recruitId || '' })
         .then(function(res) {
           overlay.hidden = true;
           if (res.ok) {
             showToast('引受け完了しました！');
-            // ローカルキャッシュを破棄してサーバーから再取得（部分引受けで行が分割されるため）
-            var cacheKey = 'cache_shifts_' + currentYear + '_' + pad(currentMonth + 1);
-            localStorage.removeItem(cacheKey);
+            // ローカルデータを即時書き換えて再描画
+            var dd = shiftDates[dayData.date];
+            if (dd) {
+              dd.staff.forEach(function(s) {
+                if (s.name === shift.name && s.start === shift.start && s.end === shift.end) {
+                  s.name   = agent;
+                  s.start  = newStart || s.start;
+                  s.end    = newEnd   || s.end;
+                  s.status = '';
+                }
+              });
+              if (shift.recruitId) {
+                dd.recruitments = (dd.recruitments || []).filter(function(r) { return r.id !== shift.recruitId; });
+              }
+            }
+            localStorage.removeItem('cache_shifts_' + currentYear + '_' + pad(currentMonth + 1));
+            renderGrid();
+            loadDayDetail();
+            // バックグラウンドで最新データを同期
             loadMonth();
           } else { throw new Error(res.error || 'エラー'); }
         }).catch(function(err) { overlay.hidden = true; showToast('エラー: ' + err.message, true); });

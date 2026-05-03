@@ -2988,9 +2988,9 @@ function syncFormSection26_(form, sec26PBIndex, sec27PBIndex, companies) {
   if (foundItem) {
     var ft = foundItem.getType();
     if (ft === FormApp.ItemType.CHECKBOX) {
-      foundItem.asCheckboxItem().setChoiceValues(companies);
+      foundItem.asCheckboxItem().setChoiceValues(companies).setHasOtherOption(true);
     } else if (ft === FormApp.ItemType.MULTIPLE_CHOICE) {
-      foundItem.asMultipleChoiceItem().setChoiceValues(companies);
+      foundItem.asMultipleChoiceItem().setChoiceValues(companies).setHasOtherOption(true);
     } else {
       foundItem.asListItem().setChoiceValues(companies);
     }
@@ -2998,7 +2998,7 @@ function syncFormSection26_(form, sec26PBIndex, sec27PBIndex, companies) {
   } else {
     var newCb = form.addCheckboxItem();
     newCb.setTitle('企業を選択してください（複数選択可）');
-    newCb.setChoiceValues(companies);
+    newCb.setChoiceValues(companies).setHasOtherOption(true);
     var fi = form.getItems();
     form.moveItem(fi.length - 1, sec26PBIndex + 1);
     Logger.log('企業選択チェックボックス 新規作成: ' + companies.length + '社');

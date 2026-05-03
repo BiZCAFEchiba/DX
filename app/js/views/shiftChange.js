@@ -29,13 +29,15 @@ var ShiftChangeView = (function () {
           approvers = parsed.filter(function(s){ return s.isAgent; });
         } catch(e){}
       }
+      var hadCache = allStaff.length > 0;
       API.getStaff().then(function(res) {
         if (res.success && res.data && res.data.staff) {
           var list = res.data.staff;
           allStaff = list.filter(function(s){ return s.active; });
           approvers = list.filter(function(s){ return s.isAgent; });
           localStorage.setItem('cache_staff', JSON.stringify(list));
-          render(data);
+          // キャッシュがなかった場合のみ再描画（入力中の内容を消さない）
+          if (!hadCache) render(data);
         }
       }).catch(function(){});
     }
@@ -390,7 +392,13 @@ var ShiftChangeView = (function () {
         if (!p.reason.trim()) { showToast('理由を入力してください', true); return; }
         submitRecruit.disabled = true; submitRecruit.textContent = '送信中...';
         API.requestShiftRecruitment({ date: p.date, originalStaff: p.origStaff, originalTime: p.newStart + '〜' + p.newEnd, originalStart: p.origShiftStart || p.newStart, recruitStart: p.newStart, recruitEnd: p.newEnd, reason: p.reason })
-          .then(function(res) { if (res.ok) { showToast('募集を開始しました'); } else { throw new Error(); }})
+          .then(function(res) {
+            if (res.ok) {
+              showToast('募集を開始しました');
+              var dp = p.date.split('-');
+              localStorage.removeItem('cache_shifts_' + dp[0] + '_' + dp[1]);
+            } else { throw new Error(); }
+          })
           .catch(function() { showToast('募集エラー', true); })
           .finally(function() { submitRecruit.disabled = false; submitRecruit.textContent = '募集を開始する'; });
       });

@@ -83,8 +83,20 @@ function sendToLineWorks(dayData, staffMapping) {
   var url = LW_API_BASE + '/bots/' + LW_BOT_ID + '/channels/' + LW_CHANNEL_ID + '/messages';
   var body = {
     content: {
-      type: 'text',
-      text: messageText
+      type: 'button_template',
+      contentText: messageText,
+      actions: [
+        {
+          type: 'uri',
+          label: '✅ 行ける（カレンダーを開く）',
+          uri: LW_PWA_URL
+        },
+        {
+          type: 'postback',
+          label: '❌ 無理',
+          data: 'decline:' + dayData.date
+        }
+      ]
     }
   };
   if (mentionedList.length > 0) {

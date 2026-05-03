@@ -120,6 +120,10 @@ var API = (function () {
     return get({ action: 'getInPersonMeetups', from: from, to: to });
   }
 
+  function getDeclines(from, to) {
+    return get({ action: 'getDeclines', from: from, to: to });
+  }
+
   function notifyShiftFill(params) {
     params.page = 'calendar';
     params.action = 'notifyShiftFill';
@@ -144,13 +148,29 @@ var API = (function () {
     return meetingPost(params);
   }
 
+  function respondRecruitment(recruitId, staffName, response) {
+    return post({ action: 'respondRecruitment', recruitId: recruitId, staffName: staffName, response: response });
+  }
+
+  function remindRecruitment(recruitId) {
+    return post({ action: 'remindRecruitment', recruitId: recruitId });
+  }
+
+  function getLastModified() {
+    return get({ action: 'getLastModified' });
+  }
+
   return {
     setBaseUrl: setBaseUrl, setMeetingUrl: setMeetingUrl,
     getShifts: getShifts, getStaff: getStaff,
     updateShift: updateShift, addShift: addShift, deleteShift: deleteShift,
     notifyShiftChange: notifyShiftChange, getShiftAgents: getShiftAgents,
-    getShiftShortage: getShiftShortage, getInPersonMeetups: getInPersonMeetups, notifyShiftFill: notifyShiftFill,
+    getShiftShortage: getShiftShortage, getInPersonMeetups: getInPersonMeetups,
+    getDeclines: getDeclines, notifyShiftFill: notifyShiftFill,
     notifyShiftTrouble: notifyShiftTrouble, requestShiftRecruitment: requestShiftRecruitment, approveShiftRecruitment: approveShiftRecruitment,
+    respondRecruitment: respondRecruitment,
+    remindRecruitment: remindRecruitment,
+    getLastModified: getLastModified,
     getMeetings: getMeetings, getMeetingAttendance: getMeetingAttendance,
     getMeetingStaffList: getMeetingStaffList, saveMeetingAttendance: saveMeetingAttendance,
     getRoomSettings: getRoomSettings, setRoomTimeRange: setRoomTimeRange, setRoomOpenDate: setRoomOpenDate, setRoomBlockedDates: setRoomBlockedDates

@@ -11,6 +11,8 @@ const SHEET_LOGS = '送信ログ';
 const SHEET_SETTINGS = '設定';
 const SHEET_MEETING = '店舗ミーティング'; // 実施日・時間 → 顧客カレンダーで前後1時間を貸切表示
 const YUCHI_LOG_SHEET_NAME = '誘致ログ'; // 誘致フォーム送信ログ（営業フォーム集計用）
+const SHEET_RECRUITMENT = 'シフト募集'; // シフト募集管理
+const SHEET_RECRUITMENT_RESPONSE = 'シフト募集応答'; // シフト募集への応答ログ
 
 // --- Google Drive (PDFフォールバック用) ---
 const DRIVE_FOLDER_ID = '1sCuvYSNrekWdzpvvSlZq2SgPvZNyvc-D'; // シフトPDF格納フォルダのID

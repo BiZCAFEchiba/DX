@@ -381,6 +381,63 @@ function deleteShiftByName(date, staffName) {
   }
 }
 
+// --- 出欠確認 ---
+
+var DECLINE_HEADERS = ['日付', 'スタッフ名', '回答', '回答日時'];
+
+/**
+ * 「無理」回答を保存する（同一日付・スタッフは上書き）
+ */
+function saveShiftDecline(date, staffName) {
+  if (!date || !staffName) return { success: false, error: 'パラメータ不足' };
+  var sheet = getOrCreateSheet(SHEET_DECLINES, DECLINE_HEADERS);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var data = sheet.getDataRange().getValues();
+    for (var i = 1; i < data.length; i++) {
+      var rd = data[i][0];
+      var d = rd instanceof Date ? rd : new Date(rd);
+      if (isNaN(d.getTime())) continue;
+      if (formatDateISO(d) === date && String(data[i][1]).trim() === staffName) {
+        sheet.getRange(i + 1, 3).setValue('無理');
+        sheet.getRange(i + 1, 4).setValue(new Date());
+        return { success: true };
+      }
+    }
+    sheet.appendRow([new Date(date + 'T00:00:00'), staffName, '無理', new Date()]);
+    return { success: true };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 指定期間の出欠確認データを取得する
+ * @returns {{ success: boolean, data: { declines: { 'YYYY-MM-DD': string[] } } }}
+ */
+function getShiftDeclines(from, to) {
+  var sheet = getOrCreateSheet(SHEET_DECLINES, DECLINE_HEADERS);
+  var data = sheet.getDataRange().getValues();
+  var fromDate = from ? new Date(from + 'T00:00:00') : new Date('2000-01-01');
+  var toDate   = to   ? new Date(to   + 'T23:59:59') : new Date('2099-12-31');
+  var result = {};
+
+  for (var i = 1; i < data.length; i++) {
+    var rd = data[i][0];
+    if (!rd) continue;
+    var d = rd instanceof Date ? rd : new Date(rd);
+    if (isNaN(d.getTime()) || d < fromDate || d > toDate) continue;
+    var dateStr = formatDateISO(d);
+    var name = String(data[i][1]).trim();
+    if (!name) continue;
+    if (!result[dateStr]) result[dateStr] = [];
+    if (result[dateStr].indexOf(name) === -1) result[dateStr].push(name);
+  }
+
+  return { success: true, data: { declines: result } };
+}
+
 // --- ユーティリティ ---
 
 /**

@@ -39,6 +39,8 @@ function doGet(e) {
         return jsonResponse(getSendLogs(Number(params.limit) || 30));
       case 'getPreview':
         return jsonResponse(getReminderPreview(params.date));
+      case 'getDeclines':
+        return jsonResponse(getShiftDeclines(params.from, params.to));
       default:
         return jsonResponse({ success: false, error: '不明なaction: ' + action });
     }
@@ -58,6 +60,11 @@ function doPost(e) {
     return jsonResponse({ success: false, error: 'リクエストのパースに失敗しました' });
   }
 
+  // LINE WORKS webhook イベント（typeフィールドで識別）
+  if (body.type) {
+    return handleLwWebhook(body);
+  }
+
   var action = body.action || '';
 
   try {
@@ -74,6 +81,33 @@ function doPost(e) {
   } catch (err) {
     return jsonResponse({ success: false, error: err.message });
   }
+}
+
+/**
+ * LINE WORKS webhook イベント処理
+ * ボタンタップ（postback）を受け取り「無理」回答を記録する
+ */
+function handleLwWebhook(body) {
+  try {
+    if (body.type !== 'postback') return jsonResponse({ ok: true });
+    var data = (body.content && body.content.data) ? body.content.data : '';
+    if (data.indexOf('decline:') !== 0) return jsonResponse({ ok: true });
+
+    var date = data.substring('decline:'.length);  // "decline:YYYY-MM-DD" → "YYYY-MM-DD"
+    var userId = (body.source && body.source.userId) ? body.source.userId : '';
+    var staffName = getStaffNameByLwUserId(userId);
+
+    if (staffName && date) {
+      saveShiftDecline(date, staffName);
+      Logger.log('出欠記録: ' + staffName + ' / ' + date + ' → 無理');
+    } else {
+      Logger.log('出欠記録スキップ: userId=' + userId + ' date=' + date);
+    }
+  } catch (err) {
+    Logger.log('LW webhook error: ' + err.message);
+  }
+  // LINE WORKSには常に200を返す
+  return jsonResponse({ ok: true });
 }
 
 // --- ヘルパー ---

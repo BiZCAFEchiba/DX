@@ -91,6 +91,7 @@ function doPost(e) {
           recruitEnd:    body.recruitEnd    || '',
           reason:        body.reason        || ''
         });
+        touchShiftLastModified_();
         return ContentService.createTextOutput(JSON.stringify(recruitResult))
           .setMimeType(ContentService.MimeType.JSON);
       }
@@ -106,6 +107,7 @@ function doPost(e) {
           newEnd:        body.newEnd        || '',
           agentStaff:    body.agentStaff    || ''
         });
+        touchShiftLastModified_();
         return ContentService.createTextOutput(JSON.stringify(approveResult))
           .setMimeType(ContentService.MimeType.JSON);
       }
@@ -130,21 +132,50 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // シフト募集応答（PWAカレンダー用）
+    if (body.action === 'respondRecruitment') {
+      var rId   = String(body.recruitId  || '').trim();
+      var rName = String(body.staffName  || '').trim();
+      var rResp = String(body.response   || '').trim();
+      if (!rId || !rName || (rResp !== '入れる' && rResp !== '入れない')) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing_params' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var isFirst = recordRecruitmentResponse_(rId, rName, rResp);
+      touchShiftLastModified_();
+      return ContentService.createTextOutput(JSON.stringify({ ok: true, isFirstAvailable: isFirst }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // シフト募集リマインド（PWAカレンダー用）
+    if (body.action === 'remindRecruitment') {
+      var remId = String(body.recruitId || '').trim();
+      if (!remId) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing_recruitId' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var remResult = remindShiftRecruitment_(remId);
+      return ContentService.createTextOutput(JSON.stringify(remResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // シフト削除（PWAカレンダー用）
     if (body.action === 'deleteShift') {
       var delResult = deleteShiftByName_(body.date || '', body.staffName || '');
+      touchShiftLastModified_();
       return ContentService.createTextOutput(JSON.stringify(delResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // シフト追加（PWAカレンダー用）
     if (body.action === 'addShift') {
       var addResult = addShiftRow_(body.date || '', body.dayOfWeek || '', body.staffName || '', body.start || '', body.end || '');
+      touchShiftLastModified_();
       return ContentService.createTextOutput(JSON.stringify(addResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // シフト更新（PWAカレンダー用）
     if (body.action === 'updateShift') {
       var updResult = updateShiftRow_(body.date || '', body.origName || '', body.newName || '', body.newStart || '', body.newEnd || '');
+      touchShiftLastModified_();
       return ContentService.createTextOutput(JSON.stringify(updResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -816,17 +847,48 @@ function doGet(e) {
     var shifts = Object.keys(dayMap).sort().map(function(k) {
       dayMap[k].staff.sort(function(a, b) { return a.start.localeCompare(b.start); });
       // 不足時間帯をシフトデータと一緒に返す（追加API呼び出し不要にする）
+      // 募集中スタッフは実質不在として除外してから計算
       try {
-        var shortageResult = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), dayMap[k].staff);
-        dayMap[k].shortages = shortageResult.shortages || []; // 不足（1以上だが必要数未満）
-        dayMap[k].zeroSlots = shortageResult.zeroSlots || []; // 0オペ
+        var activeStaffForShortage = dayMap[k].staff.filter(function(s) { return s.status !== '募集中'; });
+        var shortageResult = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), activeStaffForShortage);
+        dayMap[k].shortages = shortageResult.shortages || [];
+        dayMap[k].zeroSlots = shortageResult.zeroSlots || [];
+        dayMap[k].recruitments = getActiveRecruitmentsForDate_(k);
       } catch(e) {
         dayMap[k].shortages = [];
         dayMap[k].zeroSlots = [];
+        dayMap[k].recruitments = [];
       }
       return dayMap[k];
     });
     return ContentService.createTextOutput(JSON.stringify({ success: true, data: { shifts: shifts } }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // シフト募集リマインド（PWAシフトカレンダー用）
+  if (param.action === 'remindRecruitment') {
+    var rId = String(param.recruitId || '').trim();
+    if (!rId) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing_recruitId' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var result = remindShiftRecruitment_(rId);
+    return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // シフト募集への応答（PWAシフトカレンダー用）
+  if (param.action === 'respondRecruitment') {
+    var rId   = String(param.recruitId   || '').trim();
+    var rName = String(param.staffName   || '').trim();
+    var rResp = String(param.response    || '').trim();
+    if (!rId || !rName || (rResp !== '入れる' && rResp !== '入れない')) {
+      return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'missing_params' }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    var isFirst = recordRecruitmentResponse_(rId, rName, rResp);
+    touchShiftLastModified_();
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, isFirstAvailable: isFirst }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 
@@ -850,7 +912,18 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // 最終更新タイムスタンプ（リアルタイム同期用）
+  if (param.action === 'getLastModified') {
+    var lm = PropertiesService.getScriptProperties().getProperty('SHIFT_LAST_MODIFIED') || '0';
+    return ContentService.createTextOutput(JSON.stringify({ lastModified: lm }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return ContentService.createTextOutput('Shift Reminder Bot is active.');
+}
+
+function touchShiftLastModified_() {
+  PropertiesService.getScriptProperties().setProperty('SHIFT_LAST_MODIFIED', new Date().getTime().toString());
 }
 
 /**

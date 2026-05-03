@@ -75,6 +75,16 @@
       <div class="loading">企業情報を読み込み中...</div>
     </div>
 
+    <!-- リストにない企業を追加 -->
+    <div class="card" id="addCompanyArea" style="margin-top:-4px;border-top:2px dashed #e0e0e0;border-radius:6px;padding:12px 16px;background:#fafafe;">
+      <div style="font-size:12px;color:#888;margin-bottom:8px;">リストにない企業を追加（当日新規追加など）</div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="customCompanyInput" placeholder="企業名を直接入力...">
+        <button type="button" id="btnAddCompany" onclick="addCustomCompany()"
+          style="padding:8px 14px;background:#4c6ef5;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;white-space:nowrap;flex-shrink:0;">追加</button>
+      </div>
+    </div>
+
     <button class="btn-submit" id="submitBtn" onclick="submitForm()" disabled>送信する</button>
   </div>
 
@@ -128,6 +138,71 @@
     })
     .getYuchiFormData();
 
+  function buildOneCompanyHtml(c, idx, isChecked) {
+    var html = '';
+    html += '<div>';
+    html += '<div class="company-row">';
+    html += '<input type="checkbox" id="cmp_' + idx + '" onchange="toggleDetail(' + idx + ', this.checked)"' + (isChecked ? ' checked' : '') + '>';
+    html += '<label for="cmp_' + idx + '" class="company-name">' + escHtml(c.name) + '</label>';
+    html += '</div>';
+
+    html += '<div class="company-detail" id="detail_' + idx + '">';
+
+    // 開催日チェックボックス
+    if (c.sessions && c.sessions.length > 0) {
+      html += '<div class="detail-label">開催日（参加予定の日付を選択）</div>';
+      html += '<div class="date-checkboxes">';
+      c.sessions.forEach(function(s) {
+        var label = s.dateDisplay + (s.time ? ' ' + s.time : '');
+        html += '<label><input type="checkbox" name="date_' + idx + '" value="' + escHtml(label) + '">' + escHtml(label) + '</label>';
+      });
+      html += '</div>';
+    }
+
+    // 卒年 + 人数（卒年ごと）
+    html += '<div class="detail-label">卒年・人数</div>';
+    var years = c.years && c.years.length > 0 ? c.years : [];
+    html += '<div id="yearRows_' + idx + '">';
+    if (years.length > 0) {
+      years.forEach(function(yr) {
+        html += '<div class="year-count-row">';
+        html += '<label style="min-width:80px;display:flex;align-items:center;gap:4px;">';
+        html += '<input type="checkbox" name="year_' + idx + '" value="' + escHtml(yr) + '" onchange="toggleYearCount(this)">' + escHtml(yr) + '卒';
+        html += '</label>';
+        html += '<div class="year-count-input" style="display:none;align-items:center;gap:4px;">';
+        html += '<input type="number" name="count_' + idx + '_' + escHtml(yr) + '" min="0" max="99" placeholder="0" style="width:60px;">';
+        html += '<span style="font-size:13px;">名</span>';
+        html += '</div>';
+        html += '</div>';
+      });
+    } else {
+      html += '<span style="font-size:13px;color:#999;">卒年情報なし</span><br>';
+    }
+    // その他行
+    html += '<div class="year-count-row" style="margin-top:6px;">';
+    html += '<label style="min-width:80px;display:flex;align-items:center;gap:4px;">';
+    html += '<input type="checkbox" name="year_' + idx + '" value="__other__" onchange="toggleYearOther(this,' + idx + ')">その他</label>';
+    html += '<div class="year-count-input" id="yearOtherRow_' + idx + '" style="display:none;align-items:center;gap:4px;">';
+    html += '<input type="number" id="yearOtherVal_' + idx + '" min="20" max="35" placeholder="例: 29" style="width:60px;">';
+    html += '<span style="font-size:13px;">卒</span>';
+    html += '<input type="number" id="yearOtherCount_' + idx + '" min="0" max="99" placeholder="0" style="width:60px;">';
+    html += '<span style="font-size:13px;">名</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
+
+    // アピールポイント
+    html += '<div class="row-group">';
+    html += '<div class="detail-label">刺さったポイント <span style="font-size:11px;font-weight:normal;color:#888;">（日時が合ったなどは除く）</span></div>';
+    html += '<div style="font-size:12px;color:#888;margin-bottom:6px;">学生がどんな点に興味を持ったか・反応が良かったか。次のスタッフが参考にできる内容を書いてください。</div>';
+    html += '<textarea id="appeal_' + idx + '" placeholder="例: 「社員の◯割が第二新卒」という話に驚いていた。転職・キャリアチェンジに関心がある学生に刺さりやすい。"></textarea>';
+    html += '</div>';
+
+    html += '</div>'; // company-detail
+    html += '</div>';
+    return html;
+  }
+
   function renderCompanyList(companies) {
     var area = document.getElementById('companyListArea');
     if (!companies || companies.length === 0) {
@@ -138,66 +213,7 @@
     var html = '';
     companies.forEach(function(c, idx) {
       var isPreselected = preselectedCompanies.indexOf(c.name) !== -1;
-      html += '<div>';
-      html += '<div class="company-row">';
-      html += '<input type="checkbox" id="cmp_' + idx + '" onchange="toggleDetail(' + idx + ', this.checked)"' + (isPreselected ? ' checked' : '') + '>';
-      html += '<label for="cmp_' + idx + '" class="company-name">' + escHtml(c.name) + '</label>';
-      html += '</div>';
-
-      html += '<div class="company-detail" id="detail_' + idx + '">';
-
-      // 開催日チェックボックス
-      if (c.sessions && c.sessions.length > 0) {
-        html += '<div class="detail-label">開催日（参加予定の日付を選択）</div>';
-        html += '<div class="date-checkboxes">';
-        c.sessions.forEach(function(s, si) {
-          var label = s.dateDisplay + (s.time ? ' ' + s.time : '');
-          html += '<label><input type="checkbox" name="date_' + idx + '" value="' + escHtml(label) + '">' + escHtml(label) + '</label>';
-        });
-        html += '</div>';
-      }
-
-      // 卒年 + 人数（卒年ごと）
-      html += '<div class="detail-label">卒年・人数</div>';
-      var years = c.years && c.years.length > 0 ? c.years : [];
-      html += '<div id="yearRows_' + idx + '">';
-      if (years.length > 0) {
-        years.forEach(function(yr) {
-          html += '<div class="year-count-row">';
-          html += '<label style="min-width:80px;display:flex;align-items:center;gap:4px;">';
-          html += '<input type="checkbox" name="year_' + idx + '" value="' + escHtml(yr) + '" onchange="toggleYearCount(this)">' + escHtml(yr) + '卒';
-          html += '</label>';
-          html += '<div class="year-count-input" style="display:none;align-items:center;gap:4px;">';
-          html += '<input type="number" name="count_' + idx + '_' + escHtml(yr) + '" min="0" max="99" placeholder="0" style="width:60px;">';
-          html += '<span style="font-size:13px;">名</span>';
-          html += '</div>';
-          html += '</div>';
-        });
-      } else {
-        html += '<span style="font-size:13px;color:#999;">卒年情報なし</span><br>';
-      }
-      // その他行
-      html += '<div class="year-count-row" style="margin-top:6px;">';
-      html += '<label style="min-width:80px;display:flex;align-items:center;gap:4px;">';
-      html += '<input type="checkbox" name="year_' + idx + '" value="__other__" onchange="toggleYearOther(this,' + idx + ')">その他</label>';
-      html += '<div class="year-count-input" id="yearOtherRow_' + idx + '" style="display:none;align-items:center;gap:4px;">';
-      html += '<input type="number" id="yearOtherVal_' + idx + '" min="20" max="35" placeholder="例: 29" style="width:60px;">';
-      html += '<span style="font-size:13px;">卒</span>';
-      html += '<input type="number" id="yearOtherCount_' + idx + '" min="0" max="99" placeholder="0" style="width:60px;">';
-      html += '<span style="font-size:13px;">名</span>';
-      html += '</div>';
-      html += '</div>';
-      html += '</div>';
-
-      // アピールポイント
-      html += '<div class="row-group">';
-      html += '<div class="detail-label">刺さったポイント <span style="font-size:11px;font-weight:normal;color:#888;">（日時が合ったなどは除く）</span></div>';
-      html += '<div style="font-size:12px;color:#888;margin-bottom:6px;">学生がどんな点に興味を持ったか・反応が良かったか。次のスタッフが参考にできる内容を書いてください。</div>';
-      html += '<textarea id="appeal_' + idx + '" placeholder="例: 「社員の◯割が第二新卒」という話に驚いていた。転職・キャリアチェンジに関心がある学生に刺さりやすい。"></textarea>';
-      html += '</div>';
-
-      html += '</div>'; // company-detail
-      html += '</div>';
+      html += buildOneCompanyHtml(c, idx, isPreselected);
     });
 
     area.innerHTML = html;
@@ -208,6 +224,37 @@
         toggleDetail(idx, true);
       }
     });
+  }
+
+  function addCustomCompany() {
+    var input = document.getElementById('customCompanyInput');
+    var name = input.value.trim();
+    if (!name) {
+      alert('企業名を入力してください');
+      return;
+    }
+
+    var duplicate = companiesData.some(function(c) { return c.name === name; });
+    if (duplicate) {
+      alert('「' + escHtml(name) + '」はすでにリストにあります');
+      return;
+    }
+
+    var idx = companiesData.length;
+    var newCompany = { name: name, sessions: [], years: [] };
+    companiesData.push(newCompany);
+
+    var area = document.getElementById('companyListArea');
+    // 「企業なし」メッセージを消す
+    var noMsg = area.querySelector('.no-companies');
+    if (noMsg) area.innerHTML = '';
+
+    var wrapper = document.createElement('div');
+    wrapper.innerHTML = buildOneCompanyHtml(newCompany, idx, true);
+    area.appendChild(wrapper.firstChild);
+
+    toggleDetail(idx, true);
+    input.value = '';
   }
 
   function toggleYearCount(cb) {

@@ -19,10 +19,6 @@ function sendDailyEigyoReport() {
     Logger.log('sendDailyEigyoReport: 土日・祝日のためスキップ');
     return;
   }
-  if (!hasTodayNippoSubmission_()) {
-    Logger.log('sendDailyEigyoReport: 本日の日報提出なし → スキップ');
-    return;
-  }
   initChannelId_();
 
   // 1. 来店学生数・来店ユニーク学生数を取得
