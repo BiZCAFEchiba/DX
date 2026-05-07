@@ -112,64 +112,6 @@ function extractOcrDayBlocks_(text) {
   return blocks;
 }
 
-function extractOcrRowsFromBlock_(blockLines) {
-  var skipKeywords = ['スタッフ', '開始・終了', '時刻', '計:', 'ジョブカン', '管理画面'];
-  var taskKeywords = ['清掃', '在報', '棚卸', '発注', '研修', 'MTG', 'ミーティング', '引継', '営業中研修', 'OP研修'];
-  var namePatternSpaced = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Z々ァ-ヶー]+[\s　]+[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Z々ァ-ヶー]+$/u;
-  var namePatternUnspaced = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Z々ァ-ヶー]{3,8}$/u;
-  var validNameChars = /^[\u3005\u3040-\u9FFF\uF900-\uFAFF\u{20000}-\u{2FA1F}a-zA-Z々ァ-ヶー]+$/u;
-  var standaloneNames = [];
-  var standaloneTasks = [];
-  var inlineRows = [];
-
-  for (var i = 0; i < blockLines.length; i++) {
-    var trimmed = normalizePdfLine_(blockLines[i]);
-    if (!trimmed) continue;
-    if (trimmed.indexOf('http') === 0) continue;
-    if (/^\d+(?:\/\d+)?$/.test(trimmed)) continue;
-    if (skipKeywords.some(function(kw) { return trimmed.indexOf(kw) !== -1; })) continue;
-
-    var timeRanges = extractTimeRanges_(trimmed);
-    if (timeRanges.length > 0) {
-      var firstRange = timeRanges[0];
-      var lastRange = timeRanges[timeRanges.length - 1];
-      var namePartRaw = trimmed.substring(0, firstRange.index).trim();
-      var namePart = namePartRaw.replace(/\s+/g, '');
-      var afterTime = trimmed.substring(lastRange.index + lastRange.raw.length).trim();
-      var isValidName = namePart && validNameChars.test(namePart) &&
-        !taskKeywords.some(function(kw) { return namePart.indexOf(kw) !== -1; });
-      if (isValidName) {
-        inlineRows.push({
-          name: namePart,
-          tasks: extractTasks(namePartRaw + ' ' + afterTime, taskKeywords)
-        });
-      }
-      continue;
-    }
-
-    var lineTasks = extractTasks(trimmed, taskKeywords);
-    if (lineTasks.length > 0) {
-      standaloneTasks.push(lineTasks);
-      continue;
-    }
-
-    if (namePatternSpaced.test(trimmed) || namePatternUnspaced.test(trimmed)) {
-      standaloneNames.push(trimmed.replace(/\s+/g, ''));
-    }
-  }
-
-  if (standaloneNames.length === 0) return inlineRows;
-
-  var rows = [];
-  for (var ni = 0; ni < standaloneNames.length; ni++) {
-    rows.push({
-      name: standaloneNames[ni],
-      tasks: standaloneTasks[ni] || []
-    });
-  }
-  return rows.length >= inlineRows.length ? rows : inlineRows;
-}
-
 function mergeBandRowsWithOcrRows_(ocrBlock, rowMeta, bandBlock) {
   var shifts = [];
   var rowCount = Math.min(rowMeta.length, bandBlock.rows.length);

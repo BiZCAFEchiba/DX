@@ -6,35 +6,43 @@ var STAFF_RECV_MAPPING = {}; // { 'Recv ID': 'Name' }
  * グローバル変数を更新
  */
 function loadStaffMappingFromSheets_() {
+  // CacheService で5分キャッシュ（スタッフ変更は稀なためTTLベースで十分）
+  var staffCache = CacheService.getScriptCache();
+  var staffCached = staffCache.get('staff_mapping');
+  if (staffCached) {
+    try {
+      var parsed = JSON.parse(staffCached);
+      STAFF_SEND_MAPPING = parsed.send;
+      STAFF_RECV_MAPPING = parsed.recv;
+      return parsed;
+    } catch(e) {}
+  }
+
   try {
     const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_STAFF);
-    if (!sheet) return;
+    if (!sheet) return null;
 
     const data = sheet.getDataRange().getValues();
     const sendMap = {};
     const recvMap = {};
 
-    Logger.log('スタッフシート読込開始: 全' + data.length + '行');
-
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
       const name = row[0] ? String(row[0]).trim() : '';
       const sendId = row[1] ? String(row[1]).trim() : '';
-      const recvId = row[5] ? String(row[5]).trim() : sendId; // F列が空ならB列を代用
+      const recvId = row[5] ? String(row[5]).trim() : sendId;
 
-      if (name && sendId) {
-        sendMap[name] = sendId;
-      }
-      if (name && recvId) {
-        recvMap[recvId] = name;
-      }
+      if (name && sendId) sendMap[name] = sendId;
+      if (name && recvId) recvMap[recvId] = name;
     }
 
     STAFF_SEND_MAPPING = sendMap;
     STAFF_RECV_MAPPING = recvMap;
 
+    var staffResult = { send: sendMap, recv: recvMap };
+    try { staffCache.put('staff_mapping', JSON.stringify(staffResult), 300); } catch(e) {}
     Logger.log('スタッフマッピング更新完了: 送信' + Object.keys(sendMap).length + '名 / 受信' + Object.keys(recvMap).length + '名');
-    return { send: sendMap, recv: recvMap };
+    return staffResult;
   } catch (e) {
     Logger.log('スタッフマッピング読込エラー: ' + e.message);
     return null;

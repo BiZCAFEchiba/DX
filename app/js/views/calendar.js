@@ -727,25 +727,9 @@ var CalendarView = (function () {
           overlay.hidden = true;
           if (res.ok) {
             showToast('引受け完了しました！');
-            // ローカルデータを即時書き換えて再描画
-            var dd = shiftDates[dayData.date];
-            if (dd) {
-              dd.staff.forEach(function(s) {
-                if (s.name === shift.name && s.start === shift.start && s.end === shift.end) {
-                  s.name   = agent;
-                  s.start  = newStart || s.start;
-                  s.end    = newEnd   || s.end;
-                  s.status = '';
-                }
-              });
-              if (shift.recruitId) {
-                dd.recruitments = (dd.recruitments || []).filter(function(r) { return r.id !== shift.recruitId; });
-              }
-            }
+            // キャッシュを削除してサーバーから最新データを再取得
+            // （部分引受けで残り募集が新規登録されるためローカル書き換えは行わない）
             localStorage.removeItem('cache_shifts_' + currentYear + '_' + pad(currentMonth + 1));
-            renderGrid();
-            loadDayDetail();
-            // バックグラウンドで最新データを同期
             loadMonth();
           } else { throw new Error(res.error || 'エラー'); }
         }).catch(function(err) { overlay.hidden = true; showToast('エラー: ' + err.message, true); });

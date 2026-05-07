@@ -820,8 +820,20 @@ function doGet(e) {
 
   // シフト一覧取得（PWA用・日付範囲指定）
   if (param.action === 'getShifts') {
-    var fromDate = param.from ? new Date(param.from + 'T00:00:00') : new Date('2000-01-01');
-    var toDate   = param.to   ? new Date(param.to   + 'T23:59:59') : new Date('2099-12-31');
+    var fromStr = param.from || '';
+    var toStr   = param.to   || '';
+
+    // CacheService: SHIFT_LAST_MODIFIEDをキーに含め、変更時は自動的に別キーになる
+    var shiftLm = PropertiesService.getScriptProperties().getProperty('SHIFT_LAST_MODIFIED') || '0';
+    var shiftCacheKey = 'shifts_' + fromStr + '_' + toStr + '_' + shiftLm;
+    var gasCache = CacheService.getScriptCache();
+    var shiftCached = gasCache.get(shiftCacheKey);
+    if (shiftCached) {
+      return ContentService.createTextOutput(shiftCached).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var fromDate = fromStr ? new Date(fromStr + 'T00:00:00') : new Date('2000-01-01');
+    var toDate   = toStr   ? new Date(toStr   + 'T23:59:59') : new Date('2099-12-31');
     var shiftsSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
     var dayMap = {};
     if (shiftsSheet && shiftsSheet.getLastRow() > 1) {
@@ -846,8 +858,6 @@ function doGet(e) {
     }
     var shifts = Object.keys(dayMap).sort().map(function(k) {
       dayMap[k].staff.sort(function(a, b) { return a.start.localeCompare(b.start); });
-      // 不足時間帯をシフトデータと一緒に返す（追加API呼び出し不要にする）
-      // 募集中スタッフは実質不在として除外してから計算
       try {
         var activeStaffForShortage = dayMap[k].staff.filter(function(s) { return s.status !== '募集中'; });
         var shortageResult = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), activeStaffForShortage);
@@ -861,8 +871,9 @@ function doGet(e) {
       }
       return dayMap[k];
     });
-    return ContentService.createTextOutput(JSON.stringify({ success: true, data: { shifts: shifts } }))
-      .setMimeType(ContentService.MimeType.JSON);
+    var shiftResult = JSON.stringify({ success: true, data: { shifts: shifts } });
+    try { gasCache.put(shiftCacheKey, shiftResult, 300); } catch(e) {}
+    return ContentService.createTextOutput(shiftResult).setMimeType(ContentService.MimeType.JSON);
   }
 
   // シフト募集リマインド（PWAシフトカレンダー用）
@@ -1165,22 +1176,41 @@ function triggerShortageAlert() {
 /**
  * 未確認者への追っかけリマインドを送信する（トリガー実行用 entry point）
  * 実行推奨時間: 17:00頃
+ * - 土日・祝日はスキップ
+ * - 翌日以降で最初のauto送信済み対象日を探し、シフト前日まで毎営業日送信
  */
 function triggerFollowUpReminder() {
   Logger.log('=== 未確認者への追っかけリマインド チェック開始 ===');
 
   const now = new Date();
-  const nextBusinessDay = findNextBusinessDay_(now);
-  const targetISO = formatDateToISO_(nextBusinessDay);
-  const targetDisplay = Utilities.formatDate(nextBusinessDay, TIMEZONE, 'M月d日(E)');
 
-  Logger.log('ターゲット日: ' + targetDisplay + ' (' + targetISO + ')');
-
-  // 既にメインのリマインドが送信されていない場合は追っかけない
-  if (!isAlreadySent_(targetISO, 'auto')) {
-    Logger.log(targetDisplay + ' 向けのリマインドがまだ送信されていないため終了します。');
+  // 土曜・日曜はスキップ
+  const todayDow = now.getDay();
+  if (todayDow === 0 || todayDow === 6) {
+    Logger.log('土日のため追っかけリマインドをスキップします。');
     return;
   }
+
+  // 祝日はスキップ
+  if (isJapaneseHoliday_(now)) {
+    Logger.log('祝日のため追っかけリマインドをスキップします。');
+    return;
+  }
+
+  // 翌日以降で最初の「auto送信済み」の対象日を探す（シフト前日まで対応）
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowISO = formatDateToISO_(tomorrow);
+  const targetISO = findPendingReminderTarget_(tomorrowISO);
+
+  if (!targetISO) {
+    Logger.log('対象となる送信済みリマインドがないため終了。');
+    return;
+  }
+
+  const targetDate = new Date(targetISO + 'T00:00:00');
+  const targetDisplay = Utilities.formatDate(targetDate, TIMEZONE, 'M月d日(E)');
+
+  Logger.log('ターゲット日: ' + targetDisplay + ' (' + targetISO + ')');
 
   // 翌日のシフト名簿を取得
   const shiftData = getShiftsFromSheets_(targetISO);
@@ -1199,9 +1229,8 @@ function triggerFollowUpReminder() {
   }
 
   if (unconfirmedStaff.length === 0) {
-    // 全員確認済み → ありがとうは確認ボタン押下時にリアルタイム送信済みのためここでは送らない
+    // 全員確認済み → 確認状態は保持したまま（翌日以降のフォローアップに引き継ぐ）
     Logger.log('全員確認済みのためリマインド不要。');
-    resetAcknowledgment_(targetISO);
     return;
   }
 
@@ -1260,9 +1289,6 @@ function triggerFollowUpReminder() {
     Logger.log('追っかけリマインド送信エラー: ' + e.message);
     writeLogToSheets_(targetISO, unconfirmedStaff.length, 'followup', 'error', e.message);
   }
-
-  // 確認サイクル終了 → 当日分の確認状況をリセット
-  resetAcknowledgment_(targetISO);
 }
 
 /**
@@ -1604,6 +1630,40 @@ function isAlreadySent_(dateISO, method) {
     Logger.log('送信済みチェックエラー: ' + e.message);
   }
   return false;
+}
+
+/**
+ * 翌日以降で最初の「auto送信済み」リマインドの対象日を返す
+ * シフト前日まで再リマインドを継続するために使用
+ * @param {string} fromISO - YYYY-MM-DD（この日以降を対象）
+ * @returns {string|null} 対象日 YYYY-MM-DD、なければ null
+ */
+function findPendingReminderTarget_(fromISO) {
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName(SHEET_LOGS);
+    if (!sheet) return null;
+
+    const data = sheet.getDataRange().getValues();
+    let earliest = null;
+
+    for (let i = 1; i < data.length; i++) {
+      const logDate = data[i][1] instanceof Date ? formatDateToISO_(data[i][1]) : String(data[i][1]);
+      const logMethod = String(data[i][3]);
+      const logResult = String(data[i][4]);
+
+      if (logMethod === 'auto' && logResult === 'success' && logDate >= fromISO) {
+        if (!earliest || logDate < earliest) {
+          earliest = logDate;
+        }
+      }
+    }
+
+    return earliest;
+  } catch (e) {
+    Logger.log('findPendingReminderTarget_ エラー: ' + e.message);
+    return null;
+  }
 }
 
 /**

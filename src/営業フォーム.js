@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // 営業フォーム.js - 毎日22:00に来店数・Meetup誘致報告を送信する
 // ============================================================
 
@@ -239,20 +239,6 @@ function isTodayWeekendOrHoliday_() {
 // セットアップ・テスト
 // ============================================================
 
-/**
- * 全トリガーの一覧をログに出力する（どれが不要か確認用）
- */
-function listAllTriggers() {
-  var triggers = ScriptApp.getProjectTriggers();
-  Logger.log('登録済みトリガー数: ' + triggers.length);
-  triggers.forEach(function(t, i) {
-    Logger.log(
-      '[' + i + '] ' + t.getHandlerFunction() +
-      ' | type=' + t.getTriggerSource() +
-      ' | id=' + t.getUniqueId()
-    );
-  });
-}
 
 /**
  * 重複トリガーと不要なテストトリガーを削除してから sendDailyEigyoReport を登録する

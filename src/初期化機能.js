@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // setup.gs - スプレッドシート初期化・メニュー追加
 // ============================================================
 
@@ -103,35 +103,6 @@ function setSpringTermBreak2026() {
   sheet.getRange(2, 1).setNumberFormat('yyyy/M/d');
 
   Logger.log('期間設定シートに 2026/1/1 ターム休み を追加しました');
-}
-
-/**
- * スプレッドシートを開いたときに実行される
- * メニュー「設定」→「初期化」を追加
- */
-function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('ShiftReminder')
-    .addItem('シート初期化', 'initSheets')
-    .addSeparator()
-    .addItem('PDF解析 → シート取込（手動）', 'menuParsePdf')
-    .addSeparator()
-    .addItem('スタッフ更新', 'menuRefreshStaff')
-    .addItem('受信ID取得（未登録者のみ）', 'requestNameRegistration')
-    .addItem('スタッフC列チェックボックス設定', 'setupStaffCheckboxColumn')
-    .addSeparator()
-    .addItem('既存シフトをカレンダー同期', 'menuSyncCalendarFromSheet')
-    .addSeparator()
-    .addItem('自動送信（トリガー）設定', 'setupTriggers')
-    .addToUi();
-
-  ui.createMenu('Meetup管理')
-    .addItem('🤖 AI検索（アピール＋業界）', 'menuFillAppealPoints')
-    .addSeparator()
-    .addItem('Meetup企業フォーム 選択肢を更新', 'menuSyncMeetupForm')
-    .addItem('Meetup企業フォーム 送信トリガー設定', 'setupMeetupFormTrigger')
-    .addItem('トリガー設定（設定シートから）', 'setupTriggers')
-    .addToUi();
 }
 
 /**

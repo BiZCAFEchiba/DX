@@ -774,6 +774,25 @@ function approveShiftRecruitment_(params) {
     } catch(e) { Logger.log('募集ステータス更新エラー: ' + e.message); }
   }
 
+  // 部分引受けの場合: 残り時間帯の募集エントリを登録し「入れない」回答を引き継ぐ
+  try {
+    var remainingSegments = [];
+    if (newStart && newEnd && origStart && origEnd) {
+      if (newStart > origStart) remainingSegments.push({ start: origStart, end: newStart });
+      if (newEnd   < origEnd)   remainingSegments.push({ start: newEnd,   end: origEnd });
+    }
+    if (remainingSegments.length > 0) {
+      var oldResponses = params.recruitId ? getRecruitmentResponses_(params.recruitId) : { available: [], unavailable: [] };
+      remainingSegments.forEach(function(seg) {
+        var newRecId = saveRecruitment_({ date: params.date, start: seg.start, end: seg.end, staffName: params.originalStaff, reason: params.reason || '' });
+        oldResponses.unavailable.forEach(function(uname) {
+          recordRecruitmentResponse_(newRecId, uname, '入れない');
+        });
+        Logger.log('残り募集登録: ' + newRecId + ' (' + seg.start + '〜' + seg.end + '), 入れない引継: ' + oldResponses.unavailable.length + '名');
+      });
+    }
+  } catch(e) { Logger.log('残り募集登録エラー: ' + e.message); }
+
   const timeLabel = newStart && newEnd ? newStart + '〜' + newEnd : (params.originalTime || '');
   let text = '✅ 【シフト交代 承認完了】\n\n';
   text += 'シフトの交代が成立しました。\n\n';
