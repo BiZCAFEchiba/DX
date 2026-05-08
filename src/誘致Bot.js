@@ -330,10 +330,10 @@ function buildYuchiGroupMessage_(formData) {
 }
 
 /**
- * スクリプトプロパティからWebApp URLを取得する
+ * WebApp URLを取得する（常に現在のデプロイURLを動的に返す）
  */
 function getWebAppUrl_() {
-  return PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') || '';
+  return ScriptApp.getService().getUrl();
 }
 
 // ============================================================
