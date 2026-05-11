@@ -247,8 +247,7 @@ function setupYuchiFormTrigger() {
  * GASエディタのデプロイURLをコピーしてこの関数の引数に貼り付けて実行
  */
 function setWebAppUrl() {
-  // ここにデプロイURLを貼り付けて実行
-  var url = 'https://script.google.com/macros/s/AKfycbxc5QSSH2bHqX6cuHqClVMWfkBrfqW8Zi4AY2E_wYPjO2NWUD4oJXMihgR1XtVgR0vP/exec';
+  var url = 'https://script.google.com/macros/s/AKfycbz7-u0KjsXGA8RXjD8eLHA8amJg3oesL_ahcyvbXU7TX53y_qec3MR6pClR6uj5wIPS/exec';
   PropertiesService.getScriptProperties().setProperty('WEBAPP_URL', url);
   Logger.log('WebApp URL 保存完了: ' + url);
 }
@@ -330,10 +329,11 @@ function buildYuchiGroupMessage_(formData) {
 }
 
 /**
- * WebApp URLを取得する（常に現在のデプロイURLを動的に返す）
+ * WebApp URLをスクリプトプロパティから取得する
+ * setWebAppUrl() で事前に保存が必要
  */
 function getWebAppUrl_() {
-  return ScriptApp.getService().getUrl();
+  return PropertiesService.getScriptProperties().getProperty('WEBAPP_URL') || '';
 }
 
 // ============================================================
@@ -401,19 +401,19 @@ function replayTodayYuchiFormResponses() {
 }
 
 /**
- * テストグループにフォームURLを送信する
- * デジタル庁・東京都を選択済みの状態でフォームURLを投稿する
+ * テストグループにフォームURLをボタン形式で送信する（動作確認用）
+ * デジタル庁・東京都を選択済みの状態でボタンメッセージをテストグループに投稿する
  */
 function testSendYuchiFormUrl() {
   var webAppUrl = getWebAppUrl_();
   if (!webAppUrl) {
-    Logger.log('WebApp URLが未設定です。setWebAppUrl() を先に実行してください。');
+    Logger.log('WebApp URLが未設定です。');
     return;
   }
 
   var testName = 'テストスタッフ';
   var formUrl = webAppUrl + '?page=yuchi&name=' + encodeURIComponent(testName) + '&companies=' + encodeURIComponent('デジタル庁,東京都');
-  var text = testName + ' さん\n誘致情報の入力をお願いします！\n\n' + formUrl;
+  var contentText = testName + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。';
 
   var token = getLineWorksAccessToken();
   if (!token) { Logger.log('認証失敗'); return; }
@@ -423,11 +423,53 @@ function testSendYuchiFormUrl() {
     method: 'post',
     contentType: 'application/json',
     headers: { 'Authorization': 'Bearer ' + token },
-    payload: JSON.stringify({ content: { type: 'text', text: text } }),
+    payload: JSON.stringify({
+      content: {
+        type: 'button_template',
+        contentText: contentText,
+        actions: [{ type: 'uri', label: '誘致フォームを開く', uri: formUrl }]
+      }
+    }),
     muteHttpExceptions: true
   });
 
-  Logger.log('URL送信結果: HTTP ' + res.getResponseCode());
+  Logger.log('ボタン送信結果: HTTP ' + res.getResponseCode() + ' / URL: ' + formUrl);
+}
+
+/**
+ * 本番と同じコードパスで特定スタッフにDMを送る（本番動作確認用）
+ * TEST_STAFF_NAME に確認したいスタッフ名を設定してGASエディタから実行する
+ */
+function testSendYuchiDMButton() {
+  var TEST_STAFF_NAME = '杉本尚哉';
+  var TEST_COMPANIES  = 'デジタル庁,東京都';
+
+  if (!TEST_STAFF_NAME) {
+    Logger.log('TEST_STAFF_NAME が未設定です。関数内に名前を入力してください。');
+    return;
+  }
+
+  var webAppUrl = getWebAppUrl_();
+  if (!webAppUrl) { Logger.log('WebApp URL未取得'); return; }
+
+  var mappings = loadStaffMappingFromSheets_();
+  var sendMap = mappings ? mappings.send : {};
+  var userId = sendMap[TEST_STAFF_NAME];
+  if (!userId) {
+    Logger.log('LINE WORKS IDが見つかりません: ' + TEST_STAFF_NAME);
+    Logger.log('登録済みスタッフ: ' + Object.keys(sendMap).join(', '));
+    return;
+  }
+
+  var formUrl = webAppUrl + '?page=yuchi&name=' + encodeURIComponent(TEST_STAFF_NAME)
+    + '&companies=' + encodeURIComponent(TEST_COMPANIES);
+  var msgText = TEST_STAFF_NAME + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。';
+
+  var success = sendLineWorksButtonMessage(userId, msgText, [
+    { type: 'uri', label: '誘致フォームを開く', uri: formUrl }
+  ]);
+  Logger.log('DM送信' + (success ? '成功' : '失敗') + ' → ' + TEST_STAFF_NAME + ' (' + userId + ')');
+  Logger.log('URL: ' + formUrl);
 }
 
 /**
