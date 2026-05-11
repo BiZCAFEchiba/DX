@@ -102,6 +102,10 @@ var API = (function () {
     return get({ action: 'roomSettings', set: 'blockedDates', dates: JSON.stringify(dates) });
   }
 
+  function setShiruPassExternal(id) {
+    return get({ action: 'shiruPassSetExternal', id: id });
+  }
+
   function notifyShiftChange(params) {
     params.page = 'calendar';
     params.action = 'notifyShiftChange';
@@ -173,6 +177,7 @@ var API = (function () {
     getLastModified: getLastModified,
     getMeetings: getMeetings, getMeetingAttendance: getMeetingAttendance,
     getMeetingStaffList: getMeetingStaffList, saveMeetingAttendance: saveMeetingAttendance,
-    getRoomSettings: getRoomSettings, setRoomTimeRange: setRoomTimeRange, setRoomOpenDate: setRoomOpenDate, setRoomBlockedDates: setRoomBlockedDates
+    getRoomSettings: getRoomSettings, setRoomTimeRange: setRoomTimeRange, setRoomOpenDate: setRoomOpenDate, setRoomBlockedDates: setRoomBlockedDates,
+    setShiruPassExternal: setShiruPassExternal
   };
 })();

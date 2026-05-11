@@ -1461,30 +1461,38 @@
             <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#6a5548,#8a7060);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">📅</div>
             <div style="font-size:0.65rem;color:#8a7060;font-weight:700;text-align:center;line-height:1.4;">①利用日<br>を選択</div>
           </div>
-          <div style="flex:0 0 18px;height:2px;background:linear-gradient(90deg,#c4a98a,#d4b99a);border-radius:2px;margin-bottom:14px;"></div>
+          <div style="flex:0 0 12px;height:2px;background:linear-gradient(90deg,#c4a98a,#d4b99a);border-radius:2px;margin-bottom:14px;"></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
+            <div style="width:34px;height:34px;border-radius:50%;background:#ede0d4;color:#8a7060;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">🚪</div>
+            <div style="font-size:0.65rem;color:#aaa;font-weight:700;text-align:center;line-height:1.4;">②部屋<br>を選択</div>
+          </div>
+          <div style="flex:0 0 12px;height:2px;background:#e8ddd5;border-radius:2px;margin-bottom:14px;"></div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
             <div style="width:34px;height:34px;border-radius:50%;background:#ede0d4;color:#8a7060;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">🕐</div>
-            <div style="font-size:0.65rem;color:#aaa;font-weight:700;text-align:center;line-height:1.4;">②時刻<br>を選択</div>
+            <div style="font-size:0.65rem;color:#aaa;font-weight:700;text-align:center;line-height:1.4;">③時刻<br>を選択</div>
           </div>
-          <div style="flex:0 0 18px;height:2px;background:#e8ddd5;border-radius:2px;margin-bottom:14px;"></div>
+          <div style="flex:0 0 12px;height:2px;background:#e8ddd5;border-radius:2px;margin-bottom:14px;"></div>
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
             <div style="width:34px;height:34px;border-radius:50%;background:#ede0d4;color:#8a7060;display:flex;align-items:center;justify-content:center;font-size:0.95rem;">✏️</div>
-            <div style="font-size:0.65rem;color:#aaa;font-weight:700;text-align:center;line-height:1.4;">③情報入力<br>・申し込み</div>
+            <div style="font-size:0.65rem;color:#aaa;font-weight:700;text-align:center;line-height:1.4;">④情報入力<br>・申し込み</div>
           </div>
         </div>
 
-        <!-- 日付選択 -->
+        <!-- 日付・部屋選択 -->
         <div class="room-card">
           <div class="room-card-label">📅 利用日を選択</div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <input type="date" id="roomDateInput" class="room-date-input" style="width:auto;flex:0 0 auto;">
-            <button class="room-btn-primary" onclick="loadRoomSlots()" style="flex:1;min-width:120px;padding:11px 12px;">空き状況を確認</button>
+          <input type="date" id="roomDateInput" class="room-date-input" style="width:100%;margin-bottom:14px;">
+          <div class="room-card-label">🚪 部屋を選択</div>
+          <div style="display:flex;gap:10px;">
+            <button class="room-btn-primary" id="roomSelectBtn1" onclick="loadRoomSlots(1)" style="flex:1;padding:11px 8px;">ルーム1<br><span style="font-size:0.75rem;font-weight:400;">空き確認</span></button>
+            <button class="room-btn-primary" id="roomSelectBtn2" onclick="loadRoomSlots(2)" style="flex:1;padding:11px 8px;">ルーム2<br><span style="font-size:0.75rem;font-weight:400;">空き確認</span></button>
           </div>
         </div>
 
         <!-- スロット一覧 -->
         <div id="roomSlotsSection" style="display:none;">
           <div class="room-card">
+            <div id="roomNoLabel" style="display:inline-block;font-size:0.8rem;font-weight:700;color:#fff;background:#8a7060;border-radius:999px;padding:2px 12px;margin-bottom:8px;"></div>
             <div class="room-card-label">⏰ 開始時刻を選択</div>
             <div id="roomSlotsLoading" style="display:none;text-align:center;padding:18px 0;">
               <div class="room-loading-spinner"></div>
@@ -3938,6 +3946,7 @@ window.onDayClick = function(dateISO) {
   var roomSelectedEnd = '';
   var roomSelectedDuration = 15;
   var roomAvailableSlots = [];
+  var roomSelectedNo = 0;
 
   (function() {
     var today = new Date();
@@ -3995,14 +4004,23 @@ window.onDayClick = function(dateISO) {
     }
   })();
 
-  function loadRoomSlots() {
+  function loadRoomSlots(roomNo) {
     var dateEl = document.getElementById('roomDateInput');
     roomSelectedDate = dateEl ? dateEl.value : '';
-    if (!roomSelectedDate) return;
+    if (!roomSelectedDate) { alert('利用日を選択してください。'); return; }
+    roomSelectedNo = roomNo;
+
+    // 選択中の部屋ボタンをハイライト
+    [1, 2].forEach(function(n) {
+      var btn = document.getElementById('roomSelectBtn' + n);
+      if (btn) btn.style.opacity = n === roomNo ? '1' : '0.5';
+    });
 
     var slotSection = document.getElementById('roomSlotsSection');
     var slotList = document.getElementById('roomSlotList');
     var slotLoading = document.getElementById('roomSlotsLoading');
+    var noLabel = document.getElementById('roomNoLabel');
+    if (noLabel) noLabel.textContent = 'ルーム' + roomNo;
     slotSection.style.display = 'block';
     slotList.style.display = 'none';
     slotList.innerHTML = '<option value="">-- 時刻を選んでください --</option>';
@@ -4011,7 +4029,7 @@ window.onDayClick = function(dateISO) {
     document.getElementById('roomSuccessSection').style.display = 'none';
     roomSelectedStart = '';
 
-    fetch(GAS_API_URL + '?page=calendar&action=roomAvailability&date=' + encodeURIComponent(roomSelectedDate))
+    fetch(GAS_API_URL + '?page=calendar&action=roomAvailability&date=' + encodeURIComponent(roomSelectedDate) + '&roomNo=' + roomNo)
       .then(function(r) { return r.json(); })
       .then(function(data) {
         slotLoading.style.display = 'none';
@@ -4112,7 +4130,7 @@ window.onDayClick = function(dateISO) {
   function updateRoomFormHeader() {
     roomSelectedEnd = roomMinToTimeClient(roomTimeToMinClient(roomSelectedStart) + roomSelectedDuration);
     var label = document.getElementById('roomSelectedSlotLabel');
-    if (label) label.textContent = roomSelectedDate + ' ' + roomSelectedStart + ' 〜 ' + roomSelectedEnd;
+    if (label) label.textContent = 'ルーム' + roomSelectedNo + '　' + roomSelectedDate + ' ' + roomSelectedStart + ' 〜 ' + roomSelectedEnd;
   }
 
   function cancelRoomForm() {
@@ -4144,7 +4162,8 @@ window.onDayClick = function(dateISO) {
       + '&end=' + encodeURIComponent(roomSelectedEnd)
       + '&name=' + encodeURIComponent(name)
       + '&purpose=' + encodeURIComponent(purpose)
-      + '&shiruPassId=' + encodeURIComponent(shiruPassId);
+      + '&shiruPassId=' + encodeURIComponent(shiruPassId)
+      + '&roomNo=' + roomSelectedNo;
 
     fetch(url)
       .then(function(r) { return r.json(); })
@@ -4176,7 +4195,7 @@ window.onDayClick = function(dateISO) {
         // 成功
         document.getElementById('roomFormSection').style.display = 'none';
         var detail = document.getElementById('roomSuccessDetail');
-        detail.textContent = roomSelectedDate + ' ' + roomSelectedStart + ' 〜 ' + roomSelectedEnd + '（' + roomSelectedDuration + '分）';
+        detail.textContent = 'ルーム' + roomSelectedNo + '　' + roomSelectedDate + ' ' + roomSelectedStart + ' 〜 ' + roomSelectedEnd + '（' + roomSelectedDuration + '分）';
         var idEl = document.getElementById('roomSuccessId');
         if (idEl) idEl.textContent = data.id || '';
         document.getElementById('roomSuccessSection').style.display = 'block';
@@ -4204,6 +4223,11 @@ window.onDayClick = function(dateISO) {
     roomSelectedDate = '';
     roomSelectedStart = '';
     roomSelectedEnd = '';
+    roomSelectedNo = 0;
+    [1, 2].forEach(function(n) {
+      var btn = document.getElementById('roomSelectBtn' + n);
+      if (btn) btn.style.opacity = '1';
+    });
     var el = document.getElementById('roomDateInput');
     if (el) el.value = '';
   }

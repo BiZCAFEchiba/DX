@@ -81,6 +81,16 @@ var LogsView = (function () {
         '<div style="font-size:0.75rem;color:#888;margin-top:4px;">空欄の場合は営業時間に準じます</div>' +
         '<div id="room-time-range-msg" style="font-size:0.78rem;min-height:1em;margin-top:4px;"></div>' +
       '</div>' +
+      // 外部向け（永久有効）設定
+      '<div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid #eee;">' +
+        '<div style="font-size:0.82rem;font-weight:700;color:#555;margin-bottom:6px;">🌐 外部向け設定（永久有効化）</div>' +
+        '<div style="font-size:0.75rem;color:#888;margin-bottom:8px;">外部参加者の知るパスIDを永久有効にします</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;">' +
+          '<input type="text" id="external-shiru-id" class="form-input" style="flex:1;" placeholder="知るパスID">' +
+          '<button class="btn btn-primary btn-sm" id="btn-set-external">外部向け</button>' +
+        '</div>' +
+        '<div id="external-shiru-msg" style="font-size:0.78rem;min-height:1em;margin-top:4px;"></div>' +
+      '</div>' +
       // 予約不可期間カレンダー
       '<div>' +
         '<div style="font-size:0.82rem;font-weight:700;color:#555;margin-bottom:6px;">🚫 予約不可日</div>' +
@@ -116,6 +126,25 @@ var LogsView = (function () {
           var errMsg = { invalid_time: '時刻の形式が正しくありません', start_after_end: '開始が終了より後になっています' };
           msg.style.color = res.ok ? '#16a34a' : 'var(--error)';
           msg.textContent = res.ok ? '保存しました' : (errMsg[res.error] || res.error || '保存失敗');
+        })
+        .catch(function () { msg.style.color = 'var(--error)'; msg.textContent = '通信エラー'; });
+    });
+
+    document.getElementById('btn-set-external').addEventListener('click', function () {
+      var id = document.getElementById('external-shiru-id').value.trim();
+      var msg = document.getElementById('external-shiru-msg');
+      if (!id) { msg.style.color = 'var(--error)'; msg.textContent = 'IDを入力してください'; return; }
+      msg.style.color = '#888'; msg.textContent = '処理中...';
+      API.setShiruPassExternal(id)
+        .then(function (res) {
+          if (res.ok) {
+            msg.style.color = '#16a34a';
+            msg.textContent = '外部向けに設定しました（' + res.id + '）';
+            document.getElementById('external-shiru-id').value = '';
+          } else {
+            msg.style.color = 'var(--error)';
+            msg.textContent = res.error === 'not_found' ? 'IDが見つかりません' : (res.error || '設定失敗');
+          }
         })
         .catch(function () { msg.style.color = 'var(--error)'; msg.textContent = '通信エラー'; });
     });

@@ -118,8 +118,8 @@ function getRoomSheet_() {
     sheet = ss.insertSheet(SHEET_ROOM_RESERVATIONS);
     sheet.getRange(1, 1, 1, 13).setValues([[
       '予約ID','申請日時','予約日','開始時刻','終了時刻',
-      '利用人数','利用目的','氏名','連絡先','ステータス',
-      'スタッフメモ','更新日時','チェックイン日時'
+      '利用人数','利用目的','氏名','ステータス',
+      '更新日時','チェックイン日時','知るパスID','ルーム番号'
     ]]);
     sheet.getRange(1, 1, 1, 13).setFontWeight('bold');
   }
@@ -173,7 +173,8 @@ function readAllRoomReservations_() {
       status:      String(data[i][8] || ''),
       updatedAt:   data[i][9] instanceof Date ? Utilities.formatDate(data[i][9], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][9] || ''),
       checkedInAt: data[i][10] instanceof Date ? Utilities.formatDate(data[i][10], TIMEZONE, "yyyy-MM-dd'T'HH:mm:ssXXX") : String(data[i][10] || ''),
-      shiruPassId: String(data[i][11] || '')
+      shiruPassId: String(data[i][11] || ''),
+      roomNo:      parseInt(data[i][12]) || 1
     });
   }
   return rows;
@@ -206,12 +207,14 @@ function getRoomSlots_(dateStr) {
 
 // ===== 空き状況取得 =====
 
-function getRoomAvailability_(dateStr) {
+function getRoomAvailability_(dateStr, roomNo) {
+  var rn = parseInt(roomNo) || 1;
   var slots = getRoomSlots_(dateStr);
-  if (!slots.length) return { date: dateStr, closed: true, slots: [], checkinMode: getRoomCheckinMode_() };
+  if (!slots.length) return { date: dateStr, closed: true, slots: [], checkinMode: getRoomCheckinMode_(), roomNo: rn };
 
   var actives = readAllRoomReservations_().filter(function(r) {
     return r.date === dateStr &&
+           r.roomNo === rn &&
            (r.status === 'approved' || r.status === 'pending' || r.status === 'checked_in');
   });
 
@@ -224,6 +227,7 @@ function getRoomAvailability_(dateStr) {
     date: dateStr,
     closed: false,
     checkinMode: getRoomCheckinMode_(),
+    roomNo: rn,
     slots: slots.map(function(slot) {
       var occupied = actives.some(function(r) {
         return roomTimesOverlap_(slot.start, slot.end, r.start, r.end);
@@ -442,6 +446,25 @@ function getUsedMinutesByShiruPass_(shiruPassId) {
     }
   });
   return total;
+}
+
+/**
+ * 知るパスIDを外部向け（永久有効）に設定する
+ * 有効期限を2099-12-31に設定し、種別を'external'に変更する
+ */
+function setShiruPassExternal_(id) {
+  if (!id) return { ok: false, error: 'missing_id' };
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][0]).toUpperCase() === String(id).toUpperCase()) {
+      var permanentExpiry = new Date(2099, 11, 31, 23, 59, 59);
+      sheet.getRange(i + 1, 3).setValue(permanentExpiry); // C列: 有効期限
+      sheet.getRange(i + 1, 5).setValue('external');       // E列: 種別
+      return { ok: true, id: String(data[i][0]), expiry: '2099-12-31', type: 'external' };
+    }
+  }
+  return { ok: false, error: 'not_found' };
 }
 
 function renewShiruPassId_(id) {
@@ -719,6 +742,8 @@ function getShiruPassList_() {
 
 function reserveRoom_(p) {
   if (!p.date || !p.start || !p.end || !p.name) return { ok: false, error: 'missing_params' };
+  var roomNo = parseInt(p.roomNo) || 1;
+  if (roomNo !== 1 && roomNo !== 2) return { ok: false, error: 'invalid_room' };
 
   // 知るパスIDの検証
   var passResult = validateShiruPassId_(p.shiruPassId || '');
@@ -742,6 +767,7 @@ function reserveRoom_(p) {
 
   var conflict = readAllRoomReservations_().some(function(r) {
     return r.date === p.date &&
+           r.roomNo === roomNo &&
            (r.status === 'approved' || r.status === 'checked_in') &&
            roomTimesOverlap_(p.start, p.end, r.start, r.end);
   });
@@ -760,10 +786,10 @@ function reserveRoom_(p) {
   getRoomSheet_().appendRow([
     id, now, p.date, p.start, p.end,
     1, p.purpose || '', p.name,
-    'approved', now, '', p.shiruPassId || ''
+    'approved', now, '', p.shiruPassId || '', roomNo
   ]);
 
-  return { ok: true, id: id };
+  return { ok: true, id: id, roomNo: roomNo };
 }
 
 // ===== キャンセル（顧客用） =====
@@ -828,7 +854,8 @@ function getMyRoomReservations_(contact) {
     .map(function(r) {
       return { id: r.id, date: r.date, start: r.start, end: r.end,
                people: r.people, purpose: r.purpose, name: r.name,
-               status: r.status, appliedAt: r.appliedAt, checkedInAt: r.checkedInAt };
+               status: r.status, appliedAt: r.appliedAt, checkedInAt: r.checkedInAt,
+               roomNo: r.roomNo };
     })
     .sort(function(a, b) { return a.date.localeCompare(b.date) || a.start.localeCompare(b.start); });
 }

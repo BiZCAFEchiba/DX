@@ -543,7 +543,7 @@ function doGet(e) {
     }
     // ルーム予約: 空き状況取得
     if (param.action === 'roomAvailability') {
-      var roomAvail = getRoomAvailability_(param.date || '');
+      var roomAvail = getRoomAvailability_(param.date || '', parseInt(param.roomNo) || 1);
       return ContentService.createTextOutput(JSON.stringify(roomAvail))
         .setMimeType(ContentService.MimeType.JSON);
     }
@@ -682,6 +682,12 @@ function doGet(e) {
     if (param.action === 'shiruPassRenew') {
       var renewResult = renewShiruPassId_(param.id || '');
       return ContentService.createTextOutput(JSON.stringify(renewResult))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    // 知るパスIDを外部向け（永久有効）に設定（スタッフ用）
+    if (param.action === 'shiruPassSetExternal') {
+      var externalResult = setShiruPassExternal_(param.id || '');
+      return ContentService.createTextOutput(JSON.stringify(externalResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
     // 知るパスID一括更新（スタッフ用）
