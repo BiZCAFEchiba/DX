@@ -16,7 +16,6 @@ var CalendarView = (function () {
   // 対面Meetupデータ
   var inPersonMeetupByDate = {}; // { 'YYYY-MM-DD': [{company, time, kind}] }
   // 出欠確認データ（「無理」回答）
-  var declineByDate = {}; // { 'YYYY-MM-DD': ['name1', 'name2'] }
 
   function render() {
     var now = new Date();
@@ -49,12 +48,12 @@ var CalendarView = (function () {
     document.getElementById('cal-prev').addEventListener('click', function () {
       currentMonth--;
       if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-      loadMonth(); loadMeetings(); loadInPersonMeetups(); loadDeclines();
+      loadCalendarAll();
     });
     document.getElementById('cal-next').addEventListener('click', function () {
       currentMonth++;
       if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-      loadMonth(); loadMeetings(); loadInPersonMeetups(); loadDeclines();
+      loadCalendarAll();
     });
     document.getElementById('cal-name-filter').addEventListener('change', function () {
       selectedName = this.value;
@@ -80,10 +79,7 @@ var CalendarView = (function () {
       }
     }).catch(function () {});
 
-    loadMonth();
-    loadMeetings();
-    loadInPersonMeetups();
-    loadDeclines();
+    loadCalendarAll();
     startPolling();
   }
 
@@ -141,17 +137,6 @@ var CalendarView = (function () {
     }).catch(function () {});
   }
 
-  function loadDeclines() {
-    var from = currentYear + '-' + pad(currentMonth + 1) + '-01';
-    var lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
-    var to = currentYear + '-' + pad(currentMonth + 1) + '-' + pad(lastDay);
-    API.getDeclines(from, to).then(function (res) {
-      declineByDate = (res.success && res.data.declines) ? res.data.declines : {};
-      renderGrid();
-      loadDayDetail();
-    }).catch(function () {});
-  }
-
   function populateNameFilter() {
     var sel = document.getElementById('cal-name-filter');
     if (!sel) return;
@@ -184,6 +169,52 @@ var CalendarView = (function () {
     }
     renderGrid();
     loadDayDetail();
+  }
+
+  function loadCalendarAll() {
+    var from = currentYear + '-' + pad(currentMonth + 1) + '-01';
+    var lastDay = new Date(currentYear, currentMonth + 1, 0).getDate();
+    var to = currentYear + '-' + pad(currentMonth + 1) + '-' + pad(lastDay);
+    var cacheKey = 'cache_shifts_' + currentYear + '_' + pad(currentMonth + 1);
+
+    document.getElementById('cal-title').textContent = currentYear + '年' + (currentMonth + 1) + '月';
+
+    var cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      try { applyShifts(JSON.parse(cached)); } catch(e) {}
+    }
+
+    var spinner = document.getElementById('cal-loading');
+    if (spinner) spinner.style.display = 'inline-block';
+
+    var token = ++monthLoadToken;
+    API.getCalendarData(from, to)
+      .then(function(res) {
+        if (spinner) spinner.style.display = 'none';
+        if (token !== monthLoadToken) return;
+        meetingByDate = {};
+        (res.meetings || []).forEach(function(r) { if (r.date) meetingByDate[r.date] = r; });
+        if (res.meetingStaff && res.meetingStaff.length) {
+          meetingStaff = res.meetingStaff;
+          meetingStaffLoaded = true;
+        }
+        inPersonMeetupByDate = res.inPersonMeetups || {};
+        if (res.shifts) {
+          localStorage.setItem(cacheKey, JSON.stringify(res.shifts));
+          applyShifts(res.shifts);
+        } else if (!cached) {
+          renderGrid();
+          loadDayDetail();
+        } else {
+          renderGrid();
+          loadDayDetail();
+        }
+      })
+      .catch(function() {
+        if (spinner) spinner.style.display = 'none';
+        if (token !== monthLoadToken) return;
+        if (!cached) renderGrid();
+      });
   }
 
   function loadMonth() {
@@ -269,14 +300,11 @@ var CalendarView = (function () {
 
       var hasMeeting = !!meetingByDate[dateStr];
       var hasInPerson = !!(inPersonMeetupByDate[dateStr] && inPersonMeetupByDate[dateStr].length > 0);
-      var hasDecline = !!(declineByDate[dateStr] && declineByDate[dateStr].length > 0);
       if (hasMeeting) classes += ' has-meeting';
       if (hasInPerson) classes += ' has-inperson';
-      if (hasDecline) classes += ' has-decline';
       var badges = '';
       if (hasZero)     badges += '<span class="zero-badge">0オペ</span>';
       if (hasShortage) badges += '<span class="shortage-badge">不足</span>';
-      if (hasDecline)  badges += '<span class="decline-badge">無理</span>';
       if (hasInPerson) badges += '<span class="inperson-badge">対面</span>';
       if (hasMeeting)  badges += '<span class="meeting-badge">MTG</span>';
       html += '<div class="' + classes + '" data-date="' + dateStr + '">' +
@@ -398,19 +426,6 @@ var CalendarView = (function () {
           });
       });
     });
-
-    // 無理な人リストを挿入
-    var declines = declineByDate[selectedDate];
-    if (declines && declines.length > 0) {
-      var dcEl = document.createElement('div');
-      dcEl.className = 'decline-card';
-      dcEl.innerHTML =
-        '<div class="decline-card-header">❌ 無理な人</div>' +
-        '<div class="decline-card-names">' + declines.map(function (n) {
-          return '<span class="decline-name">' + n + '</span>';
-        }).join('') + '</div>';
-      detail.insertBefore(dcEl, detail.firstChild);
-    }
 
     // 店舗ミーティングカードを挿入
     var meeting = meetingByDate[selectedDate];

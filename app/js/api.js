@@ -124,10 +124,6 @@ var API = (function () {
     return get({ action: 'getInPersonMeetups', from: from, to: to });
   }
 
-  function getDeclines(from, to) {
-    return get({ action: 'getDeclines', from: from, to: to });
-  }
-
   function notifyShiftFill(params) {
     params.page = 'calendar';
     params.action = 'notifyShiftFill';
@@ -160,6 +156,10 @@ var API = (function () {
     return post({ action: 'remindRecruitment', recruitId: recruitId });
   }
 
+  function getCalendarData(from, to) {
+    return get({ action: 'getCalendarData', from: from, to: to });
+  }
+
   function getLastModified() {
     return get({ action: 'getLastModified' });
   }
@@ -170,10 +170,11 @@ var API = (function () {
     updateShift: updateShift, addShift: addShift, deleteShift: deleteShift,
     notifyShiftChange: notifyShiftChange, getShiftAgents: getShiftAgents,
     getShiftShortage: getShiftShortage, getInPersonMeetups: getInPersonMeetups,
-    getDeclines: getDeclines, notifyShiftFill: notifyShiftFill,
+    notifyShiftFill: notifyShiftFill,
     notifyShiftTrouble: notifyShiftTrouble, requestShiftRecruitment: requestShiftRecruitment, approveShiftRecruitment: approveShiftRecruitment,
     respondRecruitment: respondRecruitment,
     remindRecruitment: remindRecruitment,
+    getCalendarData: getCalendarData,
     getLastModified: getLastModified,
     getMeetings: getMeetings, getMeetingAttendance: getMeetingAttendance,
     getMeetingStaffList: getMeetingStaffList, saveMeetingAttendance: saveMeetingAttendance,

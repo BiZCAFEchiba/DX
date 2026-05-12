@@ -828,8 +828,6 @@ function doGet(e) {
   if (param.action === 'getShifts') {
     var fromStr = param.from || '';
     var toStr   = param.to   || '';
-
-    // CacheService: SHIFT_LAST_MODIFIEDをキーに含め、変更時は自動的に別キーになる
     var shiftLm = PropertiesService.getScriptProperties().getProperty('SHIFT_LAST_MODIFIED') || '0';
     var shiftCacheKey = 'shifts_' + fromStr + '_' + toStr + '_' + shiftLm;
     var gasCache = CacheService.getScriptCache();
@@ -837,49 +835,35 @@ function doGet(e) {
     if (shiftCached) {
       return ContentService.createTextOutput(shiftCached).setMimeType(ContentService.MimeType.JSON);
     }
-
-    var fromDate = fromStr ? new Date(fromStr + 'T00:00:00') : new Date('2000-01-01');
-    var toDate   = toStr   ? new Date(toStr   + 'T23:59:59') : new Date('2099-12-31');
-    var shiftsSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
-    var dayMap = {};
-    if (shiftsSheet && shiftsSheet.getLastRow() > 1) {
-      var shiftsData = shiftsSheet.getDataRange().getValues();
-      for (var si = 1; si < shiftsData.length; si++) {
-        var rawDate = shiftsData[si][0];
-        if (!rawDate) continue;
-        var sd = rawDate instanceof Date ? rawDate : new Date(rawDate);
-        if (isNaN(sd.getTime()) || sd < fromDate || sd > toDate) continue;
-        var dateStr = formatDateToISO_(sd);
-        if (!dayMap[dateStr]) {
-          dayMap[dateStr] = { date: dateStr, staff: [] };
-        }
-        dayMap[dateStr].staff.push({
-          name:  String(shiftsData[si][2]).trim(),
-          start: formatCellTime_(shiftsData[si][3]),
-          end:   formatCellTime_(shiftsData[si][4]),
-          tasks: shiftsData[si][5] ? String(shiftsData[si][5]).split(' / ').filter(Boolean) : [],
-          status: shiftsData[si][9] ? String(shiftsData[si][9]).trim() : ''
-        });
-      }
-    }
-    var shifts = Object.keys(dayMap).sort().map(function(k) {
-      dayMap[k].staff.sort(function(a, b) { return a.start.localeCompare(b.start); });
-      try {
-        var activeStaffForShortage = dayMap[k].staff.filter(function(s) { return s.status !== '募集中'; });
-        var shortageResult = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), activeStaffForShortage);
-        dayMap[k].shortages = shortageResult.shortages || [];
-        dayMap[k].zeroSlots = shortageResult.zeroSlots || [];
-        dayMap[k].recruitments = getActiveRecruitmentsForDate_(k);
-      } catch(e) {
-        dayMap[k].shortages = [];
-        dayMap[k].zeroSlots = [];
-        dayMap[k].recruitments = [];
-      }
-      return dayMap[k];
-    });
+    var shifts = buildShiftsForRange_(fromStr, toStr);
     var shiftResult = JSON.stringify({ success: true, data: { shifts: shifts } });
     try { gasCache.put(shiftCacheKey, shiftResult, 300); } catch(e) {}
     return ContentService.createTextOutput(shiftResult).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // カレンダー初期表示用一括取得（シフト＋ミーティング＋対面Meetup＋入れない回答を1リクエストで）
+  if (param.action === 'getCalendarData') {
+    var fromStr = param.from || '';
+    var toStr   = param.to   || '';
+    var shiftLm = PropertiesService.getScriptProperties().getProperty('SHIFT_LAST_MODIFIED') || '0';
+    var shiftCacheKey = 'shifts_' + fromStr + '_' + toStr + '_' + shiftLm;
+    var gasCache = CacheService.getScriptCache();
+    var shiftCached = gasCache.get(shiftCacheKey);
+    var shifts;
+    if (shiftCached) {
+      try { shifts = JSON.parse(shiftCached).data.shifts; } catch(e) { shifts = buildShiftsForRange_(fromStr, toStr); }
+    } else {
+      shifts = buildShiftsForRange_(fromStr, toStr);
+      try { gasCache.put(shiftCacheKey, JSON.stringify({ success: true, data: { shifts: shifts } }), 300); } catch(e) {}
+    }
+    var calData = {
+      shifts:          shifts,
+      meetings:        (kanbuGetMeetings_()               || {}).rows   || [],
+      meetingStaff:    (kanbuGetStaffList_()              || {}).names  || [],
+      inPersonMeetups: (getInPersonMeetups_(fromStr, toStr) || {}).meetups || {}
+    };
+    return ContentService.createTextOutput(JSON.stringify(calData))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   // シフト募集リマインド（PWAシフトカレンダー用）
@@ -941,6 +925,49 @@ function doGet(e) {
 
 function touchShiftLastModified_() {
   PropertiesService.getScriptProperties().setProperty('SHIFT_LAST_MODIFIED', new Date().getTime().toString());
+}
+
+/**
+ * 指定期間のシフト配列を構築して返す（getShifts / getCalendarData 共通ロジック）
+ */
+function buildShiftsForRange_(fromStr, toStr) {
+  var fromDate = fromStr ? new Date(fromStr + 'T00:00:00') : new Date('2000-01-01');
+  var toDate   = toStr   ? new Date(toStr   + 'T23:59:59') : new Date('2099-12-31');
+  var shiftsSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SHIFTS);
+  var dayMap = {};
+  if (shiftsSheet && shiftsSheet.getLastRow() > 1) {
+    var shiftsData = shiftsSheet.getDataRange().getValues();
+    for (var si = 1; si < shiftsData.length; si++) {
+      var rawDate = shiftsData[si][0];
+      if (!rawDate) continue;
+      var sd = rawDate instanceof Date ? rawDate : new Date(rawDate);
+      if (isNaN(sd.getTime()) || sd < fromDate || sd > toDate) continue;
+      var dateStr = formatDateToISO_(sd);
+      if (!dayMap[dateStr]) dayMap[dateStr] = { date: dateStr, staff: [] };
+      dayMap[dateStr].staff.push({
+        name:   String(shiftsData[si][2]).trim(),
+        start:  formatCellTime_(shiftsData[si][3]),
+        end:    formatCellTime_(shiftsData[si][4]),
+        tasks:  shiftsData[si][5] ? String(shiftsData[si][5]).split(' / ').filter(Boolean) : [],
+        status: shiftsData[si][9] ? String(shiftsData[si][9]).trim() : ''
+      });
+    }
+  }
+  return Object.keys(dayMap).sort().map(function(k) {
+    dayMap[k].staff.sort(function(a, b) { return a.start.localeCompare(b.start); });
+    try {
+      var activeStaff = dayMap[k].staff.filter(function(s) { return s.status !== '募集中'; });
+      var sr = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), activeStaff);
+      dayMap[k].shortages    = sr.shortages || [];
+      dayMap[k].zeroSlots    = sr.zeroSlots || [];
+      dayMap[k].recruitments = getActiveRecruitmentsForDate_(k);
+    } catch(e) {
+      dayMap[k].shortages    = [];
+      dayMap[k].zeroSlots    = [];
+      dayMap[k].recruitments = [];
+    }
+    return dayMap[k];
+  });
 }
 
 /**

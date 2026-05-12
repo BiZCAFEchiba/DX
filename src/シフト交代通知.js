@@ -355,6 +355,53 @@ function getRecruitmentResponses_(recruitId) {
 }
 
 /**
+ * 期間内の募集中案件に「入れない」と回答したスタッフを日付別に返す
+ * @returns {{ 'YYYY-MM-DD': string[] }}
+ */
+function getDeclinesByDateRange_(from, to) {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var recruitSheet = ss.getSheetByName(SHEET_RECRUITMENT);
+  var respSheet    = ss.getSheetByName(SHEET_RECRUITMENT_RESPONSE);
+  if (!recruitSheet || !respSheet) return {};
+
+  // 「入れない」回答を募集IDごとに集計
+  var unavailMap = {};
+  if (respSheet.getLastRow() > 1) {
+    var respData = respSheet.getRange(2, 1, respSheet.getLastRow() - 1, 3).getValues();
+    respData.forEach(function(r) {
+      if (String(r[2]) !== '入れない') return;
+      var rId = String(r[0]);
+      if (!unavailMap[rId]) unavailMap[rId] = [];
+      unavailMap[rId].push(String(r[1]));
+    });
+  }
+
+  // 期間内の「募集中」案件を日付でまとめる
+  var declineByDate = {};
+  if (recruitSheet.getLastRow() > 1) {
+    var recruitData = recruitSheet.getRange(2, 1, recruitSheet.getLastRow() - 1, 7).getValues();
+    recruitData.forEach(function(r) {
+      var status = String(r[6] || '').trim();
+      if (status !== '募集中') return;
+      var dateVal = r[1];
+      var dateStr = dateVal instanceof Date
+        ? Utilities.formatDate(dateVal, TIMEZONE, 'yyyy-MM-dd')
+        : String(dateVal || '').substring(0, 10);
+      if (!dateStr || (from && dateStr < from) || (to && dateStr > to)) return;
+      var rId = String(r[0]);
+      var names = unavailMap[rId] || [];
+      if (names.length === 0) return;
+      if (!declineByDate[dateStr]) declineByDate[dateStr] = [];
+      names.forEach(function(name) {
+        if (declineByDate[dateStr].indexOf(name) === -1) declineByDate[dateStr].push(name);
+      });
+    });
+  }
+
+  return declineByDate;
+}
+
+/**
  * 指定日のアクティブな募集一覧と応答状況を返す（getShifts API用）
  * シフト募集シートに未登録の「募集中」ステータスのシフトも自動補完する
  */
