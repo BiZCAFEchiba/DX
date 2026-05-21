@@ -900,10 +900,12 @@ function updateTriggersFromSettings_() {
   });
   // 業務日報送信（毎日22:00）
   ScriptApp.newTrigger('sendDailyEigyoReport').timeBased().atHour(22).everyDays(1).create();
+  // 誘致フォームトリガー（Meetup企業選択フォーム送信時）
+  setupYuchiFormTrigger();
 
   return 'リマインド(' + reminderHour + '時) / 不足警告(' + shortageHour + '時) / 追っかけ(' + followUpHour + '時)\n' +
          'Meetup日次更新(' + meetupHour + '時) / Meetupカルーセル共有(毎週日曜' + meetupShareHour + '時) / 過去削除(毎日0時)\n' +
-         'PDF自動取込(5時/10時/19時/22時) / 業務日報(22時)\n' +
+         'PDF自動取込(5時/10時/19時/22時) / 業務日報(22時) / 誘致フォーム(フォーム送信時)\n' +
          '残席更新(10/12/14/16/18時)';
 }
 
