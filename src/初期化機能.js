@@ -882,6 +882,9 @@ function updateTriggersFromSettings_() {
   ScriptApp.newTrigger('triggerDeleteLastMonthShifts').timeBased().onMonthDay(1).atHour(2).create();
   // Meetup日次更新（取込→ID補完→参加数更新）
   ScriptApp.newTrigger('dailyMeetupUpdate').timeBased().atHour(meetupHour).everyDays(1).create();
+  // Meetup取得のみ（12時・17時）
+  ScriptApp.newTrigger('fetchAllUpcomingMeetups').timeBased().atHour(12).everyDays(1).create();
+  ScriptApp.newTrigger('fetchAllUpcomingMeetups').timeBased().atHour(17).everyDays(1).create();
   // 残席更新（2時間ごと、10〜18時のみ実行・それ以外はラッパー内でスキップ）
   ScriptApp.newTrigger('triggerParticipationUpdate').timeBased().everyHours(2).create();
   // 過去Meetup行削除（毎日0時）
@@ -895,10 +898,12 @@ function updateTriggersFromSettings_() {
   [5, 10, 19, 22].forEach(function(hour) {
     ScriptApp.newTrigger('autoProcessPdfFromDrive').timeBased().atHour(hour).everyDays(1).inTimezone(TIMEZONE).create();
   });
+  // 業務日報送信（毎日22:00）
+  ScriptApp.newTrigger('sendDailyEigyoReport').timeBased().atHour(22).everyDays(1).create();
 
   return 'リマインド(' + reminderHour + '時) / 不足警告(' + shortageHour + '時) / 追っかけ(' + followUpHour + '時)\n' +
          'Meetup日次更新(' + meetupHour + '時) / Meetupカルーセル共有(毎週日曜' + meetupShareHour + '時) / 過去削除(毎日0時)\n' +
-         'PDF自動取込(5時/10時/19時/22時)\n' +
+         'PDF自動取込(5時/10時/19時/22時) / 業務日報(22時)\n' +
          '残席更新(10/12/14/16/18時)';
 }
 

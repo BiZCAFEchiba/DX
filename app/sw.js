@@ -42,8 +42,16 @@ self.addEventListener('activate', function (e) {
 
 // Network First, Cache Fallback
 self.addEventListener('fetch', function (e) {
-  // API calls: network only
-  if (e.request.url.indexOf('script.google.com') >= 0 || e.request.url.indexOf('macros') >= 0) {
+  // POST / non-GET: pass through without caching
+  if (e.request.method !== 'GET') {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // API calls: network only (no cache)
+  if (e.request.url.indexOf('/api/gas') >= 0 ||
+      e.request.url.indexOf('script.google.com') >= 0 ||
+      e.request.url.indexOf('macros') >= 0) {
     e.respondWith(fetch(e.request));
     return;
   }

@@ -180,6 +180,13 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 誘致フォーム送信（Cloudflare Workers PWA用）
+    if (body.action === 'submitYuchiForm') {
+      var yuchiResult = submitYuchiForm(body.formData || {});
+      return ContentService.createTextOutput(JSON.stringify({ ok: yuchiResult === 'success', result: yuchiResult }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     // Webhookの到達を物理的に確認するための初期ログ
     writeLogToSheets_('POST受信', 0, 'raw', 'info', 'doPost triggered');
     handleWebhook(e);
@@ -802,6 +809,12 @@ function doGet(e) {
     return calTemplate.evaluate()
       .setTitle('営業カレンダー | BizCAFE 千葉大学店')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
+  // 誘致フォームデータ取得（Cloudflare Workers PWA用）
+  if (param.action === 'getYuchiFormData') {
+    return ContentService.createTextOutput(JSON.stringify(getYuchiFormData()))
+      .setMimeType(ContentService.MimeType.JSON);
   }
 
   // 対面Meetup一覧（シフトカレンダー用）

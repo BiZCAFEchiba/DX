@@ -208,13 +208,15 @@ function onYuchiFormSubmit(e) {
       return;
     }
 
-    var formUrl = webAppUrl + '?page=yuchi&name=' + encodeURIComponent(staffName);
+    var formUrl = webAppUrl + '?name=' + encodeURIComponent(staffName);
     if (selectedCompanies.length > 0) {
       formUrl += '&companies=' + encodeURIComponent(selectedCompanies.join(','));
     }
 
-    var msg = staffName + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。\n\n' + formUrl;
-    var success = sendLineWorksMessage(userId, msg);
+    var msgText = staffName + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。';
+    var success = sendLineWorksButtonMessage(userId, msgText, [
+      { type: 'uri', label: '誘致フォームを開く', uri: formUrl }
+    ]);
     Logger.log('誘致フォームURL送信' + (success ? '成功' : '失敗') + ': ' + staffName);
   } catch (err) {
     Logger.log('onYuchiFormSubmit エラー: ' + err.message);
@@ -247,7 +249,7 @@ function setupYuchiFormTrigger() {
  * GASエディタのデプロイURLをコピーしてこの関数の引数に貼り付けて実行
  */
 function setWebAppUrl() {
-  var url = 'https://script.google.com/macros/s/AKfycbz7-u0KjsXGA8RXjD8eLHA8amJg3oesL_ahcyvbXU7TX53y_qec3MR6pClR6uj5wIPS/exec';
+  var url = 'https://shiftcalender.originalcafe423.workers.dev/yuchi.html';
   PropertiesService.getScriptProperties().setProperty('WEBAPP_URL', url);
   Logger.log('WebApp URL 保存完了: ' + url);
 }
@@ -389,10 +391,12 @@ function replayTodayYuchiFormResponses() {
       return;
     }
 
-    var formUrl = webAppUrl + '?page=yuchi&name=' + encodeURIComponent(staffName)
+    var formUrl = webAppUrl + '?name=' + encodeURIComponent(staffName)
       + '&companies=' + encodeURIComponent(selectedCompanies.join(','));
-    var msg = staffName + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。\n\n' + formUrl;
-    var success = sendLineWorksMessage(userId, msg);
+    var msgText = staffName + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。';
+    var success = sendLineWorksButtonMessage(userId, msgText, [
+      { type: 'uri', label: '誘致フォームを開く', uri: formUrl }
+    ]);
     Logger.log('再送' + (success ? '成功' : '失敗') + ': ' + staffName + ' / ' + selectedCompanies.join(', '));
     count++;
   });
@@ -412,7 +416,7 @@ function testSendYuchiFormUrl() {
   }
 
   var testName = 'テストスタッフ';
-  var formUrl = webAppUrl + '?page=yuchi&name=' + encodeURIComponent(testName) + '&companies=' + encodeURIComponent('デジタル庁,東京都');
+  var formUrl = webAppUrl + '?name=' + encodeURIComponent(testName) + '&companies=' + encodeURIComponent('デジタル庁,東京都');
   var contentText = testName + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。';
 
   var token = getLineWorksAccessToken();
@@ -461,7 +465,7 @@ function testSendYuchiDMButton() {
     return;
   }
 
-  var formUrl = webAppUrl + '?page=yuchi&name=' + encodeURIComponent(TEST_STAFF_NAME)
+  var formUrl = webAppUrl + '?name=' + encodeURIComponent(TEST_STAFF_NAME)
     + '&companies=' + encodeURIComponent(TEST_COMPANIES);
   var msgText = TEST_STAFF_NAME + ' さん\n\n誘致情報の入力をお願いします！\n担当した企業のアピールポイント等を入力してください。';
 

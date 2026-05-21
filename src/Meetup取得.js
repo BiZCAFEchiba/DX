@@ -165,10 +165,10 @@ function fetchAllUpcomingMeetups() {
   }
   Logger.log('既存データ: ' + Object.keys(existingKeys).length + '件');
 
-  // 今日から30日分を取得して新規行のみ追記
+  // 今日から90日分を取得して新規行のみ追記
   const fetchedKeys = {}; // 取得済みキーを記録（キャンセル検知に使用）
   const newRows = [];
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 90; i++) {
     const targetDate = new Date(today);
     targetDate.setDate(today.getDate() + i);
     const dateStr = Utilities.formatDate(targetDate, TIMEZONE, 'yyyy-MM-dd');
@@ -2278,9 +2278,9 @@ function fillMissingIdsFromHtml_(cookies, fastMode) {
     try {
       Utilities.sleep(300);
       const today_ = new Date();
-      // 今月初日〜3ヶ月後末日
+      // 今月初日〜90日後
       const calStartStr = Utilities.formatDate(new Date(today_.getFullYear(), today_.getMonth(), 1), TIMEZONE, 'yyyy-MM-dd') + 'T00:00:00+09:00';
-      const calEndDate = new Date(today_.getFullYear(), today_.getMonth() + 3, 0);
+      const calEndDate = new Date(today_); calEndDate.setDate(calEndDate.getDate() + 90);
       const calEndStr = Utilities.formatDate(calEndDate, TIMEZONE, 'yyyy-MM-dd') + 'T23:59:59+09:00';
       const calApiUrl = SHIRUCAFE_BASE_URL + '/api/calendar_reserves?start=' + encodeURIComponent(calStartStr) + '&end=' + encodeURIComponent(calEndStr) + '&store_id=' + SHIRUCAFE_STORE_ID;
       Logger.log('calendar_reserves API URL: ' + calApiUrl);

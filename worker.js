@@ -16,48 +16,49 @@ export default {
 async function proxyToGas(request, url) {
   const targetUrl = new URL(GAS_WEB_APP_URL);
   targetUrl.search = url.search;
-  const requestBody =
+  const originalBody =
     request.method !== 'GET' && request.method !== 'HEAD'
-      ? await request.arrayBuffer()
+      ? await request.text()
       : null;
 
-  const init = {
-    method: request.method,
-    headers: buildProxyHeaders(request),
-    redirect: 'manual',
-  };
+  let currentUrl = targetUrl.toString();
+  let currentMethod = request.method;
+  let currentBody = originalBody;
+  let response;
 
-  if (requestBody) {
-    init.body = requestBody.slice(0);
-  }
+  for (let i = 0; i < 6; i++) {
+    const headers = new Headers();
+    const accept = request.headers.get('accept');
+    if (accept) headers.set('Accept', accept);
+    if (currentBody !== null) headers.set('Content-Type', request.headers.get('content-type') || 'text/plain');
 
-  let response = await fetch(targetUrl.toString(), init);
-  if (isRedirectResponse(response.status)) {
+    const init = { method: currentMethod, headers, redirect: 'manual' };
+    if (currentBody !== null) init.body = currentBody;
+
+    response = await fetch(currentUrl, init);
+    if (!isRedirectResponse(response.status)) break;
+
     const location = response.headers.get('location');
-    if (location) {
-      const redirectUrl = new URL(location, targetUrl);
-      if (!redirectUrl.search && url.search) {
-        redirectUrl.search = url.search;
-      }
-      const redirectInit = {
-        method: request.method,
-        headers: buildProxyHeaders(request),
-        redirect: 'manual',
-      };
-      if (requestBody) {
-        redirectInit.body = requestBody.slice(0);
-      }
-      response = await fetch(redirectUrl.toString(), redirectInit);
+    if (!location) break;
+
+    // 301/302/303 は HTTP 仕様で POST→GET に変換する
+    if (response.status === 301 || response.status === 302 || response.status === 303) {
+      currentMethod = 'GET';
+      currentBody = null;
     }
+
+    const redirectUrl = new URL(location, currentUrl);
+    if (!redirectUrl.search && url.search) redirectUrl.search = url.search;
+    currentUrl = redirectUrl.toString();
   }
 
-  const headers = new Headers(response.headers);
-  headers.set('Cache-Control', 'no-store');
+  const resHeaders = new Headers(response.headers);
+  resHeaders.set('Cache-Control', 'no-store');
 
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
-    headers,
+    headers: resHeaders,
   });
 }
 
