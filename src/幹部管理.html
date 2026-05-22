@@ -216,6 +216,7 @@
   <button class="tab active" onclick="switchTab('shift',this)">📄 シフト</button>
   <button class="tab" onclick="switchTab('period',this)">📅 期間設定</button>
   <button class="tab" onclick="switchTab('meeting',this)">🏢 ミーティング</button>
+  <button class="tab" onclick="switchTab('temphours',this)">🕐 臨時時間</button>
 </div>
 
 <!-- ════════════ シフト管理 ════════════ -->
@@ -348,6 +349,83 @@
 
 </div>
 
+<!-- ════════════ 臨時営業時間 ════════════ -->
+<div id="panel-temphours" class="panel">
+
+  <!-- 説明 -->
+  <div class="card">
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--sub);line-height:1.6;">
+        カレンダーで<strong>複数の日付を選択</strong>して営業時間を一括設定します。<br>
+        通常の曜日別設定より優先して表示されます。
+      </p>
+    </div>
+  </div>
+
+  <!-- カレンダー選択 -->
+  <div class="card">
+    <div class="card-header">
+      <button class="btn btn-ghost" id="tempCalPrev" onclick="tempCalMove(-1)">◀</button>
+      <h2 id="tempCalTitle" style="flex:1;text-align:center;font-size:15px;font-weight:700;color:var(--text);">読み込み中...</h2>
+      <button class="btn btn-ghost" id="tempCalNext" onclick="tempCalMove(1)">▶</button>
+    </div>
+    <div class="card-body" style="padding:8px;">
+      <div id="tempCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
+    </div>
+    <div style="padding:0 14px 8px;font-size:11px;color:var(--gray);">
+      タップで選択・解除。複数選択可。
+    </div>
+  </div>
+
+  <!-- 設定フォーム -->
+  <div class="card" id="tempFormCard">
+    <div class="card-header"><h2>⚙️ 選択日の営業時間設定</h2></div>
+    <div class="card-body">
+      <div id="tempSelectedDates" style="font-size:12px;color:var(--sub);margin-bottom:10px;min-height:18px;"></div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <input type="checkbox" id="tempIsOpen" checked onchange="onTempIsOpenChange()" style="width:18px;height:18px;">
+        <label for="tempIsOpen" style="font-size:14px;font-weight:600;cursor:pointer;">営業日（チェックなし = 臨時定休）</label>
+      </div>
+
+      <div id="tempHoursFields">
+        <div class="form-group">
+          <label class="form-label">開店時刻</label>
+          <input class="form-input" type="time" id="tempOpen" value="10:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">閉店時刻</label>
+          <input class="form-input" type="time" id="tempClose" value="20:00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">LO時刻（省略可）</label>
+          <input class="form-input" type="time" id="tempLo" placeholder="例: 19:30">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">メモ（省略可）</label>
+        <input class="form-input" type="text" id="tempNote" placeholder="例: 年末特別営業">
+      </div>
+
+      <button class="btn btn-primary btn-block" id="tempSaveBtn" onclick="saveTempHours()" disabled>
+        選択した日に設定を保存
+      </button>
+      <div id="tempStatus" class="status"></div>
+    </div>
+  </div>
+
+  <!-- 設定済み一覧 -->
+  <div class="card">
+    <div class="card-header">
+      <h2>📋 設定済み臨時時間</h2>
+      <button class="btn btn-ghost" onclick="loadTempHours()">更新</button>
+    </div>
+    <div id="tempHoursList"><div class="list-empty">読み込み中...</div></div>
+  </div>
+
+</div>
+
 <script>
 const APP_URL = '<?= appUrl ?>';
 let _periodRows = [];
@@ -360,9 +438,10 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab').forEach(function(el) { el.classList.remove('active'); });
   document.getElementById('panel-' + name).classList.add('active');
   btn.classList.add('active');
-  if (name === 'shift')   loadPdfList();
-  if (name === 'period')  loadPeriodSettings();
-  if (name === 'meeting') loadMeetings();
+  if (name === 'shift')     loadPdfList();
+  if (name === 'period')    loadPeriodSettings();
+  if (name === 'meeting')   loadMeetings();
+  if (name === 'temphours') { renderTempCal(); loadTempHours(); }
 }
 
 // ── API ──────────────────────────────────────────────────
@@ -677,6 +756,179 @@ async function addMeeting() {
   } else {
     setStatus('meetingStatus', '❌ ' + res.error, 'err');
   }
+}
+
+// ── 臨時営業時間 ─────────────────────────────────────────
+
+let _tempCalYear, _tempCalMonth;
+let _tempSelectedDates = new Set();
+let _tempHoursRows = [];
+
+function tempCalInit() {
+  const now = new Date();
+  _tempCalYear  = now.getFullYear();
+  _tempCalMonth = now.getMonth();
+}
+
+function tempCalMove(delta) {
+  _tempCalMonth += delta;
+  if (_tempCalMonth < 0)  { _tempCalMonth = 11; _tempCalYear--; }
+  if (_tempCalMonth > 11) { _tempCalMonth = 0;  _tempCalYear++; }
+  renderTempCal();
+}
+
+function renderTempCal() {
+  if (_tempCalYear === undefined) tempCalInit();
+
+  document.getElementById('tempCalTitle').textContent =
+    _tempCalYear + '年' + (_tempCalMonth + 1) + '月';
+
+  const grid = document.getElementById('tempCalGrid');
+  const dows = ['月','火','水','木','金','土','日'];
+  let html = dows.map(function(d) {
+    return '<div style="text-align:center;font-size:11px;font-weight:700;color:var(--gray);padding:4px 0;">' + d + '</div>';
+  }).join('');
+
+  const firstDay = new Date(_tempCalYear, _tempCalMonth, 1).getDay();
+  const startOffset = (firstDay + 6) % 7;
+  const lastDate = new Date(_tempCalYear, _tempCalMonth + 1, 0).getDate();
+  const todayISO = isoToday();
+
+  for (let i = 0; i < startOffset; i++) {
+    html += '<div></div>';
+  }
+  for (let d = 1; d <= lastDate; d++) {
+    const iso = _tempCalYear + '-' + String(_tempCalMonth + 1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const isSelected = _tempSelectedDates.has(iso);
+    const isToday    = iso === todayISO;
+    const hasSetting = _tempHoursRows.some(function(r) { return r.date === iso; });
+    const dow = new Date(iso + 'T00:00:00').getDay(); // 0=日,6=土
+    let bg = '#f2f2f7';
+    if (isSelected) bg = '#007aff';
+    else if (hasSetting) bg = '#fff3e0';
+    else if (isToday)    bg = '#e8f5e9';
+    const textColor = isSelected ? '#fff' : (dow === 0 ? '#c0392b' : dow === 6 ? '#2471a3' : '#1c1c1e');
+    const dot = hasSetting && !isSelected
+      ? '<div style="width:5px;height:5px;border-radius:50%;background:#ff9500;margin:2px auto 0;"></div>'
+      : '';
+    html += '<div onclick="toggleTempDate(\'' + iso + '\')" style="'
+      + 'cursor:pointer;border-radius:8px;background:' + bg + ';padding:6px 2px;text-align:center;'
+      + 'font-size:13px;font-weight:' + (isToday ? '800' : '600') + ';color:' + textColor + ';'
+      + 'min-height:38px;display:flex;flex-direction:column;align-items:center;justify-content:center;'
+      + 'border:' + (isToday && !isSelected ? '1.5px solid #34c759' : '1.5px solid transparent') + ';">'
+      + d + dot
+      + '</div>';
+  }
+  grid.innerHTML = html;
+}
+
+function toggleTempDate(iso) {
+  if (_tempSelectedDates.has(iso)) {
+    _tempSelectedDates.delete(iso);
+  } else {
+    _tempSelectedDates.add(iso);
+  }
+  renderTempCal();
+  updateTempSelectedLabel();
+  document.getElementById('tempSaveBtn').disabled = _tempSelectedDates.size === 0;
+}
+
+function updateTempSelectedLabel() {
+  const el = document.getElementById('tempSelectedDates');
+  if (_tempSelectedDates.size === 0) {
+    el.textContent = '日付が選択されていません';
+    return;
+  }
+  const sorted = Array.from(_tempSelectedDates).sort();
+  el.textContent = sorted.map(function(iso) {
+    const d = new Date(iso + 'T00:00:00+09:00');
+    const dow = ['日','月','火','水','木','金','土'][d.getDay()];
+    return (d.getMonth()+1) + '/' + d.getDate() + '(' + dow + ')';
+  }).join('、') + ' の ' + _tempSelectedDates.size + '日間';
+}
+
+function onTempIsOpenChange() {
+  const isOpen = document.getElementById('tempIsOpen').checked;
+  document.getElementById('tempHoursFields').style.display = isOpen ? 'block' : 'none';
+}
+
+async function loadTempHours() {
+  const el = document.getElementById('tempHoursList');
+  el.innerHTML = '<div class="list-empty">読み込み中...</div>';
+  try {
+    const res = await api({action: 'getTempHours'});
+    _tempHoursRows = res.rows || [];
+    renderTempCal();
+    if (_tempHoursRows.length === 0) {
+      el.innerHTML = '<div class="list-empty">臨時設定はありません</div>';
+      return;
+    }
+    el.innerHTML = _tempHoursRows.map(function(row) {
+      const d = new Date(row.date + 'T00:00:00+09:00');
+      const dow = ['日','月','火','水','木','金','土'][d.getDay()];
+      const dateLabel = (d.getMonth()+1) + '/' + d.getDate() + '(' + dow + ')';
+      const hoursLabel = row.isOpen
+        ? row.open + ' 〜 ' + row.close + (row.lo ? '  LO ' + row.lo : '')
+        : '臨時定休日';
+      const badgeColor = row.isOpen ? '#e8f5e9' : '#fdecea';
+      const badgeText  = row.isOpen ? '#1b5e20' : '#b71c1c';
+      return '<div class="list-row">'
+        + '<div class="list-info">'
+        + '<div class="list-name">' + esc(dateLabel) + '</div>'
+        + '<div class="list-sub" style="background:' + badgeColor + ';color:' + badgeText + ';display:inline-block;padding:1px 6px;border-radius:6px;margin-top:3px;">' + esc(hoursLabel) + '</div>'
+        + (row.note ? '<div class="list-sub" style="margin-top:2px;">' + esc(row.note) + '</div>' : '')
+        + '</div>'
+        + '<button class="btn btn-danger btn-sm" onclick="deleteTempHours(' + row.rowIndex + ',\'' + escq(dateLabel) + '\')">削除</button>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="list-empty">取得失敗: ' + e.message + '</div>';
+  }
+}
+
+async function saveTempHours() {
+  const dates = Array.from(_tempSelectedDates).sort();
+  if (dates.length === 0) { setStatus('tempStatus','❌ 日付を選択してください','err'); return; }
+  const isOpen = document.getElementById('tempIsOpen').checked;
+  const open   = document.getElementById('tempOpen').value;
+  const close  = document.getElementById('tempClose').value;
+  const lo     = document.getElementById('tempLo').value;
+  const note   = document.getElementById('tempNote').value;
+  if (isOpen && (!open || !close)) { setStatus('tempStatus','❌ 開店・閉店時刻を入力してください','err'); return; }
+
+  const btn = document.getElementById('tempSaveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> 保存中...';
+  setStatus('tempStatus','保存中...','loading');
+  try {
+    const res = await api({action:'saveTempHours', dates:dates, open:open, close:close, lo:lo, isOpen:isOpen, note:note});
+    if (res.ok) {
+      setStatus('tempStatus','✅ ' + res.saved + '日分を保存しました','ok');
+      _tempSelectedDates.clear();
+      await loadTempHours();
+      updateTempSelectedLabel();
+    } else {
+      setStatus('tempStatus','❌ ' + res.error,'err');
+    }
+  } catch(e) {
+    setStatus('tempStatus','❌ ' + e.message,'err');
+  }
+  btn.disabled = _tempSelectedDates.size === 0;
+  btn.innerHTML = '選択した日に設定を保存';
+}
+
+async function deleteTempHours(rowIndex, label) {
+  if (!confirm(label + ' の臨時設定を削除しますか？')) return;
+  const res = await api({action:'deleteTempHours', rowIndex:rowIndex});
+  if (res.ok) loadTempHours();
+  else alert('削除失敗: ' + res.error);
+}
+
+function isoToday() {
+  const now = new Date();
+  return now.getFullYear() + '-'
+    + String(now.getMonth()+1).padStart(2,'0') + '-'
+    + String(now.getDate()).padStart(2,'0');
 }
 
 // ── ユーティリティ ────────────────────────────────────────

@@ -182,13 +182,38 @@ function getHoursFromSheet_(targetDate, sheetName) {
 
 /**
  * お客様向け営業時間を取得する（顧客カレンダー用）
- * 「営業時間」シートを参照
+ * 臨時営業時間が設定されている日はそちらを優先する
  *
  * @param {Date} targetDate
  * @returns {{ start: string, end: string, period: string } | null}
  */
 function getBusinessHours(targetDate) {
+  var tempResult = getTempHoursForDate_(targetDate);
+  if (tempResult !== undefined) return tempResult; // null = 臨時定休日
   return getHoursFromSheet_(targetDate, BUSINESS_HOURS_SHEET_NAME);
+}
+
+/**
+ * 臨時営業時間を取得する
+ * Script Properties の TEMP_HOURS_DATA を参照
+ * @returns {object|null|undefined} 設定あり→{start,end,lo,period:'臨時'}, 臨時定休日→null, 未設定→undefined
+ */
+function getTempHoursForDate_(targetDate) {
+  try {
+    var json = PropertiesService.getScriptProperties().getProperty('TEMP_HOURS_DATA');
+    if (!json) return undefined;
+    var rows = JSON.parse(json);
+    var dateISO = Utilities.formatDate(targetDate, TIMEZONE, 'yyyy-MM-dd');
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].date === dateISO) {
+        if (!rows[i].isOpen) return null;
+        return { start: rows[i].open, end: rows[i].close, lo: rows[i].lo || null, period: '臨時' };
+      }
+    }
+  } catch (e) {
+    Logger.log('getTempHoursForDate_ エラー: ' + e.message);
+  }
+  return undefined;
 }
 
 /**
@@ -287,7 +312,10 @@ function syncHoursToProperties_() {
     Logger.log('syncHoursToProperties_: 期間設定 ' + psRows.length + '件を保存');
   }
 
-  // ③ CacheService の顧客カレンダーキャッシュをクリア（前後2ヶ月）
+  // ③ 臨時営業時間シート → TEMP_HOURS_DATA
+  syncTempHoursToProperties_();
+
+  // ④ CacheService の顧客カレンダーキャッシュをクリア（前後2ヶ月）
   var cache = CacheService.getScriptCache();
   var now   = new Date();
   for (var m = -1; m <= 2; m++) {
@@ -295,6 +323,46 @@ function syncHoursToProperties_() {
     cache.remove('customerCal_' + d.getFullYear() + '_' + (d.getMonth() + 1));
   }
   Logger.log('syncHoursToProperties_: 顧客カレンダーキャッシュをクリア');
+}
+
+/**
+ * 臨時営業時間シートを Script Properties に同期する
+ * syncHoursToProperties_ から呼ばれるほか、臨時設定の追加・削除時にも呼ばれる
+ */
+function syncTempHoursToProperties_() {
+  var ss    = SpreadsheetApp.openById(BUSINESS_HOURS_SPREADSHEET_ID);
+  var props = PropertiesService.getScriptProperties();
+  var sheet = ss.getSheetByName(SHEET_TEMP_HOURS);
+  if (!sheet || sheet.getLastRow() <= 1) {
+    props.setProperty('TEMP_HOURS_DATA', JSON.stringify([]));
+    return;
+  }
+  var data = sheet.getDataRange().getValues();
+  var rows = [];
+  var toT  = function(v) {
+    if (!v) return null;
+    if (v instanceof Date) return Utilities.formatDate(v, TIMEZONE, 'HH:mm');
+    return String(v).trim() || null;
+  };
+  var toB = function(v) { return v === true || String(v).toUpperCase() === 'TRUE'; };
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (!row[0]) continue;
+    var d = row[0] instanceof Date ? row[0] : new Date(row[0]);
+    if (isNaN(d.getTime())) continue;
+    var isOpen = (row[4] !== undefined && row[4] !== '') ? toB(row[4]) : true;
+    rows.push({
+      date:    Utilities.formatDate(d, TIMEZONE, 'yyyy-MM-dd'),
+      open:    toT(row[1]),
+      close:   toT(row[2]),
+      lo:      toT(row[3]),
+      isOpen:  isOpen,
+      note:    String(row[5] || '').trim()
+    });
+  }
+  rows.sort(function(a, b) { return a.date.localeCompare(b.date); });
+  props.setProperty('TEMP_HOURS_DATA', JSON.stringify(rows));
+  Logger.log('syncTempHoursToProperties_: 臨時営業時間 ' + rows.length + '件を保存');
 }
 
 /**

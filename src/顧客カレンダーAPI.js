@@ -44,6 +44,18 @@ function getCustomerCalendarData_(year, month, nocache) {
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month - 1, day);
     const dateISO = formatDateToISO_(date);
+
+    // 臨時営業時間チェック（通常設定より優先）
+    const tempHours = getTempHoursForDate_(date);
+    if (tempHours !== undefined) {
+      if (tempHours === null) {
+        results.push({ date: dateISO, isOpen: false, open: null, close: null, isKashikiri: false, kashikiriTime: null, note: '臨時休業', period: '臨時' });
+      } else {
+        results.push({ date: dateISO, isOpen: true, open: tempHours.start, close: tempHours.end, isKashikiri: false, kashikiriTime: null, note: null, period: '臨時' });
+      }
+      continue;
+    }
+
     const normalHours = getBusinessHours(date);
 
     if (!normalHours) {
@@ -94,7 +106,21 @@ function getCustomerCalendarDataBase_(year, month) {
   for (let day = 1; day <= daysInMonth; day++) {
     const date    = new Date(year, month - 1, day);
     const dateISO = formatDateToISO_(date);
-    const hours   = getBusinessHours(date); // Script Properties から高速取得
+
+    // 臨時営業時間チェック（通常設定より優先）
+    const tempHours = getTempHoursForDate_(date);
+    if (tempHours !== undefined) {
+      if (tempHours === null) {
+        results.push({ date: dateISO, isOpen: false, open: null, close: null,
+                       isKashikiri: false, kashikiriTime: null, note: '臨時休業', period: '臨時' });
+      } else {
+        results.push({ date: dateISO, isOpen: true, open: tempHours.start, close: tempHours.end,
+                       isKashikiri: false, kashikiriTime: null, note: null, period: '臨時' });
+      }
+      continue;
+    }
+
+    const hours = getBusinessHours(date); // Script Properties から高速取得
 
     if (!hours) {
       results.push({ date: dateISO, isOpen: false, open: null, close: null,

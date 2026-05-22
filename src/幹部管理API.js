@@ -23,6 +23,9 @@ function handleKanbuApi_(body) {
     if (action === 'getAttendance')       return kanbuGetAttendance_(body.meetingDate);
     if (action === 'saveAttendance')      return kanbuSaveAttendance_(body.meetingDate, body.staffName, body.status, body.reason);
     if (action === 'remindMeeting')       return kanbuRemindMeeting_(body.rowIndex, body.notifyAll !== false);
+    if (action === 'getTempHours')        return kanbuGetTempHours_();
+    if (action === 'saveTempHours')       return kanbuSaveTempHours_(body.dates, body.open, body.close, body.lo, body.isOpen, body.note);
+    if (action === 'deleteTempHours')     return kanbuDeleteTempHours_(body.rowIndex);
     return { ok: false, error: 'unknown_action' };
   } catch (e) {
     Logger.log('幹部API エラー: ' + e.message);
@@ -617,6 +620,141 @@ function kanbuDeleteMeeting_(rowIndex) {
   if (row instanceof Date) {
     const cache = CacheService.getScriptCache();
     cache.remove('customerCal_' + row.getFullYear() + '_' + (row.getMonth() + 1));
+  }
+  return { ok: true };
+}
+
+// ── 臨時営業時間 ──────────────────────────────────────────
+
+/**
+ * 臨時営業時間の一覧を返す（日付昇順）
+ */
+function kanbuGetTempHours_() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(SHEET_TEMP_HOURS);
+  if (!sheet) return { ok: true, rows: [] };
+
+  const data = sheet.getDataRange().getValues();
+  const rows = [];
+  const toT = function(v) {
+    if (!v) return '';
+    if (v instanceof Date) return Utilities.formatDate(v, TIMEZONE, 'HH:mm');
+    return String(v).trim();
+  };
+  const toB = function(v) { return v === true || String(v).toUpperCase() === 'TRUE'; };
+
+  for (let i = 1; i < data.length; i++) {
+    if (!data[i][0]) continue;
+    const d = data[i][0] instanceof Date ? data[i][0] : new Date(data[i][0]);
+    if (isNaN(d.getTime())) continue;
+    const isOpen = (data[i][4] !== undefined && data[i][4] !== '') ? toB(data[i][4]) : true;
+    rows.push({
+      rowIndex: i + 1,
+      date:     Utilities.formatDate(d, TIMEZONE, 'yyyy-MM-dd'),
+      open:     toT(data[i][1]),
+      close:    toT(data[i][2]),
+      lo:       toT(data[i][3]),
+      isOpen:   isOpen,
+      note:     String(data[i][5] || '').trim()
+    });
+  }
+  return { ok: true, rows: rows };
+}
+
+/**
+ * 臨時営業時間を保存する（複数日付に一括設定）
+ * 既存の同日設定は上書き、存在しない日は追加
+ *
+ * @param {string[]} dates  - ["YYYY-MM-DD", ...]
+ * @param {string}   open   - "HH:mm" (isOpen=false のとき不要)
+ * @param {string}   close  - "HH:mm" (isOpen=false のとき不要)
+ * @param {string}   lo     - "HH:mm" or "" (省略可)
+ * @param {boolean}  isOpen - false で臨時定休日
+ * @param {string}   note   - メモ
+ */
+function kanbuSaveTempHours_(dates, open, close, lo, isOpen, note) {
+  if (!dates || dates.length === 0) return { ok: false, error: '日付が指定されていません' };
+
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName(SHEET_TEMP_HOURS);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_TEMP_HOURS);
+    sheet.getRange(1, 1, 1, 6).setValues([['日付', '開店', '閉店', 'LO', '営業', 'メモ']]);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold');
+  }
+
+  // 既存データをインデックス化
+  const existing = {};
+  if (sheet.getLastRow() > 1) {
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (!data[i][0]) continue;
+      const d = data[i][0] instanceof Date ? data[i][0] : new Date(data[i][0]);
+      if (isNaN(d.getTime())) continue;
+      const key = Utilities.formatDate(d, TIMEZONE, 'yyyy-MM-dd');
+      existing[key] = i + 1; // 行番号(1始まり)
+    }
+  }
+
+  const toIsOpenVal = function(v) { return (v === false || v === 'false') ? false : true; };
+  const isOpenBool  = toIsOpenVal(isOpen);
+
+  const affectedMonths = {};
+  dates.forEach(function(dateISO) {
+    const dateVal = new Date(dateISO + 'T00:00:00+09:00');
+    const row = [
+      dateVal,
+      isOpenBool ? (open  || '') : '',
+      isOpenBool ? (close || '') : '',
+      isOpenBool ? (lo    || '') : '',
+      isOpenBool,
+      note || ''
+    ];
+
+    if (existing[dateISO]) {
+      const rowIdx = existing[dateISO];
+      sheet.getRange(rowIdx, 1, 1, 6).setValues([row]);
+      sheet.getRange(rowIdx, 1).setNumberFormat('yyyy/M/d');
+    } else {
+      sheet.appendRow(row);
+      sheet.getRange(sheet.getLastRow(), 1).setNumberFormat('yyyy/M/d');
+    }
+    affectedMonths[dateVal.getFullYear() + '_' + (dateVal.getMonth() + 1)] = true;
+  });
+
+  // 日付順にソート
+  if (sheet.getLastRow() > 2) {
+    sheet.getRange(2, 1, sheet.getLastRow() - 1, 6).sort(1);
+  }
+
+  // Script Properties & CacheService を更新
+  try { syncTempHoursToProperties_(); } catch (e) { Logger.log('syncTempHoursToProperties_ error: ' + e.message); }
+  try {
+    const cache = CacheService.getScriptCache();
+    Object.keys(affectedMonths).forEach(function(key) {
+      const parts = key.split('_');
+      cache.remove('customerCal_' + parts[0] + '_' + parts[1]);
+    });
+  } catch (e) {}
+
+  return { ok: true, saved: dates.length };
+}
+
+/**
+ * 臨時営業時間の指定行を削除する
+ */
+function kanbuDeleteTempHours_(rowIndex) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_TEMP_HOURS);
+  if (!sheet) return { ok: false, error: 'シートが見つかりません' };
+
+  const dateVal = sheet.getRange(rowIndex, 1).getValue();
+  sheet.deleteRow(rowIndex);
+
+  try { syncTempHoursToProperties_(); } catch (e) { Logger.log('syncTempHoursToProperties_ error: ' + e.message); }
+  if (dateVal instanceof Date) {
+    const cache = CacheService.getScriptCache();
+    cache.remove('customerCal_' + dateVal.getFullYear() + '_' + (dateVal.getMonth() + 1));
   }
   return { ok: true };
 }

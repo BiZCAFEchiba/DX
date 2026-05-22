@@ -115,6 +115,19 @@
       margin-top: auto;
     }
     .closed-label.full-kashikiri { color: #e65100; font-weight: 600; }
+    .closed-label.temp-closed { color: #7b5ea7; font-weight: 700; }
+    .temp-label { font-size: 0.62rem; font-weight: 700; color: #7b5ea7; margin-top: auto; }
+    .day-cell.temp {
+      background: #fff;
+      border: 1px solid #e0d8f0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .day-cell.temp::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 3px; background: #7b5ea7;
+    }
+    .day-cell.temp .day-num { color: #2c2318; }
+    .day-cell.temp .hours   { color: #7b5ea7; }
 
     /* 貸切バッジ */
     .kashikiri-badge {
@@ -529,9 +542,10 @@
       var dayNum = d.getDate();
 
       var classes = ['day-cell'];
-      if (!day.isOpen)          classes.push('closed');
-      else if (day.isKashikiri) classes.push('kashikiri');
-      else                      classes.push('normal');
+      if (!day.isOpen)               classes.push('closed');
+      else if (day.isKashikiri)      classes.push('kashikiri');
+      else if (day.period === '臨時') classes.push('temp');
+      else                           classes.push('normal');
 
       if (day.date === todayISO)     classes.push('today');
       if (day.date === selectedDateISO) classes.push('selected');
@@ -564,6 +578,13 @@
           btn.appendChild(badge);
         }
 
+        if (day.period === '臨時') {
+          var tempLbl = document.createElement('div');
+          tempLbl.className = 'temp-label';
+          tempLbl.textContent = '臨時';
+          btn.appendChild(tempLbl);
+        }
+
         (function(dateISO) {
           btn.addEventListener('click', function() { window.onDayClick(dateISO); });
         })(day.date);
@@ -571,7 +592,7 @@
         cell.appendChild(btn);
       } else {
         var lbl = day.note || '定休日';
-        var extraClass = (lbl === '終日貸切') ? ' full-kashikiri' : '';
+        var extraClass = (lbl === '終日貸切') ? ' full-kashikiri' : lbl === '臨時休業' ? ' temp-closed' : '';
         cell.innerHTML = '<div class="day-num">' + dayNum + '</div><div class="closed-label' + extraClass + '">' + lbl + '</div>';
       }
 

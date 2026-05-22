@@ -229,6 +229,19 @@
     .hours { font-size: 0.65rem; font-weight: 600; line-height: 1.45; color: #3d9e6e; margin-top: 2px; }
     .closed-label { font-size: 0.65rem; color: #b0a098; margin-top: auto; }
     .closed-label.full-kashikiri { color: #c07010; font-weight: 700; }
+    .closed-label.temp-closed { color: #7b5ea7; font-weight: 700; }
+    .temp-label { font-size: 0.6rem; font-weight: 700; color: #7b5ea7; margin-top: auto; }
+    .day-cell.temp {
+      background: #fff;
+      border: 1px solid #e0d8f0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .day-cell.temp::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0;
+      height: 3px; background: #7b5ea7;
+    }
+    .day-cell.temp .day-num { color: #2c2318; }
+    .day-cell.temp .hours   { color: #7b5ea7; }
     .kashikiri-badge {
       display: inline-block; background: #e8a020; color: white;
       font-size: 0.55rem; font-weight: 700; padding: 2px 5px;
@@ -2609,7 +2622,7 @@
   });
   document.getElementById('meetupClose').addEventListener('click', function() { closeMeetupPanel(); });
 
-  var CACHE_VERSION = 'v8';
+  var CACHE_VERSION = 'v9';
   var CACHE_TTL = 10 * 60 * 1000; // 10分
   function getCacheKey() { return 'bizcafe_cal_' + CACHE_VERSION + '_' + currentYear + '_' + currentMonth; }
   function loadFromCache() {
@@ -2710,6 +2723,7 @@
       var classes = ['day-cell'];
       if (!day.isOpen) classes.push('closed');
       else if (day.isKashikiri) classes.push('kashikiri');
+      else if (day.period === '臨時') classes.push('temp');
       else classes.push('normal');
       if (day.date === todayISO) classes.push('today');
       if (day.date < todayISO) classes.push('past');
@@ -2726,11 +2740,12 @@
         if (!isPast) {
           var hoursEl = document.createElement('div'); hoursEl.className = 'hours'; hoursEl.innerHTML = day.open + '&nbsp;〜<br>' + day.close; btn.appendChild(hoursEl);
           if (day.isKashikiri) { var badge = document.createElement('div'); badge.className = 'kashikiri-badge'; badge.textContent = '貸切あり'; btn.appendChild(badge); }
+          if (day.period === '臨時') { var tempLbl = document.createElement('div'); tempLbl.className = 'temp-label'; tempLbl.textContent = '臨時'; btn.appendChild(tempLbl); }
         }
         (function(iso) { btn.addEventListener('click', function() { onDayClick(iso); }); })(day.date);
         cell.appendChild(btn);
       } else {
-      var lbl = day.note || '定休日'; var ec = lbl === '終日貸切' ? ' full-kashikiri' : '';
+      var lbl = day.note || '定休日'; var ec = lbl === '終日貸切' ? ' full-kashikiri' : lbl === '臨時休業' ? ' temp-closed' : '';
       cell.innerHTML = '<div class="day-num">' + d.getDate() + '</div><div class="closed-label' + ec + '">' + lbl + '</div>';
     }
     grid.appendChild(cell);
