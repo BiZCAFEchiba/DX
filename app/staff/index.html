@@ -1031,6 +1031,7 @@
     pane.innerHTML = '<div class="container">'
       + '<div class="counter-sub-nav">'
       +   '<button class="counter-tab-btn active" onclick="switchCounterSubTab(\'pv\')">閲覧数</button>'
+      +   '<button class="counter-tab-btn" onclick="switchCounterSubTab(\'sirupass\')">知るパス</button>'
       +   '<button class="counter-tab-btn" onclick="switchCounterSubTab(\'kpi\')">KPI評価</button>'
       +   '<button class="counter-tab-btn" onclick="switchCounterSubTab(\'analysis\')">分析</button>'
       + '</div>'
@@ -1043,6 +1044,11 @@
       +     '<div id="counterMeta" class="corner-inline-help" style="margin-top:8px;"></div>'
       +   '</div>'
       +   '<div id="counterGraphContainer"></div>'
+      + '</div>'
+      // 知るパス Tab
+      + '<div id="counterSubPane-sirupass" class="counter-pane">'
+      +   '<div class="section-title">知るパス 有効数</div>'
+      +   '<div id="sirupassStatsWrap">読み込み中...</div>'
       + '</div>'
       // KPI Tab
       + '<div id="counterSubPane-kpi" class="counter-pane">'
@@ -1065,8 +1071,8 @@
     document.querySelectorAll('.counter-pane').forEach(function(p) {
       p.classList.toggle('active', p.id === 'counterSubPane-' + name);
     });
-    // Trigger graph re-render if switching back to PV
     if (name === 'pv') renderAnalyticsDashboard();
+    if (name === 'sirupass') loadSirupassStats();
   };
 
   function ensureCornerAdminEnhancements() {
@@ -1099,12 +1105,117 @@
       .catch(function() { wrap.textContent = '読み込みに失敗しました'; });
   }
 
+  var _sirupassStatsLoaded = false;
+  function loadSirupassStats() {
+    var wrap = document.getElementById('sirupassStatsWrap');
+    if (!wrap) return;
+    if (_sirupassStatsLoaded) return;
+    _sirupassStatsLoaded = true;
+    wrap.innerHTML = '<div style="color:#888;padding:12px 0;">読み込み中...</div>';
+    fetch(GAS_API_URL + '?page=calendar&action=shiruPassStats')
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderSirupassStats(data && data.passes ? data.passes : []); })
+      .catch(function() {
+        _sirupassStatsLoaded = false;
+        wrap.innerHTML = '<div style="color:#c0392b;padding:12px 0;">読み込みに失敗しました</div>';
+      });
+  }
+
+  function renderSirupassStats(passes) {
+    var wrap = document.getElementById('sirupassStatsWrap');
+    if (!wrap) return;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var todayStr = today.getFullYear() + '-' + pad2(today.getMonth()+1) + '-' + pad2(today.getDate());
+
+    // 現在の有効数
+    var stdCount = 0, goldCount = 0, externalCount = 0, unactivatedCount = 0;
+    passes.forEach(function(p) {
+      if (!p.activatedAt) { unactivatedCount++; return; }
+      if (p.expiry && p.expiry < todayStr) return; // 期限切れ
+      if (p.type === 'gold') goldCount++;
+      else if (p.type === 'external') externalCount++;
+      else stdCount++;
+    });
+    var totalValid = stdCount + goldCount + externalCount;
+
+    // 日別推移（過去30日）
+    var DAYS = 30;
+    var dailyData = [];
+    for (var d = DAYS - 1; d >= 0; d--) {
+      var day = new Date(today); day.setDate(today.getDate() - d);
+      var dayStr = day.getFullYear() + '-' + pad2(day.getMonth()+1) + '-' + pad2(day.getDate());
+      var cnt = 0;
+      passes.forEach(function(p) {
+        if (!p.activatedAt || p.activatedAt > dayStr) return;
+        if (p.expiry && p.expiry < dayStr) return;
+        cnt++;
+      });
+      var label = (day.getMonth()+1) + '/' + day.getDate();
+      dailyData.push({ label: label, date: dayStr, count: cnt });
+    }
+
+    // サマリーカード HTML
+    var cardStyle = 'background:#fff;border:1.5px solid #d0d9e4;border-radius:12px;padding:14px 16px;text-align:center;flex:1;min-width:80px;';
+    var numStyle = 'font-size:1.6rem;font-weight:800;margin-bottom:2px;';
+    var lblStyle = 'font-size:.75rem;color:#667085;';
+    var summaryHtml = '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'
+      + '<div style="' + cardStyle + '"><div style="' + numStyle + 'color:#8a7060;">' + totalValid + '</div><div style="' + lblStyle + '">合計 有効</div></div>'
+      + '<div style="' + cardStyle + '"><div style="' + numStyle + 'color:#2e7d32;">' + stdCount + '</div><div style="' + lblStyle + '">知るパス</div></div>'
+      + '<div style="' + cardStyle + '"><div style="' + numStyle + 'color:#b8860b;">' + goldCount + '</div><div style="' + lblStyle + '">GOLD</div></div>'
+      + (externalCount > 0 ? '<div style="' + cardStyle + '"><div style="' + numStyle + 'color:#1a3a5c;">' + externalCount + '</div><div style="' + lblStyle + '">外部永久</div></div>' : '')
+      + '<div style="' + cardStyle + '"><div style="' + numStyle + 'color:#aaa;">' + unactivatedCount + '</div><div style="' + lblStyle + '">未認証</div></div>'
+      + '</div>';
+
+    // 日別推移グラフ（SVGライン）
+    var maxCount = Math.max.apply(null, dailyData.map(function(d){ return d.count; }).concat([1]));
+    var W = 400, H = 100, padL = 28, padR = 8, padT = 14, padB = 20;
+    var innerW = W - padL - padR, innerH = H - padT - padB;
+    var n = dailyData.length;
+    var points = dailyData.map(function(d, i) {
+      var x = padL + (i / (n - 1)) * innerW;
+      var y = padT + innerH - (d.count / maxCount) * innerH;
+      return x.toFixed(1) + ',' + y.toFixed(1);
+    }).join(' ');
+    // Y軸目盛り
+    var yTicks = '';
+    for (var yi = 0; yi <= 2; yi++) {
+      var yVal = Math.round(maxCount * yi / 2);
+      var yPos = padT + innerH - (yVal / maxCount) * innerH;
+      yTicks += '<text x="' + (padL - 4) + '" y="' + (yPos + 3).toFixed(1) + '" text-anchor="end" font-size="9" fill="#99a">' + yVal + '</text>';
+      yTicks += '<line x1="' + padL + '" y1="' + yPos.toFixed(1) + '" x2="' + (padL + innerW) + '" y2="' + yPos.toFixed(1) + '" stroke="#eef2f6" stroke-width="1"/>';
+    }
+    // X軸ラベル（5日おき）
+    var xLabels = '';
+    dailyData.forEach(function(d, i) {
+      if (i % 5 !== 0 && i !== n - 1) return;
+      var x = padL + (i / (n - 1)) * innerW;
+      xLabels += '<text x="' + x.toFixed(1) + '" y="' + (H - 3) + '" text-anchor="middle" font-size="8" fill="#8fa0b0">' + d.label + '</text>';
+    });
+    // 現在値ドット
+    var lastX = (padL + innerW).toFixed(1);
+    var lastY = (padT + innerH - (dailyData[n-1].count / maxCount) * innerH).toFixed(1);
+    var svgHtml = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;height:auto;display:block;">'
+      + yTicks
+      + '<polyline points="' + points + '" fill="none" stroke="#8a7060" stroke-width="2" stroke-linejoin="round"/>'
+      + xLabels
+      + '<circle cx="' + lastX + '" cy="' + lastY + '" r="4" fill="#8a7060"/>'
+      + '<text x="' + lastX + '" y="' + (Number(lastY) - 7).toFixed(1) + '" text-anchor="middle" font-size="10" fill="#8a7060" font-weight="700">' + dailyData[n-1].count + '</text>'
+      + '</svg>';
+
+    wrap.innerHTML = '<div class="corner-admin-form corner-content-card" style="padding:16px;">'
+      + summaryHtml
+      + '<div style="font-size:.78rem;font-weight:700;color:#445261;margin-bottom:6px;">日別 有効知るパス数（直近30日）</div>'
+      + svgHtml
+      + '</div>';
+  }
+
   function renderPageViewStats(data) {
     var wrap = document.getElementById('counterStats');
     if (!wrap) return;
     var labels = {
       congestion: '混雑状況',
       calendar: 'カレンダー',
+      sirupass: '知るパス',
       qa: 'Q&A',
       notices: 'お知らせ',
       free_board: 'なんでも掲示板',
@@ -3362,6 +3473,7 @@
     var labels = {
       congestion: '混雑状況',
       calendar: 'カレンダー',
+      sirupass: '知るパス',
       qa: 'Q&A',
       notices: 'お知らせ',
       free_board: 'なんでも掲示板',

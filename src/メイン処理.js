@@ -685,6 +685,11 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(listResult))
         .setMimeType(ContentService.MimeType.JSON);
     }
+    // 知るパス統計（有効数・日別推移）
+    if (param.action === 'shiruPassStats') {
+      return ContentService.createTextOutput(JSON.stringify(getShiruPassStats_()))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
     // 知るパスID更新（スタッフ用）
     if (param.action === 'shiruPassRenew') {
       var renewResult = renewShiruPassId_(param.id || '');

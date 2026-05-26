@@ -710,6 +710,28 @@ function useMealBenefit_(goldId, token) {
   return { ok: false, error: 'not_found' };
 }
 
+function getShiruPassStats_() {
+  var sheet = getShiruPassSheet_();
+  var data = sheet.getDataRange().getValues();
+  var passes = [];
+  for (var i = 1; i < data.length; i++) {
+    if (!data[i][0]) continue;
+    var isCancelled = String(data[i][3] || '').trim() === 'CANCELLED';
+    if (isCancelled) continue;
+    var expiryRaw = data[i][2];
+    var expiry = expiryRaw instanceof Date ? expiryRaw : (expiryRaw ? new Date(expiryRaw) : null);
+    var activatedRaw = data[i][5]; // 初回認証日時
+    var activatedAt = activatedRaw instanceof Date ? activatedRaw : (activatedRaw ? new Date(activatedRaw) : null);
+    var passType = String(data[i][4] || '').trim() || 'standard';
+    passes.push({
+      type: passType,
+      expiry: (!expiry || isNaN(expiry.getTime())) ? '' : Utilities.formatDate(expiry, TIMEZONE, 'yyyy-MM-dd'),
+      activatedAt: (!activatedAt || isNaN(activatedAt.getTime())) ? '' : Utilities.formatDate(activatedAt, TIMEZONE, 'yyyy-MM-dd')
+    });
+  }
+  return { ok: true, passes: passes };
+}
+
 function getShiruPassList_() {
   var sheet = getShiruPassSheet_();
   var data = sheet.getDataRange().getValues();
