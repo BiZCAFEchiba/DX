@@ -511,6 +511,15 @@
       </div>
 
       <div class="corner-admin-form corner-content-card" style="margin-top:16px;">
+        <div class="form-title">顧客アプリへの自動反映</div>
+        <div class="corner-inline-help">ONにすると10分おきに来店データから混雑レベルを算出し、スタッフ操作なしで顧客アプリに自動反映します。</div>
+        <div style="display:flex; align-items:center; gap:12px; margin-top:12px;">
+          <span id="autoUpdateStatus" style="font-size:0.85rem; color:#888;">読み込み中...</span>
+          <button class="btn-primary" id="autoUpdateToggleBtn" onclick="toggleSeatsAutoUpdate()" style="min-width:100px;" disabled>-</button>
+        </div>
+      </div>
+
+      <div class="corner-admin-form corner-content-card" style="margin-top:16px;">
         <div class="form-title">残席を手動上書き</div>
         <div class="corner-inline-help">自動計算より実態が大きく異なる場合に使用。空にすると自動に戻ります。</div>
         <div class="form-grid two-col" style="margin-top:8px;">
@@ -1367,6 +1376,44 @@
   }
 
   var autoSeatsLevel = -1;
+  var _autoUpdateEnabled = false;
+
+  function renderAutoUpdateToggle(enabled) {
+    var status = document.getElementById('autoUpdateStatus');
+    var btn = document.getElementById('autoUpdateToggleBtn');
+    if (!status || !btn) return;
+    status.textContent = enabled ? '自動反映: ON（10分ごとに更新中）' : '自動反映: OFF';
+    status.style.color = enabled ? '#27ae60' : '#888';
+    btn.textContent = enabled ? 'OFFにする' : 'ONにする';
+    btn.className = enabled ? 'btn-secondary' : 'btn-primary';
+    btn.disabled = false;
+  }
+
+  function toggleSeatsAutoUpdate() {
+    var newEnabled = !_autoUpdateEnabled;
+    var btn = document.getElementById('autoUpdateToggleBtn');
+    if (btn) btn.disabled = true;
+    fetch(GAS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ page: 'calendar', action: 'seatsAutoToggle', enabled: newEnabled })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          _autoUpdateEnabled = d.enabled;
+          renderAutoUpdateToggle(_autoUpdateEnabled);
+          showToast(_autoUpdateEnabled ? '自動反映をONにしました' : '自動反映をOFFにしました');
+        } else {
+          showToast('切替に失敗しました');
+          if (btn) btn.disabled = false;
+        }
+      })
+      .catch(function() {
+        showToast('エラーが発生しました');
+        if (btn) btn.disabled = false;
+      });
+  }
 
   function loadAutoSeats() {
     document.getElementById('autoSeatsLevelLabel').textContent = '読み込み中...';
@@ -1406,6 +1453,9 @@
         autoSeatsLevel = lv;
         document.getElementById('autoSeatsApplyBtn').textContent
           = 'レベル' + (autoSeatsLevel > 0 ? autoSeatsLevel : '?') + ' に適用して混雑更新へ';
+
+        _autoUpdateEnabled = !!d.isAutoUpdateEnabled;
+        renderAutoUpdateToggle(_autoUpdateEnabled);
       })
       .catch(function() {
         document.getElementById('autoSeatsLevelLabel').textContent = '取得失敗';

@@ -128,6 +128,24 @@ function doPost(e) {
         return ContentService.createTextOutput(JSON.stringify(fillResult))
           .setMimeType(ContentService.MimeType.JSON);
       }
+      // 残席自動更新ON/OFF切替
+      if (body.action === 'seatsAutoToggle') {
+        var enabled = (body.enabled === true || body.enabled === 'true' || body.enabled === 1);
+        PropertiesService.getScriptProperties().setProperty('SEATS_AUTO_UPDATE', enabled ? 'TRUE' : 'FALSE');
+        try {
+          var sSheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_SETTINGS);
+          if (sSheet) setSettingValue_(sSheet, '残席自動更新', enabled ? 'TRUE' : 'FALSE');
+        } catch(e_) {}
+        if (enabled) {
+          setupVisitCountTrigger();
+        } else {
+          ScriptApp.getProjectTriggers().forEach(function(t) {
+            if (t.getHandlerFunction() === 'pollVisitCount') ScriptApp.deleteTrigger(t);
+          });
+        }
+        return ContentService.createTextOutput(JSON.stringify({ ok: true, enabled: enabled }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
       return ContentService.createTextOutput(JSON.stringify({ ok: false, error: 'invalid_action' }))
         .setMimeType(ContentService.MimeType.JSON);
     }
