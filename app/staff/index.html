@@ -4033,12 +4033,14 @@
     fetch(GAS_API_URL + '?page=calendar&action=roomList&date=' + encodeURIComponent(date))
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        if (!data.ok || !data.reservations || !data.reservations.length) {
+        // GAS の roomList は配列を直接返す
+        var reservations = Array.isArray(data) ? data : (data.reservations || []);
+        if (!reservations.length) {
           staffRoomAllReservations = [];
           listEl.innerHTML = '<div style="color:#888;font-size:.85rem;padding:10px 0;">この日の予約はありません。</div>';
           return;
         }
-        staffRoomAllReservations = data.reservations;
+        staffRoomAllReservations = reservations;
         renderStaffRoomList(staffRoomAllReservations);
       })
       .catch(function() { listEl.innerHTML = '<div style="color:#c0392b;font-size:.85rem;">読み込みに失敗しました。</div>'; });
