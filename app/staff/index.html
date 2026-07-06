@@ -4024,9 +4024,10 @@
       el.className = 'staff-room-item';
       var actionsHtml = '';
       if (r.status === 'pending')  actionsHtml += '<button class="staff-room-btn approve" onclick="staffRoomApprove(\'' + r.id + '\')">承認</button>';
+      var roomLabel = r.roomNo ? 'ルーム' + r.roomNo + '　' : '';
       el.innerHTML = ''
         + '<div class="staff-room-item-header">'
-        +   '<span class="staff-room-item-time">' + r.start + ' 〜 ' + r.end + '</span>'
+        +   '<span class="staff-room-item-time">' + roomLabel + r.start + ' 〜 ' + r.end + '</span>'
         +   '<span class="staff-room-item-status ' + statusClass + '">' + statusLabel + '</span>'
         + '</div>'
         + '<div class="staff-room-item-detail">'

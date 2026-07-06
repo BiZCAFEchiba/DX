@@ -4217,7 +4217,7 @@ window.onDayClick = function(dateISO) {
         document.getElementById('roomSuccessSection').scrollIntoView({ behavior: 'smooth' });
         // ローカルストレージに保存してキャンセル一覧を更新
         if (data.id) {
-          saveRoomReservationLocal(data.id, roomSelectedDate, roomSelectedStart, roomSelectedEnd, name, purpose);
+          saveRoomReservationLocal(data.id, roomSelectedDate, roomSelectedStart, roomSelectedEnd, name, purpose, roomSelectedNo);
           renderMyReservationsCard();
         }
       })
@@ -4250,9 +4250,9 @@ window.onDayClick = function(dateISO) {
 // ===== ローカルストレージ予約管理 =====
   var LS_KEY = 'bizcafe_room_reservations';
 
-  function saveRoomReservationLocal(id, date, start, end, name, purpose) {
+  function saveRoomReservationLocal(id, date, start, end, name, purpose, roomNo) {
     var list = loadRoomReservationsLocal();
-    list.push({ id: id, date: date, start: start, end: end, name: name, purpose: purpose, bookedAt: Date.now() });
+    list.push({ id: id, date: date, start: start, end: end, name: name, purpose: purpose, roomNo: roomNo, bookedAt: Date.now() });
     localStorage.setItem(LS_KEY, JSON.stringify(list));
   }
 
@@ -4296,8 +4296,9 @@ window.onDayClick = function(dateISO) {
       var item = document.createElement('div');
       item.style.cssText = 'padding:10px 0;border-bottom:1px solid #e8ecf0;';
       var safeId = r.id.replace(/'/g, "\\'");
+      var roomLabel = r.roomNo ? 'ルーム' + r.roomNo + '　' : '';
       item.innerHTML = ''
-        + '<div style="font-size:0.88rem;font-weight:700;color:#6a5548;">' + r.date + '&nbsp;&nbsp;' + r.start + ' 〜 ' + r.end + '</div>'
+        + '<div style="font-size:0.88rem;font-weight:700;color:#6a5548;">' + roomLabel + r.date + '&nbsp;&nbsp;' + r.start + ' 〜 ' + r.end + '</div>'
         + '<div style="font-size:0.80rem;color:#555;margin:2px 0 6px;">' + r.name + '　' + (r.purpose || '') + '</div>'
         + '<div style="font-size:0.75rem;color:#999;margin-bottom:6px;">予約ID: ' + r.id + '</div>'
         + '<button class="room-cancel-btn" style="font-size:0.8rem;padding:4px 14px;" onclick="cancelMyReservation(\'' + safeId + '\')">キャンセル</button>';
