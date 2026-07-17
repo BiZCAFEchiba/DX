@@ -661,6 +661,9 @@ var CalendarView = (function () {
     var overlay = document.getElementById('modal-overlay');
     var container = document.getElementById('modal-container');
 
+    var defaultStart = (dayData.hours && dayData.hours.start) ? dayData.hours.start : '10:00';
+    var defaultEnd   = (dayData.hours && dayData.hours.end) ? dayData.hours.end : '19:00';
+
     container.innerHTML =
       '<div class="modal-title">スタッフを追加</div>' +
       '<div style="margin-bottom:12px;font-size:0.85rem;color:var(--gray-500);">' +
@@ -673,11 +676,11 @@ var CalendarView = (function () {
       '<div style="display:flex;gap:12px;margin-bottom:16px;">' +
         '<div style="flex:1;">' +
           '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">開始時刻</label>' +
-          '<input id="add-start" type="time" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;">' +
+          '<input id="add-start" type="time" value="' + defaultStart + '" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;">' +
         '</div>' +
         '<div style="flex:1;">' +
           '<label style="font-size:0.85rem;color:var(--gray-500);display:block;margin-bottom:4px;">終了時刻</label>' +
-          '<input id="add-end" type="time" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;">' +
+          '<input id="add-end" type="time" value="' + defaultEnd + '" style="width:100%;padding:10px;border:1px solid var(--gray-300);border-radius:8px;font-size:1rem;">' +
         '</div>' +
       '</div>' +
       '<div class="modal-actions">' +

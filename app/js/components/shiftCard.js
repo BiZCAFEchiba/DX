@@ -43,6 +43,12 @@ var ShiftCard = (function () {
     var html = '<div class="card">';
     html += '<div class="card-header"><span class="icon">📅</span>' + displayDate + '</div>';
 
+    if (dayData.hours) {
+      html += '<div class="day-hours-info" style="margin: -8px 16px 12px; font-size: 0.85rem; color: #4b5563; font-weight: 500;">';
+      html += '⏰ 勤務時間帯: ' + escHtml(dayData.hours.start) + '〜' + escHtml(dayData.hours.end) + ' (' + escHtml(dayData.hours.period) + ')';
+      html += '</div>';
+    }
+
     if (!dayData.staff || dayData.staff.length === 0) {
       html += '<div class="empty-state"><span class="text">シフトなし</span></div>';
     } else {

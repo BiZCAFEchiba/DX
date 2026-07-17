@@ -828,6 +828,12 @@ function getRequiredOpeSlots_() {
  * @returns {{ shortages: string[], zeroSlots: string[] }}
  */
 function checkShiftShortageFromStaff_(targetDate, staffList) {
+  // スプレッドシートの期間設定に連動するスタッフ勤務時間を取得
+  const businessHours = getStaffHours(targetDate);
+  if (!businessHours || !businessHours.start || !businessHours.end) {
+    return { shortages: [], zeroSlots: [] }; // 休業日などの場合は不足・0オペなし
+  }
+
   const requiredSlots = getRequiredOpeSlots_();
 
   // --- 必要オペ数シートあり ---
@@ -835,8 +841,17 @@ function checkShiftShortageFromStaff_(targetDate, staffList) {
     // 必要オペ数シートの時間帯を30分スロットに展開
     const slots = [];
     requiredSlots.forEach(function(req) {
-      let cur = stringToDate_(req.start);
-      const reqEnd = stringToDate_(req.end);
+      // 営業時間の範囲内にクリップする
+      const startLimit = businessHours.start;
+      const endLimit   = businessHours.end;
+      
+      const startStr = req.start > startLimit ? req.start : startLimit;
+      const endStr   = req.end < endLimit ? req.end : endLimit;
+
+      if (startStr >= endStr) return; // 範囲外ならスキップ
+
+      let cur = stringToDate_(startStr);
+      const reqEnd = stringToDate_(endStr);
       while (cur < reqEnd) {
         const nxt = new Date(cur.getTime() + 30 * 60 * 1000);
         if (nxt > reqEnd) break;
@@ -866,11 +881,6 @@ function checkShiftShortageFromStaff_(targetDate, staffList) {
   }
 
   // --- 必要オペ数シートなし: 従来通り0オペのみ ---
-  const businessHours = getStaffHours(targetDate);
-  if (!businessHours || !businessHours.start || !businessHours.end) {
-    return { shortages: [], zeroSlots: [] };
-  }
-
   const slots = [];
   let current = stringToDate_(businessHours.start);
   const end = stringToDate_(businessHours.end);

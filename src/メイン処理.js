@@ -991,16 +991,29 @@ function buildShiftsForRange_(fromStr, toStr) {
   }
   return Object.keys(dayMap).sort().map(function(k) {
     dayMap[k].staff.sort(function(a, b) { return a.start.localeCompare(b.start); });
+    const targetDateObj = new Date(k + 'T00:00:00+09:00');
     try {
       var activeStaff = dayMap[k].staff.filter(function(s) { return s.status !== '募集中'; });
-      var sr = checkShiftShortageFromStaff_(new Date(k + 'T00:00:00+09:00'), activeStaff);
+      var sr = checkShiftShortageFromStaff_(targetDateObj, activeStaff);
       dayMap[k].shortages    = sr.shortages || [];
       dayMap[k].zeroSlots    = sr.zeroSlots || [];
       dayMap[k].recruitments = getActiveRecruitmentsForDate_(k);
+      
+      var hours = getStaffHours(targetDateObj);
+      if (hours) {
+        dayMap[k].hours = {
+          start: hours.start,
+          end: hours.end,
+          period: hours.period
+        };
+      } else {
+        dayMap[k].hours = null;
+      }
     } catch(e) {
       dayMap[k].shortages    = [];
       dayMap[k].zeroSlots    = [];
       dayMap[k].recruitments = [];
+      dayMap[k].hours        = null;
     }
     return dayMap[k];
   });
