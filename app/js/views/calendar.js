@@ -333,7 +333,7 @@ var CalendarView = (function () {
     }
 
     var filtered = selectedName
-      ? { date: dayData.date, dayOfWeek: dayData.dayOfWeek, staff: dayData.staff.filter(function (s) { return s.name === selectedName || s.status === '募集中'; }) }
+      ? { date: dayData.date, dayOfWeek: dayData.dayOfWeek, staff: dayData.staff.filter(function (s) { return s.name === selectedName || s.status === '募集中'; }), hours: dayData.hours || null }
       : dayData;
 
     var staffForCard = allStaff.length > 0 ? allStaff : allStaffNames();

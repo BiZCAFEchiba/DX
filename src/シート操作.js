@@ -323,6 +323,10 @@ function syncHoursToProperties_() {
     cache.remove('customerCal_' + d.getFullYear() + '_' + (d.getMonth() + 1));
   }
   Logger.log('syncHoursToProperties_: 顧客カレンダーキャッシュをクリア');
+
+  // ⑤ シフトキャッシュも無効化（期間設定変更で0オペ判定が変わるため）
+  touchShiftLastModified_();
+  Logger.log('syncHoursToProperties_: シフトキャッシュを無効化（SHIFT_LAST_MODIFIED更新）');
 }
 
 /**
