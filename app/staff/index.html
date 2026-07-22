@@ -790,7 +790,6 @@
       <button class="qr-sub-btn active" id="qrSubShiruStd" onclick="switchQRSub('shiruStd')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#1a3a5c;border-bottom:3px solid #1a3a5c;margin-bottom:-2px;cursor:pointer;">🎫 知るパス</button>
       <button class="qr-sub-btn" id="qrSubShiruGold" onclick="switchQRSub('shiruGold')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🥇 GOLD</button>
       <button class="qr-sub-btn" id="qrSubShiruBenefit" onclick="switchQRSub('shiruBenefit')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🎁 特典</button>
-      <button class="qr-sub-btn" id="qrSubShiruPoint" onclick="switchQRSub('shiruPoint')" style="flex:1;padding:10px 4px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">🎯 ポイント</button>
     </div>
 
     <!-- 知るパス（通常） -->
@@ -904,35 +903,7 @@
       </div>
     </div>
 
-    <!-- ポイント -->
-    <div class="container qr-sub-pane" id="qrPaneShiruPoint" style="display:none;">
-      <div class="current-card" style="padding:16px;margin-bottom:16px;">
-        <div class="section-title" style="margin-bottom:4px;">🎯 ポイント付与QR</div>
-        <div style="font-size:0.8rem;color:#555;margin-bottom:16px;">イベント種別を選択してQRコードを表示。お客さんにスキャンしてもらうとポイントが付与されます。</div>
-        <div style="display:flex;border-bottom:2px solid #e0e7ef;margin-bottom:18px;gap:2px;">
-          <button class="point-type-btn" id="pointTypeBtnMcs" onclick="switchPointType('mcs')" style="flex:1;padding:8px 2px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#1a6fc4;border-bottom:3px solid #1a6fc4;margin-bottom:-2px;cursor:pointer;">MCS<br><span style="font-size:0.65rem;color:#888;">1p</span></button>
-          <button class="point-type-btn" id="pointTypeBtnShiruru" onclick="switchPointType('shiruru')" style="flex:1;padding:8px 2px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">パンフ<br><span style="font-size:0.65rem;color:#888;">2p</span></button>
-          <button class="point-type-btn" id="pointTypeBtnMeetup" onclick="switchPointType('meetup')" style="flex:1;padding:8px 2px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">Meetup<br><span style="font-size:0.65rem;color:#888;">5p</span></button>
-          <button class="point-type-btn" id="pointTypeBtnPickup" onclick="switchPointType('pickup')" style="flex:1;padding:8px 2px;border:none;background:none;font-size:0.75rem;font-weight:700;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;cursor:pointer;">Pickup<br><span style="font-size:0.65rem;color:#888;">7p</span></button>
-        </div>
-        <div id="pointQrArea" style="text-align:center;padding:16px 0 8px;">
-          <div id="pointQrCanvas" style="display:inline-block;background:#f7f9fc;border:2px solid #1a6fc4;border-radius:16px;padding:20px;"></div>
-          <div id="pointQrLabel" style="margin-top:10px;font-size:1rem;font-weight:800;color:#1a3a5c;"></div>
-          <div id="pointQrPoints" style="font-size:0.8rem;color:#555;margin-top:2px;"></div>
-          <div id="pointQrExpiry" style="font-size:0.72rem;color:#888;margin-top:6px;"></div>
-          <div style="font-size:0.72rem;color:#888;margin-top:2px;">↑ お客さんのスマホでスキャンしてもらってください</div>
-          <button id="pointQrRefreshBtn" onclick="refreshPointQr(true)" style="margin-top:10px;padding:8px 20px;background:none;border:1.5px solid #c9d3df;border-radius:8px;font-size:0.78rem;font-weight:700;color:#555;cursor:pointer;">🔄 QR更新</button>
-          <div style="font-size:0.68rem;color:#aaa;margin-top:4px;">※ 更新するとQRコードが無効化されます</div>
-        </div>
-        <hr style="border:none;border-top:1px solid #e0e7ef;margin:16px 0;">
-        <div style="font-size:0.8rem;font-weight:700;color:#555;margin-bottom:8px;">ポイント確認（IDで検索）</div>
-        <div style="display:flex;gap:8px;">
-          <input type="text" id="pointCheckInput" placeholder="例: A7K3P9" maxlength="6" style="flex:1;border:1px solid #c9d3df;border-radius:8px;padding:8px 10px;font-family:monospace;font-size:1rem;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
-          <button onclick="checkShiruPoints()" style="padding:8px 16px;background:#1a3a5c;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:0.85rem;cursor:pointer;">確認</button>
-        </div>
-        <div id="pointCheckResult" style="margin-top:10px;min-height:20px;"></div>
-      </div>
-    </div>
+
   </div>
 
   <div class="tab-pane" id="paneStaffRoom">
