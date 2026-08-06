@@ -21,8 +21,8 @@ function getYuchiFormData() {
   if (!sheet || sheet.getLastRow() <= 1) return { companies: [] };
 
   var today = new Date();
-  today.setHours(0, 0, 0, 0);
-  var limit = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+  var pastLimit = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000); // 過去30日
+  var limit = new Date(today.getTime() + 180 * 24 * 60 * 60 * 1000);    // 未来180日
 
   var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 7).getValues();
   var companyMap = {};
@@ -31,7 +31,7 @@ function getYuchiFormData() {
     var dateVal = row[0];
     if (!dateVal) return;
     var d = dateVal instanceof Date ? dateVal : new Date(dateVal);
-    if (isNaN(d.getTime()) || d < today || d > limit) return;
+    if (isNaN(d.getTime()) || d < pastLimit || d > limit) return;
 
     var companyName = String(row[1] || '').trim();
     var time = String(row[2] || '').trim();
@@ -174,12 +174,15 @@ function onYuchiFormSubmit(e) {
       var ans = items[i].getResponse();
       // 全設問のタイトル・型・値をログ出力（デバッグ用）
       Logger.log('[設問' + i + '] title="' + title + '" type=' + (Array.isArray(ans) ? 'array(' + ans.length + ')' : typeof ans) + ' value=' + JSON.stringify(ans));
-      if (title === 'スタッフ名（フルネーム）') {
+      if (title.indexOf('名前') !== -1 || title.indexOf('スタッフ名') !== -1 || title.indexOf('フルネーム') !== -1) {
         staffName = String(ans).trim();
-      } else if (title === '企業を選択してください（複数選択可）') {
+      } else if (title.indexOf('企業') !== -1 && title.indexOf('選択') !== -1) {
         if (Array.isArray(ans)) {
           var nonEmpty = ans.filter(function(v) { return String(v).trim() !== ''; });
           selectedCompanies = selectedCompanies.concat(nonEmpty);
+        } else if (typeof ans === 'string') {
+          var nonEmptyStr = String(ans).trim();
+          if (nonEmptyStr) selectedCompanies.push(nonEmptyStr);
         }
       }
     }
