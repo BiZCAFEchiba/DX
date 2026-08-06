@@ -383,9 +383,15 @@
     <div class="card-body">
       <div id="tempSelectedDates" style="font-size:12px;color:var(--sub);margin-bottom:10px;min-height:18px;"></div>
 
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
-        <input type="checkbox" id="tempIsOpen" checked onchange="onTempIsOpenChange()" style="width:18px;height:18px;">
-        <label for="tempIsOpen" style="font-size:14px;font-weight:600;cursor:pointer;">営業日（チェックなし = 臨時定休）</label>
+      <div style="display:flex;align-items:center;gap:15px;margin-bottom:12px;">
+        <label style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:600;cursor:pointer;">
+          <input type="radio" name="tempKind" id="tempKindOpen" value="open" checked onchange="onTempIsOpenChange()" style="width:18px;height:18px;">
+          臨時営業
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:14px;font-weight:600;cursor:pointer;">
+          <input type="radio" name="tempKind" id="tempKindClose" value="close" onchange="onTempIsOpenChange()" style="width:18px;height:18px;">
+          臨時休業
+        </label>
       </div>
 
       <div id="tempHoursFields">
@@ -879,7 +885,7 @@ function updateTempSelectedLabel() {
 }
 
 function onTempIsOpenChange() {
-  const isOpen = document.getElementById('tempIsOpen').checked;
+  const isOpen = document.getElementById('tempKindOpen').checked;
   document.getElementById('tempHoursFields').style.display = isOpen ? 'block' : 'none';
 }
 
@@ -900,7 +906,7 @@ async function loadTempHours() {
       const dateLabel = (d.getMonth()+1) + '/' + d.getDate() + '(' + dow + ')';
       const hoursLabel = row.isOpen
         ? row.open + ' 〜 ' + row.close + (row.lo ? '  LO ' + row.lo : '')
-        : '臨時定休日';
+        : '臨時休業';
       const badgeColor = row.isOpen ? '#e8f5e9' : '#fdecea';
       const badgeText  = row.isOpen ? '#1b5e20' : '#b71c1c';
       return '<div class="list-row">'
@@ -920,7 +926,7 @@ async function loadTempHours() {
 async function saveTempHours() {
   const dates = Array.from(_tempSelectedDates).sort();
   if (dates.length === 0) { setStatus('tempStatus','❌ 日付を選択してください','err'); return; }
-  const isOpen = document.getElementById('tempIsOpen').checked;
+  const isOpen = document.getElementById('tempKindOpen').checked;
   const open   = document.getElementById('tempOpen').value;
   const close  = document.getElementById('tempClose').value;
   const lo     = document.getElementById('tempLo').value;
