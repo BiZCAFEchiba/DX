@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // 営業フォーム.js - 毎日22:00に来店数・Meetup誘致報告を送信する
 // ============================================================
 
@@ -19,6 +19,15 @@ function sendDailyEigyoReport() {
     Logger.log('sendDailyEigyoReport: 土日・祝日のためスキップ');
     return;
   }
+
+  if (typeof getTempHoursForDate_ === 'function') {
+    var tempResult = getTempHoursForDate_(new Date());
+    if (tempResult === null) {
+      Logger.log('sendDailyEigyoReport: 臨時休業のためスキップ');
+      return;
+    }
+  }
+
   initChannelId_();
 
   // 1. 来店学生数・来店ユニーク学生数を取得
@@ -294,10 +303,19 @@ function testEigyoReportConditions() {
   var isHoliday = isTodayWeekendOrHoliday_();
   Logger.log('① 土日・祝日か: ' + (isHoliday ? 'YES → スキップ' : 'NO → 送信対象'));
 
-  var hasNippo = hasTodayNippoSubmission_();
-  Logger.log('② 千葉大学店の日報提出あり: ' + (hasNippo ? 'YES → 送信対象' : 'NO → スキップ'));
+  var isRinjiKyugyo = false;
+  if (typeof getTempHoursForDate_ === 'function') {
+    var tempResult = getTempHoursForDate_(new Date());
+    if (tempResult === null) {
+      isRinjiKyugyo = true;
+    }
+  }
+  Logger.log('② 臨時休業か: ' + (isRinjiKyugyo ? 'YES → スキップ' : 'NO → 送信対象'));
 
-  var willSend = !isHoliday && hasNippo;
+  var hasNippo = hasTodayNippoSubmission_();
+  Logger.log('③ 千葉大学店の日報提出あり: ' + (hasNippo ? 'YES → 送信対象' : 'NO → スキップ'));
+
+  var willSend = !isHoliday && !isRinjiKyugyo && hasNippo;
   Logger.log('>>> 結果: ' + (willSend ? '✅ 本日22:00に送信されます' : '🚫 本日は送信しません'));
 }
 
