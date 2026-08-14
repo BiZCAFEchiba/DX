@@ -60,6 +60,9 @@
       <div class="row-group">
         <label>誘致者</label>
         <div id="recruiterDisplay" style="font-size:15px; font-weight:bold; padding: 6px 0;"></div>
+        <select id="recruiterSelect" style="display:none; width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; margin-bottom: 8px;">
+          <option value="">選択してください</option>
+        </select>
         <input type="hidden" id="recruiterName">
       </div>
       <div class="row-group">
@@ -69,6 +72,11 @@
     </div>
 
     <h2>誘致した企業を選択</h2>
+    <div style="margin-bottom: 12px;">
+      <input type="text" id="companySearchInput" placeholder="企業名を検索..." 
+             style="width:100%; padding: 10px; border:1px solid #ccc; border-radius:6px; font-size:14px;"
+             oninput="filterCompanies()">
+    </div>
     <div class="card" id="companyListArea">
       <div class="loading">企業情報を読み込み中...</div>
     </div>
@@ -116,6 +124,21 @@
   fetch(GAS_API + '?action=getYuchiFormData')
     .then(function(res) { return res.json(); })
     .then(function(data) {
+      if (!_staffName && data.staffNames) {
+        var select = document.getElementById('recruiterSelect');
+        data.staffNames.forEach(function(name) {
+          var opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+        select.style.display = 'block';
+        document.getElementById('recruiterDisplay').style.display = 'none';
+        select.addEventListener('change', function() {
+          document.getElementById('recruiterName').value = this.value;
+        });
+      }
+
       var all = data.companies || [];
       if (preselectedCompanies.length > 0) {
         companiesData = all.filter(function(c) {
@@ -219,6 +242,23 @@
     companies.forEach(function(c, idx) {
       if (preselectedCompanies.indexOf(c.name) !== -1) {
         toggleDetail(idx, true);
+      }
+    });
+  }
+
+  function filterCompanies() {
+    var query = document.getElementById('companySearchInput').value.toLowerCase();
+    var wrappers = document.querySelectorAll('#companyListArea > div');
+    wrappers.forEach(function(el) {
+      if (el.classList.contains('no-companies')) return;
+      var nameEl = el.querySelector('.company-name');
+      if (nameEl) {
+        var name = nameEl.textContent.toLowerCase();
+        if (name.indexOf(query) !== -1) {
+          el.style.display = 'block';
+        } else {
+          el.style.display = 'none';
+        }
       }
     });
   }

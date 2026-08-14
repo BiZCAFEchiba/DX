@@ -17,8 +17,19 @@ const YUCHI_FORM_SS_ID = '1X3lIgrDsK3gYlPNvHcDl51g3LjxmStJZSBqTD7V9ML4';
  */
 function getYuchiFormData() {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  
+  var staffNames = [];
+  var staffSheet = ss.getSheetByName(SHEET_STAFF);
+  if (staffSheet && staffSheet.getLastRow() > 1) {
+    var staffData = staffSheet.getRange(2, 1, staffSheet.getLastRow() - 1, 1).getValues();
+    staffData.forEach(function(r) {
+      var name = String(r[0]).trim();
+      if (name) staffNames.push(name);
+    });
+  }
+
   var sheet = ss.getSheetByName(SHEET_MEETUP);
-  if (!sheet || sheet.getLastRow() <= 1) return { companies: [] };
+  if (!sheet || sheet.getLastRow() <= 1) return { companies: [], staffNames: staffNames };
 
   var today = new Date();
   var pastLimit = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000); // 過去30日
@@ -66,7 +77,7 @@ function getYuchiFormData() {
     return a.sessions[0].date.localeCompare(b.sessions[0].date);
   });
 
-  return { companies: companies };
+  return { companies: companies, staffNames: staffNames };
 }
 
 // ============================================================
