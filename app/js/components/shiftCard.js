@@ -45,9 +45,20 @@ var ShiftCard = (function () {
 
     if (dayData.hours) {
       var hoursHtml = '⏰ 勤務時間帯: ' + escHtml(dayData.hours.start) + '〜' + escHtml(dayData.hours.end) + ' (' + escHtml(dayData.hours.period) + ')';
-      // 総シフト工数表示（目標がある場合のみ）
-      var targetH = dayData.targetHours || 0;
+      // 総シフト工数表示（目標工数がある場合、またはデフォルト15.5h）
+      var targetH = dayData.targetHours || 15.5;
       var actualH = dayData.actualHours || 0;
+      if (!actualH && dayData.staff && dayData.staff.length > 0) {
+        // バックエンドからactualHoursが届いていない場合のフォールバック計算
+        var totalMin = 0;
+        dayData.staff.forEach(function (s) {
+          if (s.start && s.end && s.status !== '募集中') {
+            var diff = toMin(s.end) - toMin(s.start);
+            if (diff > 0) totalMin += diff;
+          }
+        });
+        actualH = totalMin / 60;
+      }
       if (targetH > 0) {
         var actualRounded  = Math.round(actualH  * 10) / 10;
         var targetRounded  = Math.round(targetH  * 10) / 10;
