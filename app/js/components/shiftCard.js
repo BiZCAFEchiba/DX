@@ -44,9 +44,18 @@ var ShiftCard = (function () {
     html += '<div class="card-header"><span class="icon">📅</span>' + displayDate + '</div>';
 
     if (dayData.hours) {
-      html += '<div class="day-hours-info" style="margin: -8px 16px 12px; font-size: 0.85rem; color: #4b5563; font-weight: 500;">';
-      html += '⏰ 勤務時間帯: ' + escHtml(dayData.hours.start) + '〜' + escHtml(dayData.hours.end) + ' (' + escHtml(dayData.hours.period) + ')';
-      html += '</div>';
+      var hoursHtml = '⏰ 勤務時間帯: ' + escHtml(dayData.hours.start) + '〜' + escHtml(dayData.hours.end) + ' (' + escHtml(dayData.hours.period) + ')';
+      // 総シフト工数表示（目標がある場合のみ）
+      var targetH = dayData.targetHours || 0;
+      var actualH = dayData.actualHours || 0;
+      if (targetH > 0) {
+        var actualRounded  = Math.round(actualH  * 10) / 10;
+        var targetRounded  = Math.round(targetH  * 10) / 10;
+        var isSufficient   = actualRounded >= targetRounded;
+        var hoursColor     = isSufficient ? '#16a34a' : '#dc2626';
+        hoursHtml += ' ｜ <span style="color:' + hoursColor + '; font-weight:700;">総シフト: ' + actualRounded + ' / ' + targetRounded + ' h</span>';
+      }
+      html += '<div class="day-hours-info" style="margin: -8px 16px 12px; font-size: 0.85rem; color: #4b5563; font-weight: 500;">' + hoursHtml + '</div>';
     }
 
     if (!dayData.staff || dayData.staff.length === 0) {

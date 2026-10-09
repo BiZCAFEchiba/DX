@@ -174,17 +174,22 @@
       html += '<div class="date-checkboxes">';
       c.sessions.forEach(function(s) {
         var label = s.dateDisplay + (s.time ? ' ' + s.time : '');
-        html += '<label><input type="checkbox" name="date_' + idx + '" value="' + escHtml(label) + '">' + escHtml(label) + '</label>';
+        html += '<label><input type="checkbox" name="date_' + idx + '" value="' + escHtml(label) + '" onchange="checkDateSelection(' + idx + ')">' + escHtml(label) + '</label>';
       });
       html += '</div>';
     }
     // カスタム日付・時間入力（セッションなし or 追加入力）
-    html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">';
-    html += '<input type="date" id="customDate_' + idx + '" style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">';
+    html += '<div style="margin-bottom:12px;">';
+    html += '<label style="display:flex;align-items:center;gap:4px;font-size:13px;margin-bottom:6px;cursor:pointer;">';
+    html += '<input type="checkbox" id="checkCustomDate_' + idx + '" onchange="toggleCustomDateRow(' + idx + ', this.checked); checkDateSelection(' + idx + ');">その他（リストにない日程）</label>';
+    html += '<div id="customDateRow_' + idx + '" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;">';
+    html += '<input type="date" id="customDate_' + idx + '" style="padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;" onchange="checkDateSelection(' + idx + ')">';
     html += '<input type="time" id="customTimeStart_' + idx + '" placeholder="開始" style="width:90px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">';
     html += '<span style="font-size:13px;color:#666;">〜</span>';
     html += '<input type="time" id="customTimeEnd_' + idx + '" placeholder="終了" style="width:90px;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">';
-    html += '</div>';
+    html += '</div></div>';
+
+    html += '<div id="yearSection_' + idx + '" style="display:none;">';
 
     html += '<div class="detail-label">卒年・人数</div>';
     var years = c.years && c.years.length > 0 ? c.years : [];
@@ -212,6 +217,7 @@
     html += '<span style="font-size:13px;">卒</span>';
     html += '<input type="number" id="yearOtherCount_' + idx + '" min="0" max="99" placeholder="0" style="width:60px;">';
     html += '<span style="font-size:13px;">名</span>';
+    html += '</div>';
     html += '</div>';
     html += '</div>';
     html += '</div>';
@@ -297,6 +303,30 @@
     if (el) el.classList[checked ? 'add' : 'remove']('active');
   }
 
+  function toggleCustomDateRow(idx, checked) {
+    var row = document.getElementById('customDateRow_' + idx);
+    if (row) {
+      row.style.display = checked ? 'flex' : 'none';
+      if (!checked) {
+        var dInput = document.getElementById('customDate_' + idx);
+        if (dInput) dInput.value = '';
+      }
+    }
+  }
+
+  function checkDateSelection(idx) {
+    var dateBoxes = document.querySelectorAll('input[name="date_' + idx + '"]:checked');
+    var customCheck = document.getElementById('checkCustomDate_' + idx);
+    var customDate = document.getElementById('customDate_' + idx);
+    
+    var hasDate = (dateBoxes.length > 0) || (customCheck && customCheck.checked && customDate && customDate.value);
+    
+    var yearSec = document.getElementById('yearSection_' + idx);
+    if (yearSec) {
+      yearSec.style.display = hasDate ? 'block' : 'none';
+    }
+  }
+
   function formatCustomDate_(iso) {
     var d = new Date(iso + 'T00:00:00');
     var dows = ['日', '月', '火', '水', '木', '金', '土'];
@@ -327,15 +357,18 @@
       var dateBoxes = document.querySelectorAll('input[name="date_' + idx + '"]:checked');
       var dates = Array.prototype.map.call(dateBoxes, function(cb) { return cb.value; });
       // カスタム日付・時間を追加
-      var customDateEl = document.getElementById('customDate_' + idx);
-      var customDateVal = customDateEl ? customDateEl.value : '';
-      if (customDateVal) {
-        var startEl = document.getElementById('customTimeStart_' + idx);
-        var endEl   = document.getElementById('customTimeEnd_' + idx);
-        var label = formatCustomDate_(customDateVal);
-        if (startEl && startEl.value) label += ' ' + startEl.value;
-        if (endEl && endEl.value) label += ' ~ ' + endEl.value;
-        dates.push(label);
+      var customCheck = document.getElementById('checkCustomDate_' + idx);
+      if (customCheck && customCheck.checked) {
+        var customDateEl = document.getElementById('customDate_' + idx);
+        var customDateVal = customDateEl ? customDateEl.value : '';
+        if (customDateVal) {
+          var startEl = document.getElementById('customTimeStart_' + idx);
+          var endEl   = document.getElementById('customTimeEnd_' + idx);
+          var label = formatCustomDate_(customDateVal);
+          if (startEl && startEl.value) label += ' ' + startEl.value;
+          if (endEl && endEl.value) label += ' ~ ' + endEl.value;
+          dates.push(label);
+        }
       }
       if (dates.length === 0) {
         validationError = c.name + ' の開催日を選択または入力してください'; break;

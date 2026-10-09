@@ -803,20 +803,25 @@ function getRequiredOpeSlots_() {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheet = ss.getSheetByName(REQUIRED_OPE_SHEET_NAME);
-    if (!sheet || sheet.getLastRow() < 2) return [];
+    if (!sheet || sheet.getLastRow() < 2) return { slots: [], targetHours: 0 };
 
-    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 3).getValues();
+    const rows = sheet.getRange(2, 1, sheet.getLastRow() - 1, 4).getValues();
     const result = [];
+    let targetHours = 0;
+    if (rows.length > 0 && rows[0][3]) {
+      targetHours = parseFloat(rows[0][3]) || 0;
+    }
+
     rows.forEach(function(row) {
       const start = row[0] instanceof Date ? formatTime_(row[0]) : String(row[0]).trim();
       const end   = row[1] instanceof Date ? formatTime_(row[1]) : String(row[1]).trim();
       const req   = parseInt(row[2], 10) || 0;
       if (start && end && req > 0) result.push({ start: start, end: end, required: req });
     });
-    return result;
+    return { slots: result, targetHours: targetHours };
   } catch(e) {
     Logger.log('getRequiredOpeSlots_ エラー: ' + e.message);
-    return [];
+    return { slots: [], targetHours: 0 };
   }
 }
 
@@ -835,10 +840,23 @@ function checkShiftShortageFromStaff_(targetDate, staffList) {
   // スプレッドシートの期間設定に連動するスタッフ勤務時間を取得
   const businessHours = getStaffHours(targetDate);
   if (!businessHours || !businessHours.start || !businessHours.end) {
-    return { shortages: [], zeroSlots: [] }; // 休業日などの場合は不足・0オペなし
+    return { shortages: [], zeroSlots: [], targetHours: 0, actualHours: 0 }; // 休業日などの場合は不足・0オペなし
   }
 
-  const requiredSlots = getRequiredOpeSlots_();
+  const reqData = getRequiredOpeSlots_();
+  const requiredSlots = Array.isArray(reqData) ? reqData : (reqData.slots || []);
+  const targetHours = reqData.targetHours || 0;
+
+  // 実績工数を計算
+  let actualHours = 0;
+  staffList.forEach(function(shift) {
+    if (!shift.start || !shift.end) return;
+    const shiftStart = stringToDate_(shift.start);
+    const shiftEnd   = stringToDate_(shift.end);
+    if (shiftStart < shiftEnd) {
+      actualHours += (shiftEnd.getTime() - shiftStart.getTime()) / (1000 * 60 * 60);
+    }
+  });
 
   // --- 必要オペ数シートあり ---
   if (requiredSlots.length > 0) {
@@ -875,12 +893,13 @@ function checkShiftShortageFromStaff_(targetDate, staffList) {
       });
     });
 
-    const underSlots = slots.filter(function(s) { return s.count > 0 && s.count < s.required; });
     const zeroSlots  = slots.filter(function(s) { return s.count === 0; });
 
     return {
-      shortages: mergeShortageSlots_(underSlots),
-      zeroSlots: mergeShortageSlots_(zeroSlots)
+      shortages: [], // 人数不足時間帯は非表示化
+      zeroSlots: mergeShortageSlots_(zeroSlots),
+      targetHours: targetHours,
+      actualHours: actualHours
     };
   }
 
@@ -907,7 +926,9 @@ function checkShiftShortageFromStaff_(targetDate, staffList) {
 
   return {
     shortages: [],
-    zeroSlots: mergeShortageSlots_(slots.filter(function(s) { return s.count === 0; }))
+    zeroSlots: mergeShortageSlots_(slots.filter(function(s) { return s.count === 0; })),
+    targetHours: targetHours,
+    actualHours: actualHours
   };
 }
 

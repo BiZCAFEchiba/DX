@@ -998,6 +998,8 @@ function buildShiftsForRange_(fromStr, toStr) {
       dayMap[k].shortages    = sr.shortages || [];
       dayMap[k].zeroSlots    = sr.zeroSlots || [];
       dayMap[k].recruitments = getActiveRecruitmentsForDate_(k);
+      dayMap[k].targetHours  = sr.targetHours || 0;
+      dayMap[k].actualHours  = sr.actualHours || 0;
       
       var hours = getStaffHours(targetDateObj);
       if (hours) {
@@ -1013,6 +1015,8 @@ function buildShiftsForRange_(fromStr, toStr) {
       dayMap[k].shortages    = [];
       dayMap[k].zeroSlots    = [];
       dayMap[k].recruitments = [];
+      dayMap[k].targetHours  = 0;
+      dayMap[k].actualHours  = 0;
       dayMap[k].hours        = null;
     }
     return dayMap[k];
